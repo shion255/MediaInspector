@@ -31,7 +31,7 @@ $accent    = [System.Drawing.Color]::FromArgb(70, 130, 180)
 
 # --- GUI ---
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "動画・音声解析ツール v7"
+$form.Text = "MediaInspector"
 $form.Size = New-Object System.Drawing.Size(720, 600)
 $form.StartPosition = "CenterScreen"
 $form.BackColor = $bgColor
