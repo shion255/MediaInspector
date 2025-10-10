@@ -38,11 +38,72 @@ function Format-FileSize($bytes) {
 
 function Format-Bitrate($bitrate) {
     if (-not $bitrate) { return "不明" }
-    if ($bitrate -match "(\d+(?:\.\d+)?)\s*kb/s") {
-        $value = [double]$matches[1]
-        return "{0:N0} kb/s" -f $value
+    # "8 503 kb/s" のような形式を処理
+    if ($bitrate -match '([\d\s,]+)\s*kb/s') {
+        $value = $matches[1] -replace '\s+', '' -replace ',', ''
+        $numericValue = [double]$value
+        return "{0:N0} kb/s" -f $numericValue
     }
     return $bitrate
+}
+
+function Convert-DurationToJapanese($duration) {
+    if (-not $duration) { return "不明" }
+    
+    # "2 h 6 min" → "2時間6分"
+    if ($duration -match '(\d+)\s*h\s*(\d+)\s*min') {
+        $hours = $matches[1]
+        $minutes = $matches[2]
+        return "${hours}時間${minutes}分"
+    }
+    # "50 min 20 s" → "50分20秒"
+    elseif ($duration -match '(\d+)\s*min\s*(\d+)\s*s') {
+        $minutes = $matches[1]
+        $seconds = $matches[2]
+        return "${minutes}分${seconds}秒"
+    }
+    # "2 h" → "2時間"
+    elseif ($duration -match '(\d+)\s*h') {
+        $hours = $matches[1]
+        return "${hours}時間"
+    }
+    # "1 h 55 min" → "1時間55分"
+    elseif ($duration -match '(\d+)\s*h\s*(\d+)\s*min') {
+        $hours = $matches[1]
+        $minutes = $matches[2]
+        return "${hours}時間${minutes}分"
+    }
+    
+    return $duration
+}
+
+function Get-HDRInfo($colorPrimaries, $transferCharacteristics, $matrixCoefficients) {
+    $hdrType = ""
+    $colorSpace = ""
+    
+    # HDR判定
+    if ($transferCharacteristics -match "PQ|SMPTE ST 2084") {
+        $hdrType = "HDR10"
+    } elseif ($transferCharacteristics -match "HLG") {
+        $hdrType = "HLG"
+    } else {
+        $hdrType = "SDR"
+    }
+    
+    # 色空間判定
+    if ($colorPrimaries -match "BT.2020") {
+        $colorSpace = "BT.2020"
+    } elseif ($colorPrimaries -match "BT.709") {
+        $colorSpace = "BT.709"
+    } elseif ($matrixCoefficients -match "BT.2020") {
+        $colorSpace = "BT.2020"
+    } elseif ($matrixCoefficients -match "BT.709") {
+        $colorSpace = "BT.709"
+    } else {
+        $colorSpace = "不明"
+    }
+    
+    return "[$hdrType] $colorSpace"
 }
 
 # --- ダークテーマ ---
@@ -53,7 +114,7 @@ $accent    = [System.Drawing.Color]::FromArgb(70, 130, 180)
 # --- GUI ---
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "MediaInspector"
-$form.Size = New-Object System.Drawing.Size(800, 600)
+$form.Size = New-Object System.Drawing.Size(850, 600)
 $form.StartPosition = "CenterScreen"
 $form.BackColor = $bgColor
 $form.ForeColor = $fgColor
@@ -67,7 +128,7 @@ $form.Controls.Add($label)
 
 $textBox = New-Object System.Windows.Forms.TextBox
 $textBox.Location = New-Object System.Drawing.Point(10, 40)
-$textBox.Size = New-Object System.Drawing.Size(760, 80)
+$textBox.Size = New-Object System.Drawing.Size(810, 80)
 $textBox.Multiline = $true
 $textBox.ScrollBars = "Vertical"
 $textBox.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 45)
@@ -84,7 +145,7 @@ $form.Controls.Add($button)
 
 $progress = New-Object System.Windows.Forms.ProgressBar
 $progress.Location = New-Object System.Drawing.Point(140, 130)
-$progress.Size = New-Object System.Drawing.Size(630, 30)
+$progress.Size = New-Object System.Drawing.Size(680, 30)
 $progress.Style = 'Continuous'
 $form.Controls.Add($progress)
 
@@ -94,7 +155,7 @@ $outputBox.ScrollBars = "Vertical"
 $outputBox.ReadOnly = $true
 $outputBox.Font = New-Object System.Drawing.Font("Consolas", 10)
 $outputBox.Location = New-Object System.Drawing.Point(10, 170)
-$outputBox.Size = New-Object System.Drawing.Size(760, 380)
+$outputBox.Size = New-Object System.Drawing.Size(810, 380)
 $outputBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
 $outputBox.ForeColor = $fgColor
 $form.Controls.Add($outputBox)
@@ -300,6 +361,9 @@ function Analyze-Video {
                                     if ($key -eq "Bit rate") { $videoInfo["bitrate"] = $value }
                                     if ($key -eq "Bit rate mode") { $videoInfo["bitrate_mode"] = $value }
                                     if ($key -eq "Stream size") { $videoInfo["stream_size"] = $value }
+                                    if ($key -eq "Color primaries") { $videoInfo["color_primaries"] = $value }
+                                    if ($key -eq "Transfer characteristics") { $videoInfo["transfer_characteristics"] = $value }
+                                    if ($key -eq "Matrix coefficients") { $videoInfo["matrix_coefficients"] = $value }
                                 }
                                 "Audio" {
                                     if ($key -eq "Format") { $audioInfo["format"] = $value }
@@ -330,65 +394,79 @@ function Analyze-Video {
                     if ($textInfo.Count -gt 0) { $textStreams += $textInfo }
                     if ($imageInfo.Count -gt 0) { $imageStreams += $imageInfo }
                     
-                    # 再生時間のフォーマット変換 (例: "50 min 20 s" → "50分20秒")
-                    if ($duration -match '(\d+)\s*min\s*(\d+)\s*s') {
-                        $minutes = $matches[1]
-                        $seconds = $matches[2]
-                        $duration = "${minutes}分${seconds}秒"
-                    }
+                    # 再生時間の日本語表記に変換
+                    $duration = Convert-DurationToJapanese $duration
                     
-                    # ビットレートのフォーマット
+                    # ビットレートのフォーマット（修正版）
                     $overallBitrate = Format-Bitrate $overallBitrate
                     
                     # 基本情報を表示
                     Write-OutputBox("再生時間: $duration")
                     Write-OutputBox("ビットレート: $overallBitrate")
                     
-                    # 映像ストリーム情報
+                    # 映像ストリーム情報（番号付き）
+                    $videoIndex = 1
                     foreach ($v in $videoStreams) {
                         $format = if ($v["format"]) { $v["format"] } else { "不明" }
                         $res = if ($v["width"] -and $v["height"]) { "$($v['width'])x$($v['height'])" } else { "不明" }
                         $fpsMode = if ($v["fps_mode"]) { "[$($v['fps_mode'])]" } else { "" }
-                        $fps = if ($v["fps"]) { $v["fps"] } else { "不明" }
+                        
+                        # FPSの二重表示を修正
+                        $fps = if ($v["fps"]) { 
+                            ($v["fps"] -replace '\s*FPS', '') + " fps"
+                        } else { 
+                            "不明" 
+                        }
+                        
+                        # HDR/SDR情報を取得
+                        $hdrInfo = Get-HDRInfo $v["color_primaries"] $v["transfer_characteristics"] $v["matrix_coefficients"]
+                        
                         $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
                         $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
                         $streamSize = if ($v["stream_size"]) { $v["stream_size"] } else { "" }
                         
-                        $videoLine = "映像: $format $res | $fpsMode $fps fps | $bitrateMode $bitrate"
+                        $videoLine = "映像${videoIndex}: $format $res | $fpsMode $fps | $hdrInfo | $bitrateMode $bitrate"
                         if ($streamSize) { $videoLine += " | $streamSize" }
                         Write-OutputBox($videoLine)
+                        $videoIndex++
                     }
                     
-                    # 音声ストリーム情報
+                    # 音声ストリーム情報（番号付き）
+                    $audioIndex = 1
                     foreach ($a in $audioStreams) {
                         $format = if ($a["format"]) { $a["format"] } else { "不明" }
                         $samplerate = if ($a["samplerate"]) { $a["samplerate"] } else { "不明" }
                         $bitrate = if ($a["bitrate"]) { (Format-Bitrate $a["bitrate"]) } else { "不明" }
                         $streamSize = if ($a["stream_size"]) { $a["stream_size"] } else { "" }
                         
-                        $audioLine = "音声: $format | $samplerate | $bitrate"
+                        $audioLine = "音声${audioIndex}: $format | $samplerate | $bitrate"
                         if ($streamSize) { $audioLine += " | $streamSize" }
                         Write-OutputBox($audioLine)
+                        $audioIndex++
                     }
                     
-                    # 画像ストリーム情報
+                    # 画像ストリーム情報（番号付き）
+                    $imageIndex = 1
                     foreach ($img in $imageStreams) {
                         $format = if ($img["format"]) { $img["format"] } else { "不明" }
                         $res = if ($img["width"] -and $img["height"]) { "$($img['width'])x$($img['height'])" } else { "不明" }
                         $streamSize = if ($img["stream_size"]) { $img["stream_size"] } else { "" }
                         
-                        $imageLine = "カバー画像: $format $res"
+                        $imageLine = "カバー画像${imageIndex}: $format $res"
                         if ($streamSize) { $imageLine += " | $streamSize" }
                         Write-OutputBox($imageLine)
+                        $imageIndex++
                     }
                     
-                    # テキストストリーム情報
+                    # テキストストリーム情報（番号付き）
+                    $textIndex = 1
                     foreach ($txt in $textStreams) {
                         $language = if ($txt["language"]) { $txt["language"] } else { "不明" }
                         $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
                         $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
                         
-                        Write-OutputBox("テキスト: $language | Default - $default | Forced - $forced")
+                        Write-OutputBox("テキスト${textIndex}: $language | Default - $default | Forced - $forced")
+                        $textIndex++
                     }
                 } else {
                     Write-OutputBox("⚠ MediaInfo で情報を取得できませんでした。")
