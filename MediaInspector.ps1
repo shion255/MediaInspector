@@ -279,9 +279,116 @@ function Analyze-Video {
                     $subs = $infoJson.subtitles.PSObject.Properties.Name
                     if ($subs -match "ja|jpn|Japanese") { Write-OutputBox("✅ 日本語字幕あり") }
                     else { Write-OutputBox("❌ 日本語字幕なし") }
+                    
+                    Write-OutputBox("")
+                    Write-OutputBox("--- 利用可能なコーデック一覧 ---")
+                    
+                    # フォーマット一覧を取得（エラー出力も含める）
+                    $formatOutput = & $yt -F "$input" 2>&1
+                    
+                    if ($formatOutput) {
+                        $videoFormats = @()
+                        $audioFormats = @()
+                        $parseStarted = $false
+                        
+                        foreach ($line in $formatOutput) {
+                            $lineStr = $line.ToString()
+                            
+                            # ヘッダー行を検出（複数パターンに対応）
+                            if ($lineStr -match 'ID\s+(EXT|EXTENSION).*RESOLUTION' -or 
+                                $lineStr -match '^-+\s+-+\s+-+') {
+                                $parseStarted = $true
+                                continue
+                            }
+                            
+                            # パース開始後、フォーマット行を処理
+                            if ($parseStarted -and $lineStr.Trim() -and -not ($lineStr -match '^-+$')) {
+                                # 行の先頭が数字またはフォーマットIDで始まる場合のみ処理
+                                if ($lineStr -match '^\s*(\d+|sb\d+|dash\d+)\s+') {
+                                    # より柔軟な正規表現でパース
+                                    $parts = $lineStr -split '\s{2,}|\s+\|'
+                                    
+                                    if ($parts.Count -ge 3) {
+                                        $formatId = $parts[0].Trim()
+                                        $ext = $parts[1].Trim()
+                                        $resolution = if ($parts[2]) { $parts[2].Trim() } else { "" }
+                                        
+                                        # 残りの部分から情報を抽出
+                                        $remainingText = $lineStr
+                                        
+                                        $vcodec = "none"
+                                        $acodec = "none"
+                                        $tbr = ""
+                                        $filesize = ""
+                                        
+                                        # コーデック情報を抽出
+                                        if ($remainingText -match '\|\s*([a-z0-9\.]+)\s*\|\s*([a-z0-9\.]+)') {
+                                            $vcodec = $matches[1]
+                                            $acodec = $matches[2]
+                                        }
+                                        
+                                        # ビットレートとファイルサイズを抽出
+                                        if ($remainingText -match '(\d+\.?\d*k)') { $tbr = $matches[1] }
+                                        if ($remainingText -match '~?\s*(\d+\.?\d*[KMG]iB)') { $filesize = $matches[1] }
+                                        
+                                        $formatInfo = @{
+                                            ID = $formatId
+                                            Ext = $ext
+                                            Resolution = $resolution
+                                            VCodec = $vcodec
+                                            ACodec = $acodec
+                                            TBR = $tbr
+                                            FileSize = $filesize
+                                        }
+                                        
+                                        # 映像または音声として分類
+                                        if ($resolution -match '\d+x\d+' -or $resolution -match '\d+p') {
+                                            $videoFormats += $formatInfo
+                                        } elseif ($resolution -match 'audio' -or $acodec -ne "none") {
+                                            $audioFormats += $formatInfo
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        # 映像フォーマットを表示
+                        if ($videoFormats.Count -gt 0) {
+                            Write-OutputBox("")
+                            Write-OutputBox("【映像フォーマット】")
+                            $videoFormats | ForEach-Object {
+                                $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
+                                if ($_.Resolution) { $line += " | 解像度: $($_.Resolution)" }
+                                if ($_.VCodec -and $_.VCodec -ne "none") { $line += " | Vコーデック: $($_.VCodec)" }
+                                if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | Aコーデック: $($_.ACodec)" }
+                                if ($_.TBR) { $line += " | $($_.TBR)bps" }
+                                if ($_.FileSize) { $line += " | $($_.FileSize)" }
+                                Write-OutputBox($line)
+                            }
+                        }
+                        
+                        # 音声フォーマットを表示
+                        if ($audioFormats.Count -gt 0) {
+                            Write-OutputBox("")
+                            Write-OutputBox("【音声フォーマット】")
+                            $audioFormats | ForEach-Object {
+                                $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
+                                if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | コーデック: $($_.ACodec)" }
+                                if ($_.TBR) { $line += " | $($_.TBR)bps" }
+                                if ($_.FileSize) { $line += " | $($_.FileSize)" }
+                                Write-OutputBox($line)
+                            }
+                        }
+                        
+                        if ($videoFormats.Count -eq 0 -and $audioFormats.Count -eq 0) {
+                            Write-OutputBox("⚠ フォーマット情報を解析できませんでした。")
+                        }
+                    } else {
+                        Write-OutputBox("⚠ フォーマット一覧の取得に失敗しました。")
+                    }
 
                     $target = & $yt -f best -g "$input" 2>$null | Select-Object -First 1
-                    if (-not $target) { Write-OutputBox("⚠ URL直接解析に失敗しました。") }
+                    if (-not $target) { Write-OutputBox("") }
                 } else { Write-OutputBox("yt-dlp で情報取得に失敗") }
             } else {
                 if (-not (Test-Path -LiteralPath $input)) {
@@ -471,9 +578,6 @@ function Analyze-Video {
                 } else {
                     Write-OutputBox("⚠ MediaInfo で情報を取得できませんでした。")
                 }
-            } elseif ($target -and $isUrl) {
-                Write-OutputBox("")
-                Write-OutputBox("※ URL動画の詳細情報はyt-dlpの情報を参照してください。")
             }
 
         } catch { Write-OutputBox("エラー: $_") }
