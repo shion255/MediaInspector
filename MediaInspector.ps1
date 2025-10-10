@@ -90,9 +90,30 @@ function Set-Progress($v) {
 
 # --- ffprobe 呼び出し ---
 function Invoke-FFProbe($filePath) {
-    $jsonRaw = & $ffprobe -v error -print_format json -show_format -show_streams -i "$filePath" 2>$null
-    if (-not $jsonRaw) { return $null }
-    return $jsonRaw | ConvertFrom-Json
+    try {
+        $jsonRaw = & $ffprobe -v error -print_format json -show_format -show_streams -i "$filePath" 2>$null
+        if (-not $jsonRaw) { return $null }
+        
+        # JSON文字列を結合
+        $jsonStr = $jsonRaw -join ""
+        
+        # JSONパース試行
+        try {
+            return $jsonStr | ConvertFrom-Json
+        } catch {
+            # メタデータが原因でエラーの場合、ストリーム情報のみ取得
+            Write-OutputBox("⚠ メタデータにパース不可能な文字が含まれています。ストリーム情報のみ取得します。")
+            $jsonRaw2 = & $ffprobe -v error -print_format json -show_streams -i "$filePath" 2>$null
+            if ($jsonRaw2) {
+                $jsonStr2 = $jsonRaw2 -join ""
+                return $jsonStr2 | ConvertFrom-Json
+            }
+            return $null
+        }
+    } catch {
+        Write-OutputBox("⚠ ffprobe エラー: $($_.Exception.Message)")
+        return $null
+    }
 }
 
 # --- 解析処理 ---
