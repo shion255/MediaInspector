@@ -5,9 +5,9 @@ $ErrorActionPreference = "Stop"
 
 # --- ツールパス ---
 $yt = "C:\encode\tools\yt-dlp.exe"
-$ffprobe = "C:\encode\tools\ffprobe.exe"
+$mediainfo = "C:\DTV\tools\MediaInfo_CLI\MediaInfo.exe"
 
-foreach ($tool in @($yt, $ffprobe)) {
+foreach ($tool in @($yt, $mediainfo)) {
     if (-not (Test-Path $tool)) {
         [System.Windows.Forms.MessageBox]::Show("$tool が見つかりません。")
         exit
@@ -24,6 +24,27 @@ function Format-Time($seconds) {
     return ($parts -join "")
 }
 
+function Format-FileSize($bytes) {
+    if (-not $bytes) { return "不明" }
+    $units = @("B", "KiB", "MiB", "GiB", "TiB")
+    $size = [double]$bytes
+    $unitIndex = 0
+    while ($size -ge 1024 -and $unitIndex -lt $units.Length - 1) {
+        $size /= 1024
+        $unitIndex++
+    }
+    return "{0:N2} {1}" -f $size, $units[$unitIndex]
+}
+
+function Format-Bitrate($bitrate) {
+    if (-not $bitrate) { return "不明" }
+    if ($bitrate -match "(\d+(?:\.\d+)?)\s*kb/s") {
+        $value = [double]$matches[1]
+        return "{0:N0} kb/s" -f $value
+    }
+    return $bitrate
+}
+
 # --- ダークテーマ ---
 $bgColor   = [System.Drawing.Color]::FromArgb(28, 28, 28)
 $fgColor   = [System.Drawing.Color]::WhiteSmoke
@@ -32,7 +53,7 @@ $accent    = [System.Drawing.Color]::FromArgb(70, 130, 180)
 # --- GUI ---
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "MediaInspector"
-$form.Size = New-Object System.Drawing.Size(720, 600)
+$form.Size = New-Object System.Drawing.Size(800, 600)
 $form.StartPosition = "CenterScreen"
 $form.BackColor = $bgColor
 $form.ForeColor = $fgColor
@@ -46,7 +67,7 @@ $form.Controls.Add($label)
 
 $textBox = New-Object System.Windows.Forms.TextBox
 $textBox.Location = New-Object System.Drawing.Point(10, 40)
-$textBox.Size = New-Object System.Drawing.Size(680, 80)
+$textBox.Size = New-Object System.Drawing.Size(760, 80)
 $textBox.Multiline = $true
 $textBox.ScrollBars = "Vertical"
 $textBox.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 45)
@@ -63,7 +84,7 @@ $form.Controls.Add($button)
 
 $progress = New-Object System.Windows.Forms.ProgressBar
 $progress.Location = New-Object System.Drawing.Point(140, 130)
-$progress.Size = New-Object System.Drawing.Size(550, 30)
+$progress.Size = New-Object System.Drawing.Size(630, 30)
 $progress.Style = 'Continuous'
 $form.Controls.Add($progress)
 
@@ -73,7 +94,7 @@ $outputBox.ScrollBars = "Vertical"
 $outputBox.ReadOnly = $true
 $outputBox.Font = New-Object System.Drawing.Font("Consolas", 10)
 $outputBox.Location = New-Object System.Drawing.Point(10, 170)
-$outputBox.Size = New-Object System.Drawing.Size(680, 380)
+$outputBox.Size = New-Object System.Drawing.Size(760, 380)
 $outputBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
 $outputBox.ForeColor = $fgColor
 $form.Controls.Add($outputBox)
@@ -88,27 +109,21 @@ function Set-Progress($v) {
     $form.Refresh()
 }
 
-# --- ffprobe 呼び出し ---
-function Invoke-FFProbe($filePath) {
+# --- MediaInfo 呼び出し ---
+function Invoke-MediaInfo($filePath) {
     try {
-        $jsonRaw = & $ffprobe -v error -print_format json -show_format -show_streams -i "$filePath" 2>$null
-        if (-not $jsonRaw) { return $null }
+        # 一時ファイルに出力してUTF-8で読み込む
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        $null = & $mediainfo --Output=Text --LogFile="$tempFile" "$filePath" 2>$null
         
-        $jsonStr = $jsonRaw -join ""
-        
-        try {
-            return $jsonStr | ConvertFrom-Json
-        } catch {
-            Write-OutputBox("⚠ メタデータにパース不可能な文字が含まれています。ストリーム情報のみ取得します。")
-            $jsonRaw2 = & $ffprobe -v error -print_format json -show_streams -i "$filePath" 2>$null
-            if ($jsonRaw2) {
-                $jsonStr2 = $jsonRaw2 -join ""
-                return $jsonStr2 | ConvertFrom-Json
-            }
-            return $null
+        if (Test-Path $tempFile) {
+            $output = Get-Content -Path $tempFile -Encoding UTF8
+            Remove-Item -Path $tempFile -Force
+            return $output
         }
+        return $null
     } catch {
-        Write-OutputBox("⚠ ffprobe エラー: $($_.Exception.Message)")
+        Write-OutputBox("⚠ MediaInfo エラー: $($_.Exception.Message)")
         return $null
     }
 }
@@ -216,64 +231,176 @@ function Analyze-Video {
                 $target = $input
             }
 
-            if ($target) {
+            if ($target -and -not $isUrl) {
                 Set-Progress(50 + [math]::Round($count / $total * 50))
-                $json = Invoke-FFProbe "$target"
+                $mediaInfoOutput = Invoke-MediaInfo "$target"
 
-                Write-OutputBox("--- ストリーム情報 ---")
-                if ($json -and $json.format) {
-                    if ($json.format.duration) { Write-OutputBox("再生時間(ffprobe): " + (Format-Time $json.format.duration)) }
-                    if ($json.format.bit_rate) { Write-OutputBox("ビットレート: " + ([math]::Round($json.format.bit_rate/1000)) + " kbps") }
-                }
-
-                $hasStream = $false
-                if ($json -and $json.streams) {
-                    foreach ($s in $json.streams) {
-                        $hasStream = $true
-                        if ($s.codec_type -eq "video") {
-                            $w = $s.width
-                            $h = $s.height
-                            $resolution = if ($w -and $h) { "$w" + "x" + "$h" } else { "不明" }
+                if ($mediaInfoOutput) {
+                    Write-OutputBox("--- 詳細情報 ---")
+                    
+                    # MediaInfo出力をパース
+                    $currentSection = ""
+                    $duration = ""
+                    $overallBitrate = ""
+                    $fileSize = ""
+                    $videoStreams = @()
+                    $audioStreams = @()
+                    $textStreams = @()
+                    $imageStreams = @()
+                    
+                    $videoInfo = @{}
+                    $audioInfo = @{}
+                    $textInfo = @{}
+                    $imageInfo = @{}
+                    
+                    foreach ($line in $mediaInfoOutput) {
+                        $line = $line.Trim()
+                        if (-not $line) { continue }
+                        
+                        # セクションヘッダー検出
+                        if ($line -match '^(General|Video|Audio|Text|Menu|Image)') {
+                            if ($currentSection -eq "Video" -and $videoInfo.Count -gt 0) {
+                                $videoStreams += $videoInfo.Clone()
+                                $videoInfo.Clear()
+                            }
+                            if ($currentSection -eq "Audio" -and $audioInfo.Count -gt 0) {
+                                $audioStreams += $audioInfo.Clone()
+                                $audioInfo.Clear()
+                            }
+                            if ($currentSection -eq "Text" -and $textInfo.Count -gt 0) {
+                                $textStreams += $textInfo.Clone()
+                                $textInfo.Clear()
+                            }
+                            if ($currentSection -eq "Image" -and $imageInfo.Count -gt 0) {
+                                $imageStreams += $imageInfo.Clone()
+                                $imageInfo.Clear()
+                            }
                             
-                            $fps = "不明"
-                            $fpsStr = $s.avg_frame_rate
-                            if (-not $fpsStr) { $fpsStr = $s.r_frame_rate }
+                            $currentSection = $matches[1]
+                            continue
+                        }
+                        
+                        # 情報抽出
+                        if ($line -match '^(.+?)\s*:\s*(.+)$') {
+                            $key = $matches[1].Trim()
+                            $value = $matches[2].Trim()
                             
-                            if ($fpsStr -and $fpsStr -match '^(\d+)/(\d+)$') {
-                                $num = [double]$Matches[1]
-                                $den = [double]$Matches[2]
-                                if ($den -ne 0) {
-                                    $fpsValue = [math]::Round($num / $den, 3)
-                                    $fps = "$fpsValue fps"
+                            switch ($currentSection) {
+                                "General" {
+                                    if ($key -eq "Duration") { $duration = $value }
+                                    if ($key -eq "Overall bit rate") { $overallBitrate = $value }
+                                    if ($key -eq "File size") { $fileSize = $value }
+                                }
+                                "Video" {
+                                    if ($key -eq "Format") { $videoInfo["format"] = $value }
+                                    if ($key -eq "Width") { $videoInfo["width"] = $value -replace '\D', '' }
+                                    if ($key -eq "Height") { $videoInfo["height"] = $value -replace '\D', '' }
+                                    if ($key -eq "Frame rate") { $videoInfo["fps"] = $value }
+                                    if ($key -eq "Frame rate mode") { $videoInfo["fps_mode"] = $value }
+                                    if ($key -eq "Bit rate") { $videoInfo["bitrate"] = $value }
+                                    if ($key -eq "Bit rate mode") { $videoInfo["bitrate_mode"] = $value }
+                                    if ($key -eq "Stream size") { $videoInfo["stream_size"] = $value }
+                                }
+                                "Audio" {
+                                    if ($key -eq "Format") { $audioInfo["format"] = $value }
+                                    if ($key -match "Channel") { $audioInfo["channels"] = $value }
+                                    if ($key -eq "Sampling rate") { $audioInfo["samplerate"] = $value }
+                                    if ($key -eq "Bit rate") { $audioInfo["bitrate"] = $value }
+                                    if ($key -eq "Stream size") { $audioInfo["stream_size"] = $value }
+                                }
+                                "Text" {
+                                    if ($key -eq "Language") { $textInfo["language"] = $value }
+                                    if ($key -eq "Default") { $textInfo["default"] = $value }
+                                    if ($key -eq "Forced") { $textInfo["forced"] = $value }
+                                    if ($key -eq "Stream size") { $textInfo["stream_size"] = $value }
+                                }
+                                "Image" {
+                                    if ($key -eq "Format") { $imageInfo["format"] = $value }
+                                    if ($key -eq "Width") { $imageInfo["width"] = $value -replace '\D', '' }
+                                    if ($key -eq "Height") { $imageInfo["height"] = $value -replace '\D', '' }
+                                    if ($key -eq "Stream size") { $imageInfo["stream_size"] = $value }
                                 }
                             }
-                            
-                            $isAttached = $false
-                            if ($s.disposition) {
-                                if ($s.disposition.attached_pic -eq 1) {
-                                    $isAttached = $true
-                                }
-                            }
-                            
-                            if ($isAttached) {
-                                Write-OutputBox("カバー画像: $($s.codec_name) $resolution")
-                            } else {
-                                Write-OutputBox("映像: $($s.codec_name) $resolution $fps")
-                            }
-                        } elseif ($s.codec_type -eq "audio") {
-                            $channels = if ($s.channels) { "$($s.channels)ch" } else { "" }
-                            $sr = if ($s.sample_rate) { "$([math]::Round($s.sample_rate/1000, 1)) kHz" } else { "" }
-                            $br = if ($s.bit_rate) { "$([math]::Round($s.bit_rate/1000)) kbps" } else { "" }
-                            Write-OutputBox("音声: $($s.codec_name) $channels $sr $br")
                         }
                     }
+                    
+                    # 最後のストリームを追加
+                    if ($videoInfo.Count -gt 0) { $videoStreams += $videoInfo }
+                    if ($audioInfo.Count -gt 0) { $audioStreams += $audioInfo }
+                    if ($textInfo.Count -gt 0) { $textStreams += $textInfo }
+                    if ($imageInfo.Count -gt 0) { $imageStreams += $imageInfo }
+                    
+                    # 再生時間のフォーマット変換 (例: "50 min 20 s" → "50分20秒")
+                    if ($duration -match '(\d+)\s*min\s*(\d+)\s*s') {
+                        $minutes = $matches[1]
+                        $seconds = $matches[2]
+                        $duration = "${minutes}分${seconds}秒"
+                    }
+                    
+                    # ビットレートのフォーマット
+                    $overallBitrate = Format-Bitrate $overallBitrate
+                    
+                    # 基本情報を表示
+                    Write-OutputBox("再生時間: $duration")
+                    Write-OutputBox("ビットレート: $overallBitrate")
+                    
+                    # 映像ストリーム情報
+                    foreach ($v in $videoStreams) {
+                        $format = if ($v["format"]) { $v["format"] } else { "不明" }
+                        $res = if ($v["width"] -and $v["height"]) { "$($v['width'])x$($v['height'])" } else { "不明" }
+                        $fpsMode = if ($v["fps_mode"]) { "[$($v['fps_mode'])]" } else { "" }
+                        $fps = if ($v["fps"]) { $v["fps"] } else { "不明" }
+                        $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
+                        $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
+                        $streamSize = if ($v["stream_size"]) { $v["stream_size"] } else { "" }
+                        
+                        $videoLine = "映像: $format $res | $fpsMode $fps fps | $bitrateMode $bitrate"
+                        if ($streamSize) { $videoLine += " | $streamSize" }
+                        Write-OutputBox($videoLine)
+                    }
+                    
+                    # 音声ストリーム情報
+                    foreach ($a in $audioStreams) {
+                        $format = if ($a["format"]) { $a["format"] } else { "不明" }
+                        $samplerate = if ($a["samplerate"]) { $a["samplerate"] } else { "不明" }
+                        $bitrate = if ($a["bitrate"]) { (Format-Bitrate $a["bitrate"]) } else { "不明" }
+                        $streamSize = if ($a["stream_size"]) { $a["stream_size"] } else { "" }
+                        
+                        $audioLine = "音声: $format | $samplerate | $bitrate"
+                        if ($streamSize) { $audioLine += " | $streamSize" }
+                        Write-OutputBox($audioLine)
+                    }
+                    
+                    # 画像ストリーム情報
+                    foreach ($img in $imageStreams) {
+                        $format = if ($img["format"]) { $img["format"] } else { "不明" }
+                        $res = if ($img["width"] -and $img["height"]) { "$($img['width'])x$($img['height'])" } else { "不明" }
+                        $streamSize = if ($img["stream_size"]) { $img["stream_size"] } else { "" }
+                        
+                        $imageLine = "カバー画像: $format $res"
+                        if ($streamSize) { $imageLine += " | $streamSize" }
+                        Write-OutputBox($imageLine)
+                    }
+                    
+                    # テキストストリーム情報
+                    foreach ($txt in $textStreams) {
+                        $language = if ($txt["language"]) { $txt["language"] } else { "不明" }
+                        $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
+                        $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
+                        
+                        Write-OutputBox("テキスト: $language | Default - $default | Forced - $forced")
+                    }
+                } else {
+                    Write-OutputBox("⚠ MediaInfo で情報を取得できませんでした。")
                 }
-
-                if (-not $hasStream) { Write-OutputBox("⚠ ストリーム情報を取得できませんでした。") }
+            } elseif ($target -and $isUrl) {
+                Write-OutputBox("")
+                Write-OutputBox("※ URL動画の詳細情報はyt-dlpの情報を参照してください。")
             }
 
         } catch { Write-OutputBox("エラー: $_") }
 
+        Write-OutputBox("")
         Write-OutputBox("解析完了。`r`n")
     }
 
