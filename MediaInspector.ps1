@@ -94,14 +94,11 @@ function Invoke-FFProbe($filePath) {
         $jsonRaw = & $ffprobe -v error -print_format json -show_format -show_streams -i "$filePath" 2>$null
         if (-not $jsonRaw) { return $null }
         
-        # JSON文字列を結合
         $jsonStr = $jsonRaw -join ""
         
-        # JSONパース試行
         try {
             return $jsonStr | ConvertFrom-Json
         } catch {
-            # メタデータが原因でエラーの場合、ストリーム情報のみ取得
             Write-OutputBox("⚠ メタデータにパース不可能な文字が含まれています。ストリーム情報のみ取得します。")
             $jsonRaw2 = & $ffprobe -v error -print_format json -show_streams -i "$filePath" 2>$null
             if ($jsonRaw2) {
@@ -124,23 +121,19 @@ function Analyze-Video {
         return
     }
 
-    # 改行区切りとスペース区切りの両方に対応
     $inputs = @()
     $lines = $inputsRaw -split "`r?`n"
     foreach ($line in $lines) {
         $line = $line.Trim()
         if (-not $line) { continue }
         
-        # ダブルクォートで囲まれた複数パスをスペース区切りで分割
         if ($line -match '"[^"]+".*"[^"]+"') {
             $matches = [regex]::Matches($line, '"([^"]+)"')
             foreach ($m in $matches) {
                 $inputs += $m.Groups[1].Value
             }
         }
-        # URLまたはローカルパスをスペース区切りで分割（クォートなし）
         elseif ($line -match '\s+' -and ($line -match '^https?://' -or $line -match ':\\')) {
-            # C:\ を含むパスまたはURLをスペースで分割
             $parts = $line -split '\s+(?=(?:[A-Z]:|https?://))'
             foreach ($part in $parts) {
                 $cleaned = $part.Trim() -replace '^"|"$',''
@@ -148,7 +141,6 @@ function Analyze-Video {
             }
         }
         else {
-            # 通常の1行1ファイル
             $inputs += $line -replace '^"|"$',''
         }
     }
@@ -176,7 +168,6 @@ function Analyze-Video {
 
         try {
             if ($isUrl) {
-                # yt-dlp で情報取得
                 $infoJson = & $yt --dump-json --no-warnings "$input" 2>$null | ConvertFrom-Json
                 if ($infoJson) {
                     Write-OutputBox("タイトル: $($infoJson.title)")
@@ -186,7 +177,6 @@ function Analyze-Video {
                     if ($subs -match "ja|jpn|Japanese") { Write-OutputBox("✅ 日本語字幕あり") }
                     else { Write-OutputBox("❌ 日本語字幕なし") }
 
-                    # 実際の再生URL取得
                     $target = & $yt -f best -g "$input" 2>$null | Select-Object -First 1
                     if (-not $target) { Write-OutputBox("⚠ URL直接解析に失敗しました。") }
                 } else { Write-OutputBox("yt-dlp で情報取得に失敗") }
@@ -199,7 +189,6 @@ function Analyze-Video {
                 $target = $input
             }
 
-            # ffprobe 解析
             if ($target) {
                 Set-Progress(50 + [math]::Round($count / $total * 50))
                 $json = Invoke-FFProbe "$target"
@@ -215,10 +204,38 @@ function Analyze-Video {
                     foreach ($s in $json.streams) {
                         $hasStream = $true
                         if ($s.codec_type -eq "video") {
-                            Write-OutputBox("映像: $($s.codec_name) ${($s.width)}x$($s.height) $($s.avg_frame_rate)fps")
+                            $w = $s.width
+                            $h = $s.height
+                            $resolution = if ($w -and $h) { "$w" + "x" + "$h" } else { "不明" }
+                            
+                            $fps = "不明"
+                            $fpsStr = $s.avg_frame_rate
+                            if (-not $fpsStr) { $fpsStr = $s.r_frame_rate }
+                            
+                            if ($fpsStr -and $fpsStr -match '^(\d+)/(\d+)$') {
+                                $num = [double]$Matches[1]
+                                $den = [double]$Matches[2]
+                                if ($den -ne 0) {
+                                    $fpsValue = [math]::Round($num / $den, 3)
+                                    $fps = "$fpsValue fps"
+                                }
+                            }
+                            
+                            $isAttached = $false
+                            if ($s.disposition) {
+                                if ($s.disposition.attached_pic -eq 1) {
+                                    $isAttached = $true
+                                }
+                            }
+                            
+                            if ($isAttached) {
+                                Write-OutputBox("カバー画像: $($s.codec_name) $resolution")
+                            } else {
+                                Write-OutputBox("映像: $($s.codec_name) $resolution $fps")
+                            }
                         } elseif ($s.codec_type -eq "audio") {
                             $channels = if ($s.channels) { "$($s.channels)ch" } else { "" }
-                            $sr = if ($s.sample_rate) { "$($s.sample_rate)Hz" } else { "" }
+                            $sr = if ($s.sample_rate) { "$([math]::Round($s.sample_rate/1000, 1)) kHz" } else { "" }
                             $br = if ($s.bit_rate) { "$([math]::Round($s.bit_rate/1000)) kbps" } else { "" }
                             Write-OutputBox("音声: $($s.codec_name) $channels $sr $br")
                         }
