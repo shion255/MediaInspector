@@ -127,21 +127,48 @@ function Analyze-Video {
         $line = $line.Trim()
         if (-not $line) { continue }
         
-        if ($line -match '"[^"]+".*"[^"]+"') {
-            $matches = [regex]::Matches($line, '"([^"]+)"')
-            foreach ($m in $matches) {
-                $inputs += $m.Groups[1].Value
+        # ダブルクォートで囲まれた部分とそうでない部分を抽出
+        $currentPos = 0
+        while ($currentPos -lt $line.Length) {
+            # 先頭の空白をスキップ
+            while ($currentPos -lt $line.Length -and $line[$currentPos] -eq ' ') {
+                $currentPos++
             }
-        }
-        elseif ($line -match '\s+' -and ($line -match '^https?://' -or $line -match ':\\')) {
-            $parts = $line -split '\s+(?=(?:[A-Z]:|https?://))'
-            foreach ($part in $parts) {
-                $cleaned = $part.Trim() -replace '^"|"$',''
-                if ($cleaned) { $inputs += $cleaned }
+            if ($currentPos -ge $line.Length) { break }
+            
+            # ダブルクォートで始まる場合
+            if ($line[$currentPos] -eq '"') {
+                $endQuote = $line.IndexOf('"', $currentPos + 1)
+                if ($endQuote -gt $currentPos) {
+                    $path = $line.Substring($currentPos + 1, $endQuote - $currentPos - 1)
+                    if ($path) { $inputs += $path }
+                    $currentPos = $endQuote + 1
+                } else {
+                    # 閉じクォートがない場合は残り全体を取得
+                    $path = $line.Substring($currentPos + 1).Trim()
+                    if ($path) { $inputs += $path }
+                    break
+                }
             }
-        }
-        else {
-            $inputs += $line -replace '^"|"$',''
+            # ダブルクォートなしの場合
+            else {
+                $nextSpace = $line.IndexOf(' ', $currentPos)
+                $nextQuote = $line.IndexOf('"', $currentPos)
+                
+                # 次の区切り位置を決定
+                $endPos = $line.Length
+                if ($nextSpace -gt $currentPos -and $nextQuote -gt $currentPos) {
+                    $endPos = [math]::Min($nextSpace, $nextQuote)
+                } elseif ($nextSpace -gt $currentPos) {
+                    $endPos = $nextSpace
+                } elseif ($nextQuote -gt $currentPos) {
+                    $endPos = $nextQuote
+                }
+                
+                $path = $line.Substring($currentPos, $endPos - $currentPos).Trim()
+                if ($path) { $inputs += $path }
+                $currentPos = $endPos
+            }
         }
     }
     
