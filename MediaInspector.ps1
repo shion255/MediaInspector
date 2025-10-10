@@ -124,14 +124,47 @@ function Analyze-Video {
         return
     }
 
-    $inputs = $inputsRaw -split "`r?`n"
+    # 改行区切りとスペース区切りの両方に対応
+    $inputs = @()
+    $lines = $inputsRaw -split "`r?`n"
+    foreach ($line in $lines) {
+        $line = $line.Trim()
+        if (-not $line) { continue }
+        
+        # ダブルクォートで囲まれた複数パスをスペース区切りで分割
+        if ($line -match '"[^"]+".*"[^"]+"') {
+            $matches = [regex]::Matches($line, '"([^"]+)"')
+            foreach ($m in $matches) {
+                $inputs += $m.Groups[1].Value
+            }
+        }
+        # URLまたはローカルパスをスペース区切りで分割（クォートなし）
+        elseif ($line -match '\s+' -and ($line -match '^https?://' -or $line -match ':\\')) {
+            # C:\ を含むパスまたはURLをスペースで分割
+            $parts = $line -split '\s+(?=(?:[A-Z]:|https?://))'
+            foreach ($part in $parts) {
+                $cleaned = $part.Trim() -replace '^"|"$',''
+                if ($cleaned) { $inputs += $cleaned }
+            }
+        }
+        else {
+            # 通常の1行1ファイル
+            $inputs += $line -replace '^"|"$',''
+        }
+    }
+    
+    if ($inputs.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("有効な入力がありません。")
+        return
+    }
+    
     $outputBox.Clear()
 
     $total = $inputs.Count
     $count = 0
 
     foreach ($inputRaw in $inputs) {
-        $input = $inputRaw.Trim() -replace '^"|"$',''
+        $input = $inputRaw.Trim()
         $count++
         Write-OutputBox("--------------------------------------------------")
         Write-OutputBox("入力: $input")
