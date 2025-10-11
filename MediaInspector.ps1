@@ -194,9 +194,18 @@ $showWindowButton.ForeColor = $fgColor
 $showWindowButton.Enabled = $false
 $form.Controls.Add($showWindowButton)
 
+$closeAllWindowsButton = New-Object System.Windows.Forms.Button
+$closeAllWindowsButton.Text = "全ウィンドウを閉じる"
+$closeAllWindowsButton.Location = New-Object System.Drawing.Point(330, 130)
+$closeAllWindowsButton.Size = New-Object System.Drawing.Size(150, 30)
+$closeAllWindowsButton.BackColor = [System.Drawing.Color]::FromArgb(180, 60, 60)
+$closeAllWindowsButton.ForeColor = $fgColor
+$closeAllWindowsButton.Enabled = $false
+$form.Controls.Add($closeAllWindowsButton)
+
 $progress = New-Object System.Windows.Forms.ProgressBar
-$progress.Location = New-Object System.Drawing.Point(330, 130)
-$progress.Size = New-Object System.Drawing.Size(490, 30)
+$progress.Location = New-Object System.Drawing.Point(490, 130)
+$progress.Size = New-Object System.Drawing.Size(330, 30)
 $progress.Style = 'Continuous'
 $form.Controls.Add($progress)
 
@@ -213,6 +222,7 @@ $form.Controls.Add($outputBox)
 
 # 解析結果を保存するグローバル変数
 $script:analysisResults = @()
+$script:resultForms = @()
 
 function Write-OutputBox($msg) {
     $outputBox.AppendText($msg + "`r`n")
@@ -230,6 +240,9 @@ function Show-ResultWindows {
         [System.Windows.Forms.MessageBox]::Show("表示する解析結果がありません。")
         return
     }
+    
+    # 既存のウィンドウを閉じる
+    Close-AllResultWindows
     
     # 画面サイズを取得
     $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width
@@ -263,7 +276,17 @@ function Show-ResultWindows {
         $resultTextBox.Text = $result.Content
         $resultForm.Controls.Add($resultTextBox)
         
+        # FormClosedイベントでリストから削除
+        $resultForm.Add_FormClosed({
+            param($sender, $e)
+            $script:resultForms = $script:resultForms | Where-Object { $_ -ne $sender }
+            if ($script:resultForms.Count -eq 0) {
+                $closeAllWindowsButton.Enabled = $false
+            }
+        })
+        
         $resultForm.Show()
+        $script:resultForms += $resultForm
         
         $xOffset = [int]($xOffset + $windowWidth + 5)
         
@@ -272,9 +295,26 @@ function Show-ResultWindows {
             break
         }
     }
+    
+    # ウィンドウが開かれたらボタンを有効化
+    if ($script:resultForms.Count -gt 0) {
+        $closeAllWindowsButton.Enabled = $true
+    }
+}
+
+# 全ての結果ウィンドウを閉じる関数
+function Close-AllResultWindows {
+    foreach ($form in $script:resultForms) {
+        if ($form -and -not $form.IsDisposed) {
+            $form.Close()
+        }
+    }
+    $script:resultForms = @()
+    $closeAllWindowsButton.Enabled = $false
 }
 
 $showWindowButton.Add_Click({ Show-ResultWindows })
+$closeAllWindowsButton.Add_Click({ Close-AllResultWindows })
 
 # --- MediaInfo 呼び出し ---
 function Invoke-MediaInfo($filePath) {
