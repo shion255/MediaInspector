@@ -121,7 +121,7 @@ $form.ForeColor = $fgColor
 $form.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
 
 $label = New-Object System.Windows.Forms.Label
-$label.Text = "URL または ローカルファイル（複数可、改行で区切る）："
+$label.Text = "URL または ローカルファイル（複数可、改行で区切る / ドラッグ&ドロップ可）："
 $label.Location = New-Object System.Drawing.Point(10, 15)
 $label.AutoSize = $true
 $form.Controls.Add($label)
@@ -133,7 +133,37 @@ $textBox.Multiline = $true
 $textBox.ScrollBars = "Vertical"
 $textBox.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 45)
 $textBox.ForeColor = $fgColor
+$textBox.AllowDrop = $true
 $form.Controls.Add($textBox)
+
+# ドラッグ&ドロップイベントハンドラ
+$textBox.Add_DragEnter({
+    param($sender, $e)
+    if ($e.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)) {
+        $e.Effect = [Windows.Forms.DragDropEffects]::Copy
+    } else {
+        $e.Effect = [Windows.Forms.DragDropEffects]::None
+    }
+})
+
+$textBox.Add_DragDrop({
+    param($sender, $e)
+    $files = $e.Data.GetData([Windows.Forms.DataFormats]::FileDrop)
+    if ($files) {
+        $existingText = $textBox.Text.Trim()
+        $newFiles = $files -join "`r`n"
+        
+        if ($existingText) {
+            $textBox.Text = $existingText + "`r`n" + $newFiles
+        } else {
+            $textBox.Text = $newFiles
+        }
+        
+        # カーソルを最後に移動
+        $textBox.SelectionStart = $textBox.Text.Length
+        $textBox.ScrollToCaret()
+    }
+})
 
 $button = New-Object System.Windows.Forms.Button
 $button.Text = "解析開始"
