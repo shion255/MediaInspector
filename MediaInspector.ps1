@@ -568,6 +568,12 @@ function Analyze-Video {
                                     
                                     if ($parts.Count -ge 3) {
                                         $formatId = $parts[0].Trim()
+                                        
+                                        # storyboardをスキップ
+                                        if ($formatId -match '^sb\d+') {
+                                            continue
+                                        }
+                                        
                                         $ext = $parts[1].Trim()
                                         $resolution = if ($parts[2]) { $parts[2].Trim() } else { "" }
                                         
