@@ -205,9 +205,18 @@ $form.Controls.Add($closeAllWindowsButton)
 
 $progress = New-Object System.Windows.Forms.ProgressBar
 $progress.Location = New-Object System.Drawing.Point(490, 130)
-$progress.Size = New-Object System.Drawing.Size(330, 30)
+$progress.Size = New-Object System.Drawing.Size(250, 30)
 $progress.Style = 'Continuous'
 $form.Controls.Add($progress)
+
+$progressLabel = New-Object System.Windows.Forms.Label
+$progressLabel.Location = New-Object System.Drawing.Point(750, 130)
+$progressLabel.Size = New-Object System.Drawing.Size(70, 30)
+$progressLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
+$progressLabel.Font = New-Object System.Drawing.Font("Meiryo UI", 10, [System.Drawing.FontStyle]::Bold)
+$progressLabel.ForeColor = $fgColor
+$progressLabel.Text = "0%"
+$form.Controls.Add($progressLabel)
 
 $outputBox = New-Object System.Windows.Forms.TextBox
 $outputBox.Multiline = $true
@@ -231,6 +240,7 @@ function Write-OutputBox($msg) {
 function Set-Progress($v) {
     if ($v -gt 100) { $v = 100 }
     $progress.Value = $v
+    $progressLabel.Text = "$v%"
     $form.Refresh()
 }
 
