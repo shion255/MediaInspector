@@ -185,9 +185,18 @@ $button.BackColor = $accent
 $button.ForeColor = $fgColor
 $form.Controls.Add($button)
 
+$showWindowButton = New-Object System.Windows.Forms.Button
+$showWindowButton.Text = "結果を別ウィンドウ表示"
+$showWindowButton.Location = New-Object System.Drawing.Point(140, 130)
+$showWindowButton.Size = New-Object System.Drawing.Size(180, 30)
+$showWindowButton.BackColor = [System.Drawing.Color]::FromArgb(90, 150, 90)
+$showWindowButton.ForeColor = $fgColor
+$showWindowButton.Enabled = $false
+$form.Controls.Add($showWindowButton)
+
 $progress = New-Object System.Windows.Forms.ProgressBar
-$progress.Location = New-Object System.Drawing.Point(140, 130)
-$progress.Size = New-Object System.Drawing.Size(680, 30)
+$progress.Location = New-Object System.Drawing.Point(330, 130)
+$progress.Size = New-Object System.Drawing.Size(490, 30)
 $progress.Style = 'Continuous'
 $form.Controls.Add($progress)
 
@@ -202,6 +211,9 @@ $outputBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
 $outputBox.ForeColor = $fgColor
 $form.Controls.Add($outputBox)
 
+# 解析結果を保存するグローバル変数
+$script:analysisResults = @()
+
 function Write-OutputBox($msg) {
     $outputBox.AppendText($msg + "`r`n")
     $outputBox.ScrollToCaret()
@@ -211,6 +223,58 @@ function Set-Progress($v) {
     $progress.Value = $v
     $form.Refresh()
 }
+
+# 別ウィンドウで結果を表示する関数
+function Show-ResultWindows {
+    if ($script:analysisResults.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("表示する解析結果がありません。")
+        return
+    }
+    
+    # 画面サイズを取得
+    $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width
+    $screenHeight = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height
+    
+    # ウィンドウサイズを計算（横に並べる）
+    $windowCount = [Math]::Min($script:analysisResults.Count, 5) # 最大5個まで
+    $windowWidth = [int]([Math]::Floor($screenWidth / $windowCount) - 10)
+    $windowHeight = [int]($screenHeight - 50)
+    
+    $xOffset = 0
+    
+    foreach ($result in $script:analysisResults) {
+        $resultForm = New-Object System.Windows.Forms.Form
+        $resultForm.Text = "解析結果: $($result.Title)"
+        $resultForm.Size = New-Object System.Drawing.Size([int]$windowWidth, [int]$windowHeight)
+        $resultForm.StartPosition = "Manual"
+        $resultForm.Location = New-Object System.Drawing.Point([int]$xOffset, 20)
+        $resultForm.BackColor = $bgColor
+        $resultForm.ForeColor = $fgColor
+        $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
+        
+        $resultTextBox = New-Object System.Windows.Forms.TextBox
+        $resultTextBox.Multiline = $true
+        $resultTextBox.ScrollBars = "Vertical"
+        $resultTextBox.ReadOnly = $true
+        $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+        $resultTextBox.Dock = "Fill"
+        $resultTextBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
+        $resultTextBox.ForeColor = $fgColor
+        $resultTextBox.Text = $result.Content
+        $resultForm.Controls.Add($resultTextBox)
+        
+        $resultForm.Show()
+        
+        $xOffset = [int]($xOffset + $windowWidth + 5)
+        
+        # 画面幅を超える場合は次の行へ
+        if ($xOffset + $windowWidth -gt $screenWidth) {
+            break
+        }
+    }
+}
+
+$showWindowButton.Add_Click({ Show-ResultWindows })
 
 # --- MediaInfo 呼び出し ---
 function Invoke-MediaInfo($filePath) {
@@ -238,6 +302,10 @@ function Analyze-Video {
         [System.Windows.Forms.MessageBox]::Show("URLまたはファイルパスを入力してください。")
         return
     }
+
+    # 解析結果をクリア
+    $script:analysisResults = @()
+    $showWindowButton.Enabled = $false
 
     $inputs = @()
     $lines = $inputsRaw -split "`r?`n"
@@ -303,9 +371,17 @@ function Analyze-Video {
     foreach ($inputRaw in $inputs) {
         $input = $inputRaw.Trim()
         $count++
+        
+        # 各ファイルの結果を保存する変数
+        $resultContent = ""
+        $resultTitle = $input
+        
         Write-OutputBox("--------------------------------------------------")
+        $resultContent += "--------------------------------------------------`r`n"
         Write-OutputBox("入力: $input")
+        $resultContent += "入力: $input`r`n"
         Write-OutputBox("解析開始... 少々お待ちください。")
+        $resultContent += "解析開始... 少々お待ちください。`r`n"
         Set-Progress([math]::Round($count / $total * 100 / 2))
 
         $isUrl = $input -match '^https?://'
@@ -315,8 +391,12 @@ function Analyze-Video {
             if ($isUrl) {
                 $infoJson = & $yt --dump-json --no-warnings "$input" 2>$null | ConvertFrom-Json
                 if ($infoJson) {
+                    $resultTitle = $infoJson.title
+                    
                     Write-OutputBox("タイトル: $($infoJson.title)")
+                    $resultContent += "タイトル: $($infoJson.title)`r`n"
                     Write-OutputBox("アップローダー: $($infoJson.uploader)")
+                    $resultContent += "アップローダー: $($infoJson.uploader)`r`n"
                     
                     # 投稿日時を追加
                     if ($infoJson.upload_date) {
@@ -325,18 +405,30 @@ function Analyze-Video {
                         if ($dateStr -match '^(\d{4})(\d{2})(\d{2})$') {
                             $formattedDate = "$($matches[1])年$($matches[2])月$($matches[3])日"
                             Write-OutputBox("投稿日時: $formattedDate")
+                            $resultContent += "投稿日時: $formattedDate`r`n"
                         } else {
                             Write-OutputBox("投稿日時: $dateStr")
+                            $resultContent += "投稿日時: $dateStr`r`n"
                         }
                     }
                     
-                    Write-OutputBox("再生時間: " + (Format-Time $infoJson.duration))
+                    $durationText = Format-Time $infoJson.duration
+                    Write-OutputBox("再生時間: $durationText")
+                    $resultContent += "再生時間: $durationText`r`n"
+                    
                     $subs = $infoJson.subtitles.PSObject.Properties.Name
-                    if ($subs -match "ja|jpn|Japanese") { Write-OutputBox("✅ 日本語字幕あり") }
-                    else { Write-OutputBox("❌ 日本語字幕なし") }
+                    if ($subs -match "ja|jpn|Japanese") { 
+                        Write-OutputBox("✅ 日本語字幕あり")
+                        $resultContent += "✅ 日本語字幕あり`r`n"
+                    } else { 
+                        Write-OutputBox("❌ 日本語字幕なし")
+                        $resultContent += "❌ 日本語字幕なし`r`n"
+                    }
                     
                     Write-OutputBox("")
+                    $resultContent += "`r`n"
                     Write-OutputBox("--- 利用可能なコーデック一覧 ---")
+                    $resultContent += "--- 利用可能なコーデック一覧 ---`r`n"
                     
                     # フォーマット一覧を取得（エラー出力も含める）
                     $formatOutput = & $yt -F "$input" 2>&1
@@ -410,7 +502,9 @@ function Analyze-Video {
                         # 映像フォーマットを表示
                         if ($videoFormats.Count -gt 0) {
                             Write-OutputBox("")
+                            $resultContent += "`r`n"
                             Write-OutputBox("【映像フォーマット】")
+                            $resultContent += "【映像フォーマット】`r`n"
                             $videoFormats | ForEach-Object {
                                 $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
                                 if ($_.Resolution) { $line += " | 解像度: $($_.Resolution)" }
@@ -419,39 +513,51 @@ function Analyze-Video {
                                 if ($_.TBR) { $line += " | $($_.TBR)bps" }
                                 if ($_.FileSize) { $line += " | $($_.FileSize)" }
                                 Write-OutputBox($line)
+                                $resultContent += $line + "`r`n"
                             }
                         }
                         
                         # 音声フォーマットを表示
                         if ($audioFormats.Count -gt 0) {
                             Write-OutputBox("")
+                            $resultContent += "`r`n"
                             Write-OutputBox("【音声フォーマット】")
+                            $resultContent += "【音声フォーマット】`r`n"
                             $audioFormats | ForEach-Object {
                                 $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
                                 if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | コーデック: $($_.ACodec)" }
                                 if ($_.TBR) { $line += " | $($_.TBR)bps" }
                                 if ($_.FileSize) { $line += " | $($_.FileSize)" }
                                 Write-OutputBox($line)
+                                $resultContent += $line + "`r`n"
                             }
                         }
                         
                         if ($videoFormats.Count -eq 0 -and $audioFormats.Count -eq 0) {
                             Write-OutputBox("⚠ フォーマット情報を解析できませんでした。")
+                            $resultContent += "⚠ フォーマット情報を解析できませんでした。`r`n"
                         }
                     } else {
                         Write-OutputBox("⚠ フォーマット一覧の取得に失敗しました。")
+                        $resultContent += "⚠ フォーマット一覧の取得に失敗しました。`r`n"
                     }
 
                     $target = & $yt -f best -g "$input" 2>$null | Select-Object -First 1
                     if (-not $target) { Write-OutputBox("") }
-                } else { Write-OutputBox("yt-dlp で情報取得に失敗") }
+                } else { 
+                    Write-OutputBox("yt-dlp で情報取得に失敗")
+                    $resultContent += "yt-dlp で情報取得に失敗`r`n"
+                }
             } else {
                 if (-not (Test-Path -LiteralPath $input)) {
                     Write-OutputBox("ファイルが存在しません: $input")
+                    $resultContent += "ファイルが存在しません: $input`r`n"
                     continue
                 }
                 Write-OutputBox("ローカルファイルとして解析します。")
+                $resultContent += "ローカルファイルとして解析します。`r`n"
                 $target = $input
+                $resultTitle = [System.IO.Path]::GetFileName($input)
             }
 
             if ($target -and -not $isUrl) {
@@ -460,6 +566,7 @@ function Analyze-Video {
 
                 if ($mediaInfoOutput) {
                     Write-OutputBox("--- 詳細情報 ---")
+                    $resultContent += "--- 詳細情報 ---`r`n"
                     
                     # MediaInfo出力をパース
                     $currentSection = ""
@@ -564,7 +671,9 @@ function Analyze-Video {
                     
                     # 基本情報を表示
                     Write-OutputBox("再生時間: $duration")
+                    $resultContent += "再生時間: $duration`r`n"
                     Write-OutputBox("ビットレート: $overallBitrate")
+                    $resultContent += "ビットレート: $overallBitrate`r`n"
                     
                     # 映像ストリーム情報（番号付き）
                     $videoIndex = 1
@@ -590,6 +699,7 @@ function Analyze-Video {
                         $videoLine = "映像${videoIndex}: $format $res | $fpsMode $fps | $hdrInfo | $bitrateMode $bitrate"
                         if ($streamSize) { $videoLine += " | $streamSize" }
                         Write-OutputBox($videoLine)
+                        $resultContent += $videoLine + "`r`n"
                         $videoIndex++
                     }
                     
@@ -604,6 +714,7 @@ function Analyze-Video {
                         $audioLine = "音声${audioIndex}: $format | $samplerate | $bitrate"
                         if ($streamSize) { $audioLine += " | $streamSize" }
                         Write-OutputBox($audioLine)
+                        $resultContent += $audioLine + "`r`n"
                         $audioIndex++
                     }
                     
@@ -617,6 +728,7 @@ function Analyze-Video {
                         $imageLine = "カバー画像${imageIndex}: $format $res"
                         if ($streamSize) { $imageLine += " | $streamSize" }
                         Write-OutputBox($imageLine)
+                        $resultContent += $imageLine + "`r`n"
                         $imageIndex++
                     }
                     
@@ -627,22 +739,39 @@ function Analyze-Video {
                         $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
                         $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
                         
-                        Write-OutputBox("テキスト${textIndex}: $language | Default - $default | Forced - $forced")
+                        $textLine = "テキスト${textIndex}: $language | Default - $default | Forced - $forced"
+                        Write-OutputBox($textLine)
+                        $resultContent += $textLine + "`r`n"
                         $textIndex++
                     }
                 } else {
                     Write-OutputBox("⚠ MediaInfo で情報を取得できませんでした。")
+                    $resultContent += "⚠ MediaInfo で情報を取得できませんでした。`r`n"
                 }
             }
 
-        } catch { Write-OutputBox("エラー: $_") }
+        } catch { 
+            Write-OutputBox("エラー: $_")
+            $resultContent += "エラー: $_`r`n"
+        }
 
         Write-OutputBox("")
+        $resultContent += "`r`n"
         Write-OutputBox("解析完了。`r`n")
+        $resultContent += "解析完了。`r`n"
+        
+        # 結果を配列に追加
+        $script:analysisResults += @{
+            Title = $resultTitle
+            Content = $resultContent
+        }
     }
 
     Set-Progress(100)
     Write-OutputBox("=== 全ファイル解析完了 ===")
+    
+    # 解析完了後にボタンを有効化
+    $showWindowButton.Enabled = $true
 }
 
 $button.Add_Click({ Analyze-Video })
