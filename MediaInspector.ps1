@@ -317,6 +317,19 @@ function Analyze-Video {
                 if ($infoJson) {
                     Write-OutputBox("タイトル: $($infoJson.title)")
                     Write-OutputBox("アップローダー: $($infoJson.uploader)")
+                    
+                    # 投稿日時を追加
+                    if ($infoJson.upload_date) {
+                        $dateStr = $infoJson.upload_date
+                        # YYYYMMDD形式をYYYY年MM月DD日に変換
+                        if ($dateStr -match '^(\d{4})(\d{2})(\d{2})$') {
+                            $formattedDate = "$($matches[1])年$($matches[2])月$($matches[3])日"
+                            Write-OutputBox("投稿日時: $formattedDate")
+                        } else {
+                            Write-OutputBox("投稿日時: $dateStr")
+                        }
+                    }
+                    
                     Write-OutputBox("再生時間: " + (Format-Time $infoJson.duration))
                     $subs = $infoJson.subtitles.PSObject.Properties.Name
                     if ($subs -match "ja|jpn|Japanese") { Write-OutputBox("✅ 日本語字幕あり") }
