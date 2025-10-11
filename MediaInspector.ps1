@@ -165,6 +165,18 @@ $textBox.Add_DragDrop({
     }
 })
 
+$clearButton = New-Object System.Windows.Forms.Button
+$clearButton.Text = "消去"
+$clearButton.Location = New-Object System.Drawing.Point(690, 10)
+$clearButton.Size = New-Object System.Drawing.Size(60, 25)
+$clearButton.BackColor = [System.Drawing.Color]::FromArgb(200, 60, 60)
+$clearButton.ForeColor = $fgColor
+$clearButton.Add_Click({
+    $textBox.Clear()
+    $textBox.Focus()
+})
+$form.Controls.Add($clearButton)
+
 $button = New-Object System.Windows.Forms.Button
 $button.Text = "解析開始"
 $button.Location = New-Object System.Drawing.Point(10, 130)
