@@ -248,51 +248,112 @@ function Show-ResultWindows {
     $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width
     $screenHeight = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height
     
-    # ウィンドウサイズを計算（横に並べる）
-    $windowCount = [Math]::Min($script:analysisResults.Count, 5) # 最大5個まで
-    $windowWidth = [int]([Math]::Floor($screenWidth / $windowCount) - 10)
-    $windowHeight = [int]($screenHeight - 50)
+    $totalCount = $script:analysisResults.Count
     
-    $xOffset = 0
+    # 2段組みで表示する場合の計算
+    if ($totalCount -le 5) {
+        # 5個以下：1段のみ
+        $row1Count = $totalCount
+        $row2Count = 0
+        $windowHeight = [int]($screenHeight - 50)
+    } else {
+        # 6個以上：2段組み
+        $row1Count = [Math]::Min($totalCount, 5)
+        $row2Count = $totalCount - $row1Count
+        $windowHeight = [int](($screenHeight - 60) / 2)
+    }
     
-    foreach ($result in $script:analysisResults) {
-        $resultForm = New-Object System.Windows.Forms.Form
-        $resultForm.Text = "解析結果: $($result.Title)"
-        $resultForm.Size = New-Object System.Drawing.Size([int]$windowWidth, [int]$windowHeight)
-        $resultForm.StartPosition = "Manual"
-        $resultForm.Location = New-Object System.Drawing.Point([int]$xOffset, 20)
-        $resultForm.BackColor = $bgColor
-        $resultForm.ForeColor = $fgColor
-        $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
+    $currentIndex = 0
+    
+    # 1段目を表示
+    if ($row1Count -gt 0) {
+        $windowWidth = [int]([Math]::Floor($screenWidth / $row1Count) - 10)
+        $xOffset = 0
+        $yOffset = 20
         
-        $resultTextBox = New-Object System.Windows.Forms.TextBox
-        $resultTextBox.Multiline = $true
-        $resultTextBox.ScrollBars = "Vertical"
-        $resultTextBox.ReadOnly = $true
-        $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
-        $resultTextBox.Dock = "Fill"
-        $resultTextBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
-        $resultTextBox.ForeColor = $fgColor
-        $resultTextBox.Text = $result.Content
-        $resultForm.Controls.Add($resultTextBox)
+        for ($i = 0; $i -lt $row1Count; $i++) {
+            $result = $script:analysisResults[$currentIndex]
+            
+            $resultForm = New-Object System.Windows.Forms.Form
+            $resultForm.Text = "解析結果: $($result.Title)"
+            $resultForm.Size = New-Object System.Drawing.Size([int]$windowWidth, [int]$windowHeight)
+            $resultForm.StartPosition = "Manual"
+            $resultForm.Location = New-Object System.Drawing.Point([int]$xOffset, [int]$yOffset)
+            $resultForm.BackColor = $bgColor
+            $resultForm.ForeColor = $fgColor
+            $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
+            
+            $resultTextBox = New-Object System.Windows.Forms.TextBox
+            $resultTextBox.Multiline = $true
+            $resultTextBox.ScrollBars = "Vertical"
+            $resultTextBox.ReadOnly = $true
+            $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+            $resultTextBox.Dock = "Fill"
+            $resultTextBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
+            $resultTextBox.ForeColor = $fgColor
+            $resultTextBox.Text = $result.Content
+            $resultForm.Controls.Add($resultTextBox)
+            
+            # FormClosedイベントでリストから削除
+            $resultForm.Add_FormClosed({
+                param($sender, $e)
+                $script:resultForms = $script:resultForms | Where-Object { $_ -ne $sender }
+                if ($script:resultForms.Count -eq 0) {
+                    $closeAllWindowsButton.Enabled = $false
+                }
+            })
+            
+            $resultForm.Show()
+            $script:resultForms += $resultForm
+            
+            $xOffset = [int]($xOffset + $windowWidth + 5)
+            $currentIndex++
+        }
+    }
+    
+    # 2段目を表示
+    if ($row2Count -gt 0) {
+        $windowWidth = [int]([Math]::Floor($screenWidth / $row2Count) - 10)
+        $xOffset = 0
+        $yOffset = [int](20 + $windowHeight + 10)
         
-        # FormClosedイベントでリストから削除
-        $resultForm.Add_FormClosed({
-            param($sender, $e)
-            $script:resultForms = $script:resultForms | Where-Object { $_ -ne $sender }
-            if ($script:resultForms.Count -eq 0) {
-                $closeAllWindowsButton.Enabled = $false
-            }
-        })
-        
-        $resultForm.Show()
-        $script:resultForms += $resultForm
-        
-        $xOffset = [int]($xOffset + $windowWidth + 5)
-        
-        # 画面幅を超える場合は次の行へ
-        if ($xOffset + $windowWidth -gt $screenWidth) {
-            break
+        for ($i = 0; $i -lt $row2Count; $i++) {
+            $result = $script:analysisResults[$currentIndex]
+            
+            $resultForm = New-Object System.Windows.Forms.Form
+            $resultForm.Text = "解析結果: $($result.Title)"
+            $resultForm.Size = New-Object System.Drawing.Size([int]$windowWidth, [int]$windowHeight)
+            $resultForm.StartPosition = "Manual"
+            $resultForm.Location = New-Object System.Drawing.Point([int]$xOffset, [int]$yOffset)
+            $resultForm.BackColor = $bgColor
+            $resultForm.ForeColor = $fgColor
+            $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
+            
+            $resultTextBox = New-Object System.Windows.Forms.TextBox
+            $resultTextBox.Multiline = $true
+            $resultTextBox.ScrollBars = "Vertical"
+            $resultTextBox.ReadOnly = $true
+            $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+            $resultTextBox.Dock = "Fill"
+            $resultTextBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
+            $resultTextBox.ForeColor = $fgColor
+            $resultTextBox.Text = $result.Content
+            $resultForm.Controls.Add($resultTextBox)
+            
+            # FormClosedイベントでリストから削除
+            $resultForm.Add_FormClosed({
+                param($sender, $e)
+                $script:resultForms = $script:resultForms | Where-Object { $_ -ne $sender }
+                if ($script:resultForms.Count -eq 0) {
+                    $closeAllWindowsButton.Enabled = $false
+                }
+            })
+            
+            $resultForm.Show()
+            $script:resultForms += $resultForm
+            
+            $xOffset = [int]($xOffset + $windowWidth + 5)
+            $currentIndex++
         }
     }
     
