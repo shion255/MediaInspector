@@ -336,7 +336,7 @@ $optionsItem.Add_Click({
     
     $ytDlpTextBox = New-Object System.Windows.Forms.TextBox
     $ytDlpTextBox.Location = New-Object System.Drawing.Point(130, 138)
-    $ytDlpTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $ytDlpTextBox.Size = New-Object System.Drawing.Size(245, 25)
     $ytDlpTextBox.Text = $script:ytDlpPath
     $ytDlpTextBox.BackColor = $script:inputBgColor
     $ytDlpTextBox.ForeColor = $script:fgColor
@@ -344,7 +344,7 @@ $optionsItem.Add_Click({
     
     $ytDlpBrowseButton = New-Object System.Windows.Forms.Button
     $ytDlpBrowseButton.Text = "参照"
-    $ytDlpBrowseButton.Location = New-Object System.Drawing.Point(385, 138)
+    $ytDlpBrowseButton.Location = New-Object System.Drawing.Point(380, 138)
     $ytDlpBrowseButton.Size = New-Object System.Drawing.Size(50, 25)
     $ytDlpBrowseButton.Add_Click({
         $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -367,7 +367,7 @@ $optionsItem.Add_Click({
     
     $mediaInfoTextBox = New-Object System.Windows.Forms.TextBox
     $mediaInfoTextBox.Location = New-Object System.Drawing.Point(130, 178)
-    $mediaInfoTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $mediaInfoTextBox.Size = New-Object System.Drawing.Size(245, 25)
     $mediaInfoTextBox.Text = $script:mediaInfoPath
     $mediaInfoTextBox.BackColor = $script:inputBgColor
     $mediaInfoTextBox.ForeColor = $script:fgColor
@@ -375,7 +375,7 @@ $optionsItem.Add_Click({
     
     $mediaInfoBrowseButton = New-Object System.Windows.Forms.Button
     $mediaInfoBrowseButton.Text = "参照"
-    $mediaInfoBrowseButton.Location = New-Object System.Drawing.Point(385, 178)
+    $mediaInfoBrowseButton.Location = New-Object System.Drawing.Point(380, 178)
     $mediaInfoBrowseButton.Size = New-Object System.Drawing.Size(50, 25)
     $mediaInfoBrowseButton.Add_Click({
         $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
