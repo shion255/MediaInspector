@@ -883,6 +883,15 @@ function Analyze-Video {
                     Write-OutputBox("再生時間: $durationText")
                     $resultContent += "再生時間: $durationText`r`n"
                     
+                    # チャプターの有無をチェック
+                    if ($infoJson.chapters -and $infoJson.chapters.Count -gt 0) {
+                        Write-OutputBox("✅ チャプターあり ($($infoJson.chapters.Count)個)")
+                        $resultContent += "✅ チャプターあり ($($infoJson.chapters.Count)個)`r`n"
+                    } else {
+                        Write-OutputBox("❌ チャプターなし")
+                        $resultContent += "❌ チャプターなし`r`n"
+                    }
+                    
                     $subs = $infoJson.subtitles.PSObject.Properties.Name
                     if ($subs -match "ja|jpn|Japanese") { 
                         Write-OutputBox("✅ 日本語字幕あり")
@@ -1052,6 +1061,8 @@ function Analyze-Video {
                     $audioStreams = @()
                     $textStreams = @()
                     $imageStreams = @()
+                    $hasChapters = $false
+                    $chapterCount = 0
                     
                     $videoInfo = @{}
                     $audioInfo = @{}
@@ -1082,7 +1093,18 @@ function Analyze-Video {
                             }
                             
                             $currentSection = $matches[1]
+                            
+                            # Menuセクションがある場合はチャプターありと判断
+                            if ($currentSection -eq "Menu") {
+                                $hasChapters = $true
+                                $chapterCount++
+                            }
                             continue
+                        }
+                        
+                        # チャプター数をカウント（Menuセクション内のエントリ数）
+                        if ($currentSection -eq "Menu" -and $line -match '^Chapters') {
+                            $hasChapters = $true
                         }
                         
                         # 情報抽出
@@ -1149,6 +1171,15 @@ function Analyze-Video {
                     $resultContent += "再生時間: $duration`r`n"
                     Write-OutputBox("ビットレート: $overallBitrate")
                     $resultContent += "ビットレート: $overallBitrate`r`n"
+                    
+                    # チャプター情報を表示（ローカルファイル用）
+                    if ($hasChapters) {
+                        Write-OutputBox("✅ チャプターあり")
+                        $resultContent += "✅ チャプターあり`r`n"
+                    } else {
+                        Write-OutputBox("❌ チャプターなし")
+                        $resultContent += "❌ チャプターなし`r`n"
+                    }
                     
                     # 映像ストリーム情報（番号付き）
                     $videoIndex = 1
