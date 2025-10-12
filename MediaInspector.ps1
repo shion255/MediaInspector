@@ -14,6 +14,56 @@ foreach ($tool in @($yt, $mediainfo)) {
     }
 }
 
+# 設定ファイルのパス
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$configDir = Join-Path $scriptDir "ini"
+$configFile = Join-Path $configDir "MediaInspector.ini"
+
+# 設定フォルダがなければ作成
+if (-not (Test-Path $configDir)) {
+    New-Item -ItemType Directory -Path $configDir -Force | Out-Null
+}
+
+# 設定を読み込む関数
+function Load-Config {
+    $config = @{
+        Theme = "Dark"
+        FontName = "Consolas"
+        FontSize = 10
+        WindowOpacity = 1.0
+    }
+    
+    if (Test-Path $configFile) {
+        Get-Content $configFile | ForEach-Object {
+            if ($_ -match '^(.+?)=(.+)$') {
+                $key = $matches[1].Trim()
+                $value = $matches[2].Trim()
+                $config[$key] = $value
+            }
+        }
+    }
+    
+    return $config
+}
+
+# 設定を保存する関数
+function Save-Config {
+    $content = @"
+Theme=$($script:currentTheme)
+FontName=$($script:currentFontName)
+FontSize=$($script:currentFontSize)
+WindowOpacity=$($script:windowOpacity)
+"@
+    Set-Content -Path $configFile -Value $content -Encoding UTF8
+}
+
+# 設定を読み込み
+$config = Load-Config
+$script:currentTheme = $config.Theme
+$script:currentFontName = $config.FontName
+$script:currentFontSize = [int]$config.FontSize
+$script:windowOpacity = [double]$config.WindowOpacity
+
 function Format-Time($seconds) {
     if (-not $seconds) { return "不明" }
     $t = [timespan]::FromSeconds([double]$seconds)
@@ -38,7 +88,6 @@ function Format-FileSize($bytes) {
 
 function Format-Bitrate($bitrate) {
     if (-not $bitrate) { return "不明" }
-    # "8 503 kb/s" のような形式を処理
     if ($bitrate -match '([\d\s,]+)\s*kb/s') {
         $value = $matches[1] -replace '\s+', '' -replace ',', ''
         $numericValue = [double]$value
@@ -50,28 +99,19 @@ function Format-Bitrate($bitrate) {
 function Convert-DurationToJapanese($duration) {
     if (-not $duration) { return "不明" }
     
-    # "2 h 6 min" → "2時間6分"
     if ($duration -match '(\d+)\s*h\s*(\d+)\s*min') {
         $hours = $matches[1]
         $minutes = $matches[2]
         return "${hours}時間${minutes}分"
     }
-    # "50 min 20 s" → "50分20秒"
     elseif ($duration -match '(\d+)\s*min\s*(\d+)\s*s') {
         $minutes = $matches[1]
         $seconds = $matches[2]
         return "${minutes}分${seconds}秒"
     }
-    # "2 h" → "2時間"
     elseif ($duration -match '(\d+)\s*h') {
         $hours = $matches[1]
         return "${hours}時間"
-    }
-    # "1 h 55 min" → "1時間55分"
-    elseif ($duration -match '(\d+)\s*h\s*(\d+)\s*min') {
-        $hours = $matches[1]
-        $minutes = $matches[2]
-        return "${hours}時間${minutes}分"
     }
     
     return $duration
@@ -81,7 +121,6 @@ function Get-HDRInfo($colorPrimaries, $transferCharacteristics, $matrixCoefficie
     $hdrType = ""
     $colorSpace = ""
     
-    # HDR判定
     if ($transferCharacteristics -match "PQ|SMPTE ST 2084") {
         $hdrType = "HDR10"
     } elseif ($transferCharacteristics -match "HLG") {
@@ -90,7 +129,6 @@ function Get-HDRInfo($colorPrimaries, $transferCharacteristics, $matrixCoefficie
         $hdrType = "SDR"
     }
     
-    # 色空間判定
     if ($colorPrimaries -match "BT.2020") {
         $colorSpace = "BT.2020"
     } elseif ($colorPrimaries -match "BT.709") {
@@ -106,37 +144,236 @@ function Get-HDRInfo($colorPrimaries, $transferCharacteristics, $matrixCoefficie
     return "[$hdrType] $colorSpace"
 }
 
-# --- ダークテーマ ---
-$bgColor   = [System.Drawing.Color]::FromArgb(28, 28, 28)
-$fgColor   = [System.Drawing.Color]::WhiteSmoke
-$accent    = [System.Drawing.Color]::FromArgb(70, 130, 180)
+# テーマを適用する関数
+function Apply-Theme {
+    if ($script:currentTheme -eq "Dark") {
+        $script:bgColor = [System.Drawing.Color]::FromArgb(28, 28, 28)
+        $script:fgColor = [System.Drawing.Color]::WhiteSmoke
+        $script:inputBgColor = [System.Drawing.Color]::FromArgb(45, 45, 45)
+        $script:outputBgColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
+        $script:menuBgColor = [System.Drawing.Color]::FromArgb(35, 35, 35)
+    } else {
+        $script:bgColor = [System.Drawing.Color]::White
+        $script:fgColor = [System.Drawing.Color]::Black
+        $script:inputBgColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
+        $script:outputBgColor = [System.Drawing.Color]::FromArgb(250, 250, 250)
+        $script:menuBgColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
+    }
+    
+    $form.BackColor = $script:bgColor
+    $form.ForeColor = $script:fgColor
+    $textBox.BackColor = $script:inputBgColor
+    $textBox.ForeColor = $script:fgColor
+    $outputBox.BackColor = $script:outputBgColor
+    $outputBox.ForeColor = $script:fgColor
+    $menuStrip.BackColor = $script:menuBgColor
+    $menuStrip.ForeColor = $script:fgColor
+    $label.ForeColor = $script:fgColor
+    $progressLabel.ForeColor = $script:fgColor
+}
+
+# 初期テーマを適用
+$script:bgColor = [System.Drawing.Color]::FromArgb(28, 28, 28)
+$script:fgColor = [System.Drawing.Color]::WhiteSmoke
+$script:inputBgColor = [System.Drawing.Color]::FromArgb(45, 45, 45)
+$script:outputBgColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
+$script:menuBgColor = [System.Drawing.Color]::FromArgb(35, 35, 35)
+$script:accent = [System.Drawing.Color]::FromArgb(70, 130, 180)
+
+if ($script:currentTheme -eq "Light") {
+    $script:bgColor = [System.Drawing.Color]::White
+    $script:fgColor = [System.Drawing.Color]::Black
+    $script:inputBgColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
+    $script:outputBgColor = [System.Drawing.Color]::FromArgb(250, 250, 250)
+    $script:menuBgColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
+}
 
 # --- GUI ---
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "MediaInspector"
 $form.Size = New-Object System.Drawing.Size(850, 600)
 $form.StartPosition = "CenterScreen"
-$form.BackColor = $bgColor
-$form.ForeColor = $fgColor
+$form.BackColor = $script:bgColor
+$form.ForeColor = $script:fgColor
 $form.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
+$form.Opacity = $script:windowOpacity
+
+# メニューストリップを作成
+$menuStrip = New-Object System.Windows.Forms.MenuStrip
+$menuStrip.BackColor = $script:menuBgColor
+$menuStrip.ForeColor = $script:fgColor
+
+# 「ツール」メニュー
+$toolMenu = New-Object System.Windows.Forms.ToolStripMenuItem
+$toolMenu.Text = "ツール(&T)"
+
+# オプション
+$optionsItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$optionsItem.Text = "オプション(&O)..."
+$optionsItem.Add_Click({
+    # オプションダイアログを作成
+    $optionsForm = New-Object System.Windows.Forms.Form
+    $optionsForm.Text = "オプション"
+    $optionsForm.Size = New-Object System.Drawing.Size(450, 350)
+    $optionsForm.StartPosition = "CenterParent"
+    $optionsForm.FormBorderStyle = "FixedDialog"
+    $optionsForm.MaximizeBox = $false
+    $optionsForm.MinimizeBox = $false
+    $optionsForm.BackColor = $script:bgColor
+    $optionsForm.ForeColor = $script:fgColor
+    
+    # テーマ設定
+    $themeLabel = New-Object System.Windows.Forms.Label
+    $themeLabel.Text = "テーマ："
+    $themeLabel.Location = New-Object System.Drawing.Point(20, 20)
+    $themeLabel.Size = New-Object System.Drawing.Size(100, 20)
+    $themeLabel.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($themeLabel)
+    
+    $themeCombo = New-Object System.Windows.Forms.ComboBox
+    $themeCombo.Location = New-Object System.Drawing.Point(130, 18)
+    $themeCombo.Size = New-Object System.Drawing.Size(280, 25)
+    $themeCombo.DropDownStyle = "DropDownList"
+    $themeCombo.Items.AddRange(@("ダークテーマ", "ライトテーマ"))
+    $themeCombo.SelectedIndex = if ($script:currentTheme -eq "Dark") { 0 } else { 1 }
+    $optionsForm.Controls.Add($themeCombo)
+    
+    # フォント名設定
+    $fontNameLabel = New-Object System.Windows.Forms.Label
+    $fontNameLabel.Text = "フォント名："
+    $fontNameLabel.Location = New-Object System.Drawing.Point(20, 60)
+    $fontNameLabel.Size = New-Object System.Drawing.Size(100, 20)
+    $fontNameLabel.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($fontNameLabel)
+    
+    $fontNameCombo = New-Object System.Windows.Forms.ComboBox
+    $fontNameCombo.Location = New-Object System.Drawing.Point(130, 58)
+    $fontNameCombo.Size = New-Object System.Drawing.Size(280, 25)
+    $fontNameCombo.DropDownStyle = "DropDownList"
+    $fontNameCombo.Items.AddRange(@("Consolas", "Courier New", "MS Gothic", "Meiryo", "Yu Gothic"))
+    $fontNameCombo.SelectedItem = $script:currentFontName
+    $optionsForm.Controls.Add($fontNameCombo)
+    
+    # フォントサイズ設定
+    $fontSizeLabel = New-Object System.Windows.Forms.Label
+    $fontSizeLabel.Text = "フォントサイズ："
+    $fontSizeLabel.Location = New-Object System.Drawing.Point(20, 100)
+    $fontSizeLabel.Size = New-Object System.Drawing.Size(100, 20)
+    $fontSizeLabel.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($fontSizeLabel)
+    
+    $fontSizeCombo = New-Object System.Windows.Forms.ComboBox
+    $fontSizeCombo.Location = New-Object System.Drawing.Point(130, 98)
+    $fontSizeCombo.Size = New-Object System.Drawing.Size(280, 25)
+    $fontSizeCombo.DropDownStyle = "DropDownList"
+    $fontSizeCombo.Items.AddRange(@("8", "9", "10", "11", "12", "14", "16"))
+    $fontSizeCombo.SelectedItem = $script:currentFontSize.ToString()
+    $optionsForm.Controls.Add($fontSizeCombo)
+    
+    # 透明度設定
+    $opacityLabel = New-Object System.Windows.Forms.Label
+    $opacityLabel.Text = "ウィンドウの透明度："
+    $opacityLabel.Location = New-Object System.Drawing.Point(20, 140)
+    $opacityLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $opacityLabel.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($opacityLabel)
+    
+    $opacityTrackBar = New-Object System.Windows.Forms.TrackBar
+    $opacityTrackBar.Location = New-Object System.Drawing.Point(20, 165)
+    $opacityTrackBar.Size = New-Object System.Drawing.Size(300, 45)
+    $opacityTrackBar.Minimum = 50
+    $opacityTrackBar.Maximum = 100
+    $opacityTrackBar.TickFrequency = 10
+    $opacityTrackBar.Value = [int]($script:windowOpacity * 100)
+    $optionsForm.Controls.Add($opacityTrackBar)
+    
+    $opacityValueLabel = New-Object System.Windows.Forms.Label
+    $opacityValueLabel.Location = New-Object System.Drawing.Point(330, 170)
+    $opacityValueLabel.Size = New-Object System.Drawing.Size(80, 20)
+    $opacityValueLabel.Text = "$([int]($script:windowOpacity * 100))%"
+    $opacityValueLabel.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($opacityValueLabel)
+    
+    $opacityTrackBar.Add_ValueChanged({
+        $opacityValueLabel.Text = "$($opacityTrackBar.Value)%"
+        $form.Opacity = $opacityTrackBar.Value / 100.0
+    })
+    
+    # OKボタン
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = "OK"
+    $okButton.Location = New-Object System.Drawing.Point(240, 270)
+    $okButton.Size = New-Object System.Drawing.Size(80, 30)
+    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $okButton.Add_Click({
+        # テーマ適用
+        $newTheme = if ($themeCombo.SelectedIndex -eq 0) { "Dark" } else { "Light" }
+        if ($newTheme -ne $script:currentTheme) {
+            $script:currentTheme = $newTheme
+            Apply-Theme
+        }
+        
+        # フォント適用
+        $newFontName = $fontNameCombo.SelectedItem
+        $newFontSize = [int]$fontSizeCombo.SelectedItem
+        
+        if ($newFontName -ne $script:currentFontName -or $newFontSize -ne $script:currentFontSize) {
+            $script:currentFontName = $newFontName
+            $script:currentFontSize = $newFontSize
+            $outputBox.Font = New-Object System.Drawing.Font($script:currentFontName, $script:currentFontSize)
+        }
+        
+        # 透明度適用
+        $script:windowOpacity = $opacityTrackBar.Value / 100.0
+        $form.Opacity = $script:windowOpacity
+        
+        # 設定を保存
+        Save-Config
+    })
+    $optionsForm.Controls.Add($okButton)
+    
+    # キャンセルボタン
+    $cancelButton = New-Object System.Windows.Forms.Button
+    $cancelButton.Text = "キャンセル"
+    $cancelButton.Location = New-Object System.Drawing.Point(330, 270)
+    $cancelButton.Size = New-Object System.Drawing.Size(80, 30)
+    $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $cancelButton.Add_Click({
+        # 透明度を元に戻す
+        $form.Opacity = $script:windowOpacity
+    })
+    $optionsForm.Controls.Add($cancelButton)
+    
+    $optionsForm.AcceptButton = $okButton
+    $optionsForm.CancelButton = $cancelButton
+    
+    [void]$optionsForm.ShowDialog($form)
+})
+
+$toolMenu.DropDownItems.Add($optionsItem)
+$menuStrip.Items.Add($toolMenu)
+
+$form.MainMenuStrip = $menuStrip
+$form.Controls.Add($menuStrip)
 
 $label = New-Object System.Windows.Forms.Label
 $label.Text = "URL または ローカルファイル（複数可、改行で区切る / ドラッグ&ドロップ可）："
-$label.Location = New-Object System.Drawing.Point(10, 15)
+$label.Location = New-Object System.Drawing.Point(10, 35)
 $label.AutoSize = $true
+$label.Anchor = "Top,Left"
 $form.Controls.Add($label)
 
 $textBox = New-Object System.Windows.Forms.TextBox
-$textBox.Location = New-Object System.Drawing.Point(10, 40)
+$textBox.Location = New-Object System.Drawing.Point(10, 60)
 $textBox.Size = New-Object System.Drawing.Size(810, 80)
 $textBox.Multiline = $true
 $textBox.ScrollBars = "Vertical"
-$textBox.BackColor = [System.Drawing.Color]::FromArgb(45, 45, 45)
-$textBox.ForeColor = $fgColor
+$textBox.BackColor = $script:inputBgColor
+$textBox.ForeColor = $script:fgColor
 $textBox.AllowDrop = $true
+$textBox.Anchor = "Top,Left,Right"
 $form.Controls.Add($textBox)
 
-# ドラッグ&ドロップイベントハンドラ
 $textBox.Add_DragEnter({
     param($sender, $e)
     if ($e.Data.GetDataPresent([Windows.Forms.DataFormats]::FileDrop)) {
@@ -159,7 +396,6 @@ $textBox.Add_DragDrop({
             $textBox.Text = $newFiles
         }
         
-        # カーソルを最後に移動
         $textBox.SelectionStart = $textBox.Text.Length
         $textBox.ScrollToCaret()
     }
@@ -167,10 +403,11 @@ $textBox.Add_DragDrop({
 
 $clearButton = New-Object System.Windows.Forms.Button
 $clearButton.Text = "消去"
-$clearButton.Location = New-Object System.Drawing.Point(690, 10)
+$clearButton.Location = New-Object System.Drawing.Point(690, 30)
 $clearButton.Size = New-Object System.Drawing.Size(60, 25)
 $clearButton.BackColor = [System.Drawing.Color]::FromArgb(200, 60, 60)
-$clearButton.ForeColor = $fgColor
+$clearButton.ForeColor = $script:fgColor
+$clearButton.Anchor = "Top,Right"
 $clearButton.Add_Click({
     $textBox.Clear()
     $textBox.Focus()
@@ -179,54 +416,60 @@ $form.Controls.Add($clearButton)
 
 $button = New-Object System.Windows.Forms.Button
 $button.Text = "解析開始"
-$button.Location = New-Object System.Drawing.Point(10, 130)
+$button.Location = New-Object System.Drawing.Point(10, 150)
 $button.Size = New-Object System.Drawing.Size(120, 30)
-$button.BackColor = $accent
-$button.ForeColor = $fgColor
+$button.BackColor = $script:accent
+$button.ForeColor = $script:fgColor
+$button.Anchor = "Top,Left"
 $form.Controls.Add($button)
 
 $showWindowButton = New-Object System.Windows.Forms.Button
 $showWindowButton.Text = "結果を別ウィンドウ表示"
-$showWindowButton.Location = New-Object System.Drawing.Point(140, 130)
+$showWindowButton.Location = New-Object System.Drawing.Point(140, 150)
 $showWindowButton.Size = New-Object System.Drawing.Size(180, 30)
 $showWindowButton.BackColor = [System.Drawing.Color]::FromArgb(90, 150, 90)
-$showWindowButton.ForeColor = $fgColor
+$showWindowButton.ForeColor = $script:fgColor
 $showWindowButton.Enabled = $false
+$showWindowButton.Anchor = "Top,Left"
 $form.Controls.Add($showWindowButton)
 
 $closeAllWindowsButton = New-Object System.Windows.Forms.Button
 $closeAllWindowsButton.Text = "全ウィンドウを閉じる"
-$closeAllWindowsButton.Location = New-Object System.Drawing.Point(330, 130)
+$closeAllWindowsButton.Location = New-Object System.Drawing.Point(330, 150)
 $closeAllWindowsButton.Size = New-Object System.Drawing.Size(150, 30)
 $closeAllWindowsButton.BackColor = [System.Drawing.Color]::FromArgb(180, 60, 60)
-$closeAllWindowsButton.ForeColor = $fgColor
+$closeAllWindowsButton.ForeColor = $script:fgColor
 $closeAllWindowsButton.Enabled = $false
+$closeAllWindowsButton.Anchor = "Top,Left"
 $form.Controls.Add($closeAllWindowsButton)
 
 $progress = New-Object System.Windows.Forms.ProgressBar
-$progress.Location = New-Object System.Drawing.Point(490, 130)
+$progress.Location = New-Object System.Drawing.Point(490, 150)
 $progress.Size = New-Object System.Drawing.Size(250, 30)
 $progress.Style = 'Continuous'
+$progress.Anchor = "Top,Left,Right"
 $form.Controls.Add($progress)
 
 $progressLabel = New-Object System.Windows.Forms.Label
-$progressLabel.Location = New-Object System.Drawing.Point(750, 130)
+$progressLabel.Location = New-Object System.Drawing.Point(750, 150)
 $progressLabel.Size = New-Object System.Drawing.Size(70, 30)
 $progressLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleLeft
 $progressLabel.Font = New-Object System.Drawing.Font("Meiryo UI", 10, [System.Drawing.FontStyle]::Bold)
-$progressLabel.ForeColor = $fgColor
+$progressLabel.ForeColor = $script:fgColor
 $progressLabel.Text = "0%"
+$progressLabel.Anchor = "Top,Right"
 $form.Controls.Add($progressLabel)
 
 $outputBox = New-Object System.Windows.Forms.TextBox
 $outputBox.Multiline = $true
 $outputBox.ScrollBars = "Vertical"
 $outputBox.ReadOnly = $true
-$outputBox.Font = New-Object System.Drawing.Font("Consolas", 10)
-$outputBox.Location = New-Object System.Drawing.Point(10, 170)
-$outputBox.Size = New-Object System.Drawing.Size(810, 380)
-$outputBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
-$outputBox.ForeColor = $fgColor
+$outputBox.Font = New-Object System.Drawing.Font($script:currentFontName, $script:currentFontSize)
+$outputBox.Location = New-Object System.Drawing.Point(10, 190)
+$outputBox.Size = New-Object System.Drawing.Size(810, 360)
+$outputBox.BackColor = $script:outputBgColor
+$outputBox.ForeColor = $script:fgColor
+$outputBox.Anchor = "Top,Bottom,Left,Right"
 $form.Controls.Add($outputBox)
 
 # 解析結果を保存するグローバル変数
@@ -237,6 +480,7 @@ function Write-OutputBox($msg) {
     $outputBox.AppendText($msg + "`r`n")
     $outputBox.ScrollToCaret()
 }
+
 function Set-Progress($v) {
     if ($v -gt 100) { $v = 100 }
     $progress.Value = $v
