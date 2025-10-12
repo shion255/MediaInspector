@@ -812,6 +812,9 @@ function Copy-OutputToClipboard {
     
     $cleanedText = $filteredLines -join "`r`n"
     
+    # 「--- 利用可能なコーデック一覧 ---」の後に「⚠ フォーマット情報を解析できませんでした。」しかない場合は両方削除
+    $cleanedText = $cleanedText -replace "--- 利用可能なコーデック一覧 ---\s*`r?`n\s*⚠ フォーマット情報を解析できませんでした。\s*`r?`n", ""
+    
     # 連続する空行を1つにまとめる
     $cleanedText = $cleanedText -replace "(`r?`n){3,}", "`r`n`r`n"
     
