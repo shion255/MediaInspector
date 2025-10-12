@@ -7,6 +7,7 @@ $ErrorActionPreference = "Stop"
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configDir = Join-Path $scriptDir "ini"
 $configFile = Join-Path $configDir "MediaInspector.ini"
+$historyFile = Join-Path $configDir "MediaInspector_history.txt"
 
 # 設定フォルダがなければ作成
 if (-not (Test-Path $configDir)) {
@@ -48,6 +49,23 @@ YtDlpPath=$($script:ytDlpPath)
 MediaInfoPath=$($script:mediaInfoPath)
 "@
     Set-Content -Path $configFile -Value $content -Encoding UTF8
+}
+
+# --- 履歴を読み込む関数 ---
+function Load-History {
+    if (Test-Path $historyFile) {
+        $history = Get-Content -Path $historyFile -Encoding UTF8 | Where-Object { $_.Trim() }
+        return $history
+    }
+    return @()
+}
+
+# --- 履歴を保存する関数 ---
+function Save-History($items) {
+    # 最新20件まで保存
+    $maxHistory = 20
+    $uniqueItems = $items | Select-Object -Unique | Select-Object -First $maxHistory
+    Set-Content -Path $historyFile -Value $uniqueItems -Encoding UTF8
 }
 
 # --- 設定を読み込み ---
@@ -525,6 +543,19 @@ $clearButton.Add_Click({
 })
 $form.Controls.Add($clearButton)
 
+# 履歴ボタンを追加
+$historyButton = New-Object System.Windows.Forms.Button
+$historyButton.Text = "履歴"
+$historyButton.Location = New-Object System.Drawing.Point(760, 30)
+$historyButton.Size = New-Object System.Drawing.Size(60, 25)
+$historyButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+$historyButton.ForeColor = $script:fgColor
+$historyButton.Anchor = "Top,Right"
+$historyButton.Add_Click({
+    Show-HistoryDialog
+})
+$form.Controls.Add($historyButton)
+
 $button = New-Object System.Windows.Forms.Button
 $button.Text = "解析開始"
 $button.Location = New-Object System.Drawing.Point(10, 150)
@@ -737,6 +768,118 @@ function Close-AllResultWindows {
     }
     $script:resultForms = @()
     $closeAllWindowsButton.Enabled = $false
+}
+
+# --- 履歴ダイアログを表示する関数 ---
+function Show-HistoryDialog {
+    $history = Load-History
+    
+    if ($history.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("履歴がありません。")
+        return
+    }
+    
+    $historyForm = New-Object System.Windows.Forms.Form
+    $historyForm.Text = "入力履歴"
+    $historyForm.Size = New-Object System.Drawing.Size(700, 500)
+    $historyForm.StartPosition = "CenterParent"
+    $historyForm.BackColor = $script:bgColor
+    $historyForm.ForeColor = $script:fgColor
+    
+    $historyLabel = New-Object System.Windows.Forms.Label
+    $historyLabel.Text = "履歴から選択してください（ダブルクリックで追加）："
+    $historyLabel.Location = New-Object System.Drawing.Point(10, 10)
+    $historyLabel.Size = New-Object System.Drawing.Size(680, 20)
+    $historyLabel.ForeColor = $script:fgColor
+    $historyForm.Controls.Add($historyLabel)
+    
+    $historyListBox = New-Object System.Windows.Forms.ListBox
+    $historyListBox.Location = New-Object System.Drawing.Point(10, 35)
+    $historyListBox.Size = New-Object System.Drawing.Size(660, 350)
+    $historyListBox.BackColor = $script:inputBgColor
+    $historyListBox.ForeColor = $script:fgColor
+    $historyListBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+    $historyListBox.SelectionMode = "MultiExtended"
+    
+    foreach ($item in $history) {
+        [void]$historyListBox.Items.Add($item)
+    }
+    
+    $historyForm.Controls.Add($historyListBox)
+    
+    # ダブルクリックで追加
+    $historyListBox.Add_DoubleClick({
+        if ($historyListBox.SelectedItems.Count -gt 0) {
+            $selectedItems = $historyListBox.SelectedItems
+            $existingText = $textBox.Text.Trim()
+            # ダブルクォートで囲む処理を追加
+            $quotedItems = $selectedItems | ForEach-Object { "`"$_`"" }
+            $newItems = $quotedItems -join "`r`n"
+            
+            if ($existingText) {
+                $textBox.Text = $existingText + "`r`n" + $newItems
+            } else {
+                $textBox.Text = $newItems
+            }
+            
+            $historyForm.Close()
+        }
+    })
+    
+    # 追加ボタン
+    $addButton = New-Object System.Windows.Forms.Button
+    $addButton.Text = "追加"
+    $addButton.Location = New-Object System.Drawing.Point(390, 395)
+    $addButton.Size = New-Object System.Drawing.Size(80, 30)
+    $addButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $addButton.ForeColor = $script:fgColor
+    $addButton.Add_Click({
+        if ($historyListBox.SelectedItems.Count -gt 0) {
+            $selectedItems = $historyListBox.SelectedItems
+            $existingText = $textBox.Text.Trim()
+            # ダブルクォートで囲む処理を追加
+            $quotedItems = $selectedItems | ForEach-Object { "`"$_`"" }
+            $newItems = $quotedItems -join "`r`n"
+            
+            if ($existingText) {
+                $textBox.Text = $existingText + "`r`n" + $newItems
+            } else {
+                $textBox.Text = $newItems
+            }
+        }
+    })
+    $historyForm.Controls.Add($addButton)
+    
+    # クリアボタン
+    $clearHistoryButton = New-Object System.Windows.Forms.Button
+    $clearHistoryButton.Text = "履歴削除"
+    $clearHistoryButton.Location = New-Object System.Drawing.Point(480, 395)
+    $clearHistoryButton.Size = New-Object System.Drawing.Size(90, 30)
+    $clearHistoryButton.BackColor = [System.Drawing.Color]::FromArgb(200, 60, 60)
+    $clearHistoryButton.ForeColor = $script:fgColor
+    $clearHistoryButton.Add_Click({
+        $result = [System.Windows.Forms.MessageBox]::Show("履歴を全て削除しますか？", "確認", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            if (Test-Path $historyFile) {
+                Remove-Item -Path $historyFile -Force
+            }
+            $historyListBox.Items.Clear()
+            [System.Windows.Forms.MessageBox]::Show("履歴を削除しました。")
+        }
+    })
+    $historyForm.Controls.Add($clearHistoryButton)
+    
+    # 閉じるボタン
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Text = "閉じる"
+    $closeButton.Location = New-Object System.Drawing.Point(580, 395)
+    $closeButton.Size = New-Object System.Drawing.Size(80, 30)
+    $closeButton.Add_Click({
+        $historyForm.Close()
+    })
+    $historyForm.Controls.Add($closeButton)
+    
+    [void]$historyForm.ShowDialog($form)
 }
 
 $showWindowButton.Add_Click({ Show-ResultWindows })
@@ -1275,6 +1418,11 @@ function Analyze-Video {
 
     Set-Progress(100)
     Write-OutputBox("=== 全ファイル解析完了 ===")
+    
+    # 履歴を保存
+    $currentHistory = Load-History
+    $newHistory = @($inputs) + $currentHistory
+    Save-History $newHistory
     
     # 解析完了後にボタンを有効化
     $showWindowButton.Enabled = $true
