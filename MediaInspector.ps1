@@ -585,9 +585,19 @@ $closeAllWindowsButton.Enabled = $false
 $closeAllWindowsButton.Anchor = "Top,Left"
 $form.Controls.Add($closeAllWindowsButton)
 
+$copyButton = New-Object System.Windows.Forms.Button
+$copyButton.Text = "結果をコピー"
+$copyButton.Location = New-Object System.Drawing.Point(490, 150)
+$copyButton.Size = New-Object System.Drawing.Size(120, 30)
+$copyButton.BackColor = [System.Drawing.Color]::FromArgb(100, 120, 140)
+$copyButton.ForeColor = $script:fgColor
+$copyButton.Anchor = "Top,Left"
+$copyButton.Add_Click({ Copy-OutputToClipboard })
+$form.Controls.Add($copyButton)
+
 $progress = New-Object System.Windows.Forms.ProgressBar
-$progress.Location = New-Object System.Drawing.Point(490, 150)
-$progress.Size = New-Object System.Drawing.Size(250, 30)
+$progress.Location = New-Object System.Drawing.Point(620, 150)
+$progress.Size = New-Object System.Drawing.Size(120, 30)
 $progress.Style = 'Continuous'
 $progress.Anchor = "Top,Left,Right"
 $form.Controls.Add($progress)
@@ -768,6 +778,49 @@ function Close-AllResultWindows {
     }
     $script:resultForms = @()
     $closeAllWindowsButton.Enabled = $false
+}
+
+# --- クリップボードにコピーする関数 ---
+function Copy-OutputToClipboard {
+    $text = $outputBox.Text
+    
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        [System.Windows.Forms.MessageBox]::Show("コピーする内容がありません。")
+        return
+    }
+    
+    # 不要なメッセージを削除
+    $removePatterns = @(
+        "解析開始\.\.\. 少々お待ちください。",
+        "ローカルファイルとして解析します。",
+        "解析完了。",
+        "=== 全ファイル解析完了 ==="
+    )
+    
+    $lines = $text -split "`r?`n"
+    $filteredLines = $lines | Where-Object {
+        $line = $_.Trim()
+        $shouldKeep = $true
+        foreach ($pattern in $removePatterns) {
+            if ($line -match "^$pattern`$") {
+                $shouldKeep = $false
+                break
+            }
+        }
+        $shouldKeep
+    }
+    
+    $cleanedText = $filteredLines -join "`r`n"
+    
+    # 連続する空行を1つにまとめる
+    $cleanedText = $cleanedText -replace "(`r?`n){3,}", "`r`n`r`n"
+    
+    try {
+        [System.Windows.Forms.Clipboard]::SetText($cleanedText)
+        [System.Windows.Forms.MessageBox]::Show("出力内容をクリップボードにコピーしました。")
+    } catch {
+        [System.Windows.Forms.MessageBox]::Show("クリップボードへのコピーに失敗しました。`n$($_.Exception.Message)")
+    }
 }
 
 # --- 履歴ダイアログを表示する関数 ---
