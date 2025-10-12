@@ -3,17 +3,6 @@ Add-Type -AssemblyName System.Drawing
 chcp 65001 > $null
 $ErrorActionPreference = "Stop"
 
-# --- ツールパス ---
-$yt = "C:\encode\tools\yt-dlp.exe"
-$mediainfo = "C:\DTV\tools\MediaInfo_CLI\MediaInfo.exe"
-
-foreach ($tool in @($yt, $mediainfo)) {
-    if (-not (Test-Path $tool)) {
-        [System.Windows.Forms.MessageBox]::Show("$tool が見つかりません。")
-        exit
-    }
-}
-
 # 設定ファイルのパス
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configDir = Join-Path $scriptDir "ini"
@@ -24,13 +13,15 @@ if (-not (Test-Path $configDir)) {
     New-Item -ItemType Directory -Path $configDir -Force | Out-Null
 }
 
-# 設定を読み込む関数
+# --- 設定を読み込む関数 ---
 function Load-Config {
     $config = @{
         Theme = "Dark"
         FontName = "Consolas"
         FontSize = 10
         WindowOpacity = 1.0
+        YtDlpPath = "C:\encode\tools\yt-dlp.exe"
+        MediaInfoPath = "C:\DTV\tools\MediaInfo_CLI\MediaInfo.exe"
     }
     
     if (Test-Path $configFile) {
@@ -46,23 +37,35 @@ function Load-Config {
     return $config
 }
 
-# 設定を保存する関数
+# --- 設定を保存する関数 ---
 function Save-Config {
     $content = @"
 Theme=$($script:currentTheme)
 FontName=$($script:currentFontName)
 FontSize=$($script:currentFontSize)
 WindowOpacity=$($script:windowOpacity)
+YtDlpPath=$($script:ytDlpPath)
+MediaInfoPath=$($script:mediaInfoPath)
 "@
     Set-Content -Path $configFile -Value $content -Encoding UTF8
 }
 
-# 設定を読み込み
+# --- 設定を読み込み ---
 $config = Load-Config
 $script:currentTheme = $config.Theme
 $script:currentFontName = $config.FontName
 $script:currentFontSize = [int]$config.FontSize
 $script:windowOpacity = [double]$config.WindowOpacity
+$script:ytDlpPath = $config.YtDlpPath
+$script:mediaInfoPath = $config.MediaInfoPath
+
+# --- ツールパスチェック ---
+foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
+    if (-not (Test-Path $tool)) {
+        [System.Windows.Forms.MessageBox]::Show("$tool が見つかりません。設定でパスを確認してください。")
+        # ここでは終了せずに続行（設定で修正可能なため）
+    }
+}
 
 function Format-Time($seconds) {
     if (-not $seconds) { return "不明" }
@@ -214,7 +217,7 @@ $optionsItem.Add_Click({
     # オプションダイアログを作成
     $optionsForm = New-Object System.Windows.Forms.Form
     $optionsForm.Text = "オプション"
-    $optionsForm.Size = New-Object System.Drawing.Size(450, 350)
+    $optionsForm.Size = New-Object System.Drawing.Size(450, 400)  # 高さを増加
     $optionsForm.StartPosition = "CenterParent"
     $optionsForm.FormBorderStyle = "FixedDialog"
     $optionsForm.MaximizeBox = $false
@@ -305,16 +308,78 @@ $optionsItem.Add_Click({
     $fontSizeCombo.SelectedItem = $script:currentFontSize.ToString()
     $optionsForm.Controls.Add($fontSizeCombo)
     
+    # yt-dlpパス設定
+    $ytDlpLabel = New-Object System.Windows.Forms.Label
+    $ytDlpLabel.Text = "yt-dlp パス："
+    $ytDlpLabel.Location = New-Object System.Drawing.Point(20, 140)
+    $ytDlpLabel.Size = New-Object System.Drawing.Size(100, 20)
+    $ytDlpLabel.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($ytDlpLabel)
+    
+    $ytDlpTextBox = New-Object System.Windows.Forms.TextBox
+    $ytDlpTextBox.Location = New-Object System.Drawing.Point(130, 138)
+    $ytDlpTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $ytDlpTextBox.Text = $script:ytDlpPath
+    $ytDlpTextBox.BackColor = $script:inputBgColor
+    $ytDlpTextBox.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($ytDlpTextBox)
+    
+    $ytDlpBrowseButton = New-Object System.Windows.Forms.Button
+    $ytDlpBrowseButton.Text = "参照"
+    $ytDlpBrowseButton.Location = New-Object System.Drawing.Point(385, 138)
+    $ytDlpBrowseButton.Size = New-Object System.Drawing.Size(50, 25)
+    $ytDlpBrowseButton.Add_Click({
+        $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $openFileDialog.Filter = "実行ファイル (*.exe)|*.exe|すべてのファイル (*.*)|*.*"
+        $openFileDialog.Title = "yt-dlp のパスを選択"
+        $openFileDialog.InitialDirectory = Split-Path -Parent $script:ytDlpPath
+        if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $ytDlpTextBox.Text = $openFileDialog.FileName
+        }
+    })
+    $optionsForm.Controls.Add($ytDlpBrowseButton)
+    
+    # MediaInfoパス設定
+    $mediaInfoLabel = New-Object System.Windows.Forms.Label
+    $mediaInfoLabel.Text = "MediaInfo パス："
+    $mediaInfoLabel.Location = New-Object System.Drawing.Point(20, 180)
+    $mediaInfoLabel.Size = New-Object System.Drawing.Size(100, 20)
+    $mediaInfoLabel.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($mediaInfoLabel)
+    
+    $mediaInfoTextBox = New-Object System.Windows.Forms.TextBox
+    $mediaInfoTextBox.Location = New-Object System.Drawing.Point(130, 178)
+    $mediaInfoTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $mediaInfoTextBox.Text = $script:mediaInfoPath
+    $mediaInfoTextBox.BackColor = $script:inputBgColor
+    $mediaInfoTextBox.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($mediaInfoTextBox)
+    
+    $mediaInfoBrowseButton = New-Object System.Windows.Forms.Button
+    $mediaInfoBrowseButton.Text = "参照"
+    $mediaInfoBrowseButton.Location = New-Object System.Drawing.Point(385, 178)
+    $mediaInfoBrowseButton.Size = New-Object System.Drawing.Size(50, 25)
+    $mediaInfoBrowseButton.Add_Click({
+        $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $openFileDialog.Filter = "実行ファイル (*.exe)|*.exe|すべてのファイル (*.*)|*.*"
+        $openFileDialog.Title = "MediaInfo のパスを選択"
+        $openFileDialog.InitialDirectory = Split-Path -Parent $script:mediaInfoPath
+        if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $mediaInfoTextBox.Text = $openFileDialog.FileName
+        }
+    })
+    $optionsForm.Controls.Add($mediaInfoBrowseButton)
+    
     # 透明度設定
     $opacityLabel = New-Object System.Windows.Forms.Label
     $opacityLabel.Text = "ウィンドウの透明度："
-    $opacityLabel.Location = New-Object System.Drawing.Point(20, 140)
+    $opacityLabel.Location = New-Object System.Drawing.Point(20, 220)
     $opacityLabel.Size = New-Object System.Drawing.Size(150, 20)
     $opacityLabel.ForeColor = $script:fgColor
     $optionsForm.Controls.Add($opacityLabel)
     
     $opacityTrackBar = New-Object System.Windows.Forms.TrackBar
-    $opacityTrackBar.Location = New-Object System.Drawing.Point(20, 165)
+    $opacityTrackBar.Location = New-Object System.Drawing.Point(20, 245)
     $opacityTrackBar.Size = New-Object System.Drawing.Size(300, 45)
     $opacityTrackBar.Minimum = 50
     $opacityTrackBar.Maximum = 100
@@ -323,7 +388,7 @@ $optionsItem.Add_Click({
     $optionsForm.Controls.Add($opacityTrackBar)
     
     $opacityValueLabel = New-Object System.Windows.Forms.Label
-    $opacityValueLabel.Location = New-Object System.Drawing.Point(330, 170)
+    $opacityValueLabel.Location = New-Object System.Drawing.Point(330, 250)
     $opacityValueLabel.Size = New-Object System.Drawing.Size(80, 20)
     $opacityValueLabel.Text = "$([int]($script:windowOpacity * 100))%"
     $opacityValueLabel.ForeColor = $script:fgColor
@@ -337,7 +402,7 @@ $optionsItem.Add_Click({
     # OKボタン
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(240, 270)
+    $okButton.Location = New-Object System.Drawing.Point(240, 310)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $okButton.Add_Click({
@@ -358,19 +423,30 @@ $optionsItem.Add_Click({
             $outputBox.Font = New-Object System.Drawing.Font($script:currentFontName, $script:currentFontSize)
         }
         
+        # ツールパス適用
+        $script:ytDlpPath = $ytDlpTextBox.Text.Trim()
+        $script:mediaInfoPath = $mediaInfoTextBox.Text.Trim()
+        
         # 透明度適用
         $script:windowOpacity = $opacityTrackBar.Value / 100.0
         $form.Opacity = $script:windowOpacity
         
         # 設定を保存
         Save-Config
+        
+        # ツールの存在確認
+        foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
+            if (-not (Test-Path $tool)) {
+                [System.Windows.Forms.MessageBox]::Show("$tool が見つかりません。パスを確認してください。")
+            }
+        }
     })
     $optionsForm.Controls.Add($okButton)
     
     # キャンセルボタン
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(330, 270)
+    $cancelButton.Location = New-Object System.Drawing.Point(330, 310)
     $cancelButton.Size = New-Object System.Drawing.Size(80, 30)
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $cancelButton.Add_Click({
@@ -568,8 +644,8 @@ function Show-ResultWindows {
             $resultForm.Size = New-Object System.Drawing.Size([int]$windowWidth, [int]$windowHeight)
             $resultForm.StartPosition = "Manual"
             $resultForm.Location = New-Object System.Drawing.Point([int]$xOffset, [int]$yOffset)
-            $resultForm.BackColor = $bgColor
-            $resultForm.ForeColor = $fgColor
+            $resultForm.BackColor = $script:bgColor
+            $resultForm.ForeColor = $script:fgColor
             $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
             
             $resultTextBox = New-Object System.Windows.Forms.TextBox
@@ -578,8 +654,8 @@ function Show-ResultWindows {
             $resultTextBox.ReadOnly = $true
             $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
             $resultTextBox.Dock = "Fill"
-            $resultTextBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
-            $resultTextBox.ForeColor = $fgColor
+            $resultTextBox.BackColor = $script:outputBgColor
+            $resultTextBox.ForeColor = $script:fgColor
             $resultTextBox.Text = $result.Content
             $resultForm.Controls.Add($resultTextBox)
             
@@ -614,8 +690,8 @@ function Show-ResultWindows {
             $resultForm.Size = New-Object System.Drawing.Size([int]$windowWidth, [int]$windowHeight)
             $resultForm.StartPosition = "Manual"
             $resultForm.Location = New-Object System.Drawing.Point([int]$xOffset, [int]$yOffset)
-            $resultForm.BackColor = $bgColor
-            $resultForm.ForeColor = $fgColor
+            $resultForm.BackColor = $script:bgColor
+            $resultForm.ForeColor = $script:fgColor
             $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
             
             $resultTextBox = New-Object System.Windows.Forms.TextBox
@@ -624,8 +700,8 @@ function Show-ResultWindows {
             $resultTextBox.ReadOnly = $true
             $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
             $resultTextBox.Dock = "Fill"
-            $resultTextBox.BackColor = [System.Drawing.Color]::FromArgb(40, 40, 40)
-            $resultTextBox.ForeColor = $fgColor
+            $resultTextBox.BackColor = $script:outputBgColor
+            $resultTextBox.ForeColor = $script:fgColor
             $resultTextBox.Text = $result.Content
             $resultForm.Controls.Add($resultTextBox)
             
@@ -671,7 +747,7 @@ function Invoke-MediaInfo($filePath) {
     try {
         # 一時ファイルに出力してUTF-8で読み込む
         $tempFile = [System.IO.Path]::GetTempFileName()
-        $null = & $mediainfo --Output=Text --LogFile="$tempFile" "$filePath" 2>$null
+        $null = & $script:mediaInfoPath --Output=Text --LogFile="$tempFile" "$filePath" 2>$null
         
         if (Test-Path $tempFile) {
             $output = Get-Content -Path $tempFile -Encoding UTF8
@@ -779,7 +855,8 @@ function Analyze-Video {
 
         try {
             if ($isUrl) {
-                $infoJson = & $yt --dump-json --no-warnings "$input" 2>$null | ConvertFrom-Json
+                # yt-dlpの出力を適切に処理（余計な出力を抑制）
+                $infoJson = & $script:ytDlpPath --dump-json --no-warnings "$input" 2>$null | ConvertFrom-Json
                 if ($infoJson) {
                     $resultTitle = $infoJson.title
                     
@@ -821,7 +898,7 @@ function Analyze-Video {
                     $resultContent += "--- 利用可能なコーデック一覧 ---`r`n"
                     
                     # フォーマット一覧を取得（エラー出力も含める）
-                    $formatOutput = & $yt -F "$input" 2>&1
+                    $formatOutput = & $script:ytDlpPath -F "$input" 2>&1
                     
                     if ($formatOutput) {
                         $videoFormats = @()
@@ -938,13 +1015,15 @@ function Analyze-Video {
                         $resultContent += "⚠ フォーマット一覧の取得に失敗しました。`r`n"
                     }
 
-                    $target = & $yt -f best -g "$input" 2>$null | Select-Object -First 1
+                    # yt-dlpの出力を適切に処理
+                    $target = & $script:ytDlpPath -f best -g "$input" 2>$null | Select-Object -First 1
                     if (-not $target) { Write-OutputBox("") }
                 } else { 
                     Write-OutputBox("yt-dlp で情報取得に失敗")
                     $resultContent += "yt-dlp で情報取得に失敗`r`n"
                 }
             } else {
+                # ローカルファイルの場合
                 if (-not (Test-Path -LiteralPath $input)) {
                     Write-OutputBox("ファイルが存在しません: $input")
                     $resultContent += "ファイルが存在しません: $input`r`n"
@@ -956,7 +1035,7 @@ function Analyze-Video {
                 $resultTitle = [System.IO.Path]::GetFileName($input)
             }
 
-            if ($target -and -not $isUrl) {
+            if ($target) {
                 Set-Progress(50 + [math]::Round($count / $total * 50))
                 $mediaInfoOutput = Invoke-MediaInfo "$target"
 
