@@ -829,7 +829,7 @@ function Show-HistoryDialog {
     # 追加ボタン
     $addButton = New-Object System.Windows.Forms.Button
     $addButton.Text = "追加"
-    $addButton.Location = New-Object System.Drawing.Point(390, 395)
+    $addButton.Location = New-Object System.Drawing.Point(210, 395)
     $addButton.Size = New-Object System.Drawing.Size(80, 30)
     $addButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
     $addButton.ForeColor = $script:fgColor
@@ -850,21 +850,66 @@ function Show-HistoryDialog {
     })
     $historyForm.Controls.Add($addButton)
     
-    # クリアボタン
+    # 選択項目を削除ボタン
+    $deleteSelectedButton = New-Object System.Windows.Forms.Button
+    $deleteSelectedButton.Text = "選択項目を削除"
+    $deleteSelectedButton.Location = New-Object System.Drawing.Point(300, 395)
+    $deleteSelectedButton.Size = New-Object System.Drawing.Size(120, 30)
+    $deleteSelectedButton.BackColor = [System.Drawing.Color]::FromArgb(200, 100, 60)
+    $deleteSelectedButton.ForeColor = $script:fgColor
+    $deleteSelectedButton.Add_Click({
+        if ($historyListBox.SelectedItems.Count -gt 0) {
+            $result = [System.Windows.Forms.MessageBox]::Show(
+                "選択した $($historyListBox.SelectedItems.Count) 件の履歴を削除しますか？", 
+                "確認", 
+                [System.Windows.Forms.MessageBoxButtons]::YesNo
+            )
+            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                # 選択項目を取得（削除中にインデックスが変わるため配列化）
+                $itemsToDelete = @($historyListBox.SelectedItems)
+                
+                # リストボックスから削除
+                foreach ($item in $itemsToDelete) {
+                    $historyListBox.Items.Remove($item)
+                }
+                
+                # ファイルに保存
+                $remainingItems = @()
+                foreach ($item in $historyListBox.Items) {
+                    $remainingItems += $item
+                }
+                Save-History $remainingItems
+                
+                [System.Windows.Forms.MessageBox]::Show("選択した履歴を削除しました。")
+                
+                # 履歴が空になったらダイアログを閉じる
+                if ($historyListBox.Items.Count -eq 0) {
+                    [System.Windows.Forms.MessageBox]::Show("履歴が空になりました。")
+                    $historyForm.Close()
+                }
+            }
+        } else {
+            [System.Windows.Forms.MessageBox]::Show("削除する項目を選択してください。")
+        }
+    })
+    $historyForm.Controls.Add($deleteSelectedButton)
+    
+    # 全ての履歴を削除ボタン
     $clearHistoryButton = New-Object System.Windows.Forms.Button
-    $clearHistoryButton.Text = "履歴削除"
-    $clearHistoryButton.Location = New-Object System.Drawing.Point(480, 395)
-    $clearHistoryButton.Size = New-Object System.Drawing.Size(90, 30)
+    $clearHistoryButton.Text = "全ての履歴を削除"
+    $clearHistoryButton.Location = New-Object System.Drawing.Point(430, 395)
+    $clearHistoryButton.Size = New-Object System.Drawing.Size(140, 30)
     $clearHistoryButton.BackColor = [System.Drawing.Color]::FromArgb(200, 60, 60)
     $clearHistoryButton.ForeColor = $script:fgColor
     $clearHistoryButton.Add_Click({
-        $result = [System.Windows.Forms.MessageBox]::Show("履歴を全て削除しますか？", "確認", [System.Windows.Forms.MessageBoxButtons]::YesNo)
+        $result = [System.Windows.Forms.MessageBox]::Show("全ての履歴を削除しますか？", "確認", [System.Windows.Forms.MessageBoxButtons]::YesNo)
         if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
             if (Test-Path $historyFile) {
                 Remove-Item -Path $historyFile -Force
             }
             $historyListBox.Items.Clear()
-            [System.Windows.Forms.MessageBox]::Show("履歴を削除しました。")
+            [System.Windows.Forms.MessageBox]::Show("全ての履歴を削除しました。")
+            $historyForm.Close()
         }
     })
     $historyForm.Controls.Add($clearHistoryButton)
