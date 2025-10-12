@@ -245,13 +245,48 @@ $optionsItem.Add_Click({
     $fontNameLabel.Size = New-Object System.Drawing.Size(100, 20)
     $fontNameLabel.ForeColor = $script:fgColor
     $optionsForm.Controls.Add($fontNameLabel)
-    
+
+    # インストール済みフォントを取得
+    $installedFonts = New-Object System.Drawing.Text.InstalledFontCollection
+    $fontFamilies = $installedFonts.Families | Where-Object { $_.IsStyleAvailable([System.Drawing.FontStyle]::Regular) } | Sort-Object Name
+
     $fontNameCombo = New-Object System.Windows.Forms.ComboBox
     $fontNameCombo.Location = New-Object System.Drawing.Point(130, 58)
     $fontNameCombo.Size = New-Object System.Drawing.Size(280, 25)
-    $fontNameCombo.DropDownStyle = "DropDownList"
-    $fontNameCombo.Items.AddRange(@("Consolas", "Courier New", "MS Gothic", "Meiryo", "Yu Gothic"))
-    $fontNameCombo.SelectedItem = $script:currentFontName
+    $fontNameCombo.DropDownStyle = "DropDown"  # 編集可能に変更
+    $fontNameCombo.AutoCompleteSource = "ListItems"
+    $fontNameCombo.AutoCompleteMode = "SuggestAppend"
+
+    # フォントを追加（既存のフォントも含める）
+    $fontList = New-Object System.Collections.ArrayList
+    foreach ($fontFamily in $fontFamilies) {
+        [void]$fontList.Add($fontFamily.Name)
+    }
+
+    # 既存のフォントがリストにない場合は追加
+    $defaultFonts = @("Consolas", "Courier New", "MS Gothic", "Meiryo", "Yu Gothic")
+    foreach ($font in $defaultFonts) {
+        if ($fontList -notcontains $font) {
+            [void]$fontList.Add($font)
+        }
+    }
+
+    # アルファベット順にソート
+    $fontList.Sort()
+
+    # コンボボックスにフォントを追加
+    foreach ($font in $fontList) {
+        [void]$fontNameCombo.Items.Add($font)
+    }
+
+    # 現在のフォントを選択
+    if ($fontNameCombo.Items.Contains($script:currentFontName)) {
+        $fontNameCombo.SelectedItem = $script:currentFontName
+    } else {
+        # 現在のフォントが見つからない場合はConsolasを選択
+        $fontNameCombo.SelectedItem = "Consolas"
+    }
+
     $optionsForm.Controls.Add($fontNameCombo)
     
     # フォントサイズ設定
