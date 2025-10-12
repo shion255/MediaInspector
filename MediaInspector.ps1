@@ -817,7 +817,58 @@ function Copy-OutputToClipboard {
     
     try {
         [System.Windows.Forms.Clipboard]::SetText($cleanedText)
-        [System.Windows.Forms.MessageBox]::Show("出力内容をクリップボードにコピーしました。")
+        
+        # 自動的に閉じるダイアログを表示
+        $notifyForm = New-Object System.Windows.Forms.Form
+        $notifyForm.Text = "コピー完了"
+        $notifyForm.Size = New-Object System.Drawing.Size(300, 140)
+        $notifyForm.StartPosition = "CenterParent"
+        $notifyForm.FormBorderStyle = "FixedDialog"
+        $notifyForm.MaximizeBox = $false
+        $notifyForm.MinimizeBox = $false
+        $notifyForm.BackColor = $script:bgColor
+        $notifyForm.ForeColor = $script:fgColor
+        
+        $notifyLabel = New-Object System.Windows.Forms.Label
+        $notifyLabel.Text = "出力内容をクリップボードに`r`nコピーしました。"
+        $notifyLabel.Location = New-Object System.Drawing.Point(20, 15)
+        $notifyLabel.Size = New-Object System.Drawing.Size(260, 50)
+        $notifyLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+        $notifyLabel.ForeColor = $script:fgColor
+        $notifyForm.Controls.Add($notifyLabel)
+        
+        $okButton = New-Object System.Windows.Forms.Button
+        $okButton.Text = "OK"
+        $okButton.Location = New-Object System.Drawing.Point(110, 70)
+        $okButton.Size = New-Object System.Drawing.Size(80, 25)
+        $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+        $notifyForm.Controls.Add($okButton)
+        $notifyForm.AcceptButton = $okButton
+        
+        # 3秒後に自動的に閉じるタイマー
+        $autoCloseTimer = New-Object System.Windows.Forms.Timer
+        $autoCloseTimer.Interval = 3000
+        $autoCloseTimer.Add_Tick({
+            param($sender, $e)
+            if ($notifyForm -and -not $notifyForm.IsDisposed) {
+                $notifyForm.Close()
+            }
+            $sender.Stop()
+            $sender.Dispose()
+        })
+        
+        # フォームが閉じられたときにタイマーを停止
+        $notifyForm.Add_FormClosed({
+            if ($autoCloseTimer) {
+                $autoCloseTimer.Stop()
+                $autoCloseTimer.Dispose()
+            }
+        })
+        
+        $autoCloseTimer.Start()
+        
+        [void]$notifyForm.ShowDialog($form)
+        
     } catch {
         [System.Windows.Forms.MessageBox]::Show("クリップボードへのコピーに失敗しました。`n$($_.Exception.Message)")
     }
