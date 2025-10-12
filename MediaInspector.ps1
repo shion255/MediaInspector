@@ -1338,7 +1338,13 @@ function Analyze-Video {
 
             if ($target) {
                 Set-Progress(50 + [math]::Round($count / $total * 50))
-                $mediaInfoOutput = Invoke-MediaInfo "$target"
+                
+                # URLの場合はMediaInfoをスキップ
+                if (-not $isUrl) {
+                    $mediaInfoOutput = Invoke-MediaInfo "$target"
+                } else {
+                    $mediaInfoOutput = $null
+                }
 
                 if ($mediaInfoOutput) {
                     Write-OutputBox("--- 詳細情報 ---")
@@ -1542,7 +1548,8 @@ function Analyze-Video {
                         $resultContent += $textLine + "`r`n"
                         $textIndex++
                     }
-                } else {
+                } elseif (-not $isUrl) {
+                    # ローカルファイルでMediaInfoが失敗した場合のみエラー表示
                     Write-OutputBox("⚠ MediaInfo で情報を取得できませんでした。")
                     $resultContent += "⚠ MediaInfo で情報を取得できませんでした。`r`n"
                 }
