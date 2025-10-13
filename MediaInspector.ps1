@@ -1199,15 +1199,28 @@ function Show-FileOrganizer {
     [void]$listView.Columns.Add("作成者", 340)
     
     # ソート用の変数
-    $script:sortColumn = 0
+    $script:sortColumn = 1  # 作成者列を初期ソート対象に
     $script:sortOrder = $true  # true = 昇順, false = 降順
     
-    # データを追加
-    foreach ($info in $fileInfoList) {
+    # データを作成者順にソートして追加
+    $sortedList = $fileInfoList | Sort-Object Artist
+    $rowIndex = 0
+    foreach ($info in $sortedList) {
         $item = New-Object System.Windows.Forms.ListViewItem($info.FileName)
         $item.SubItems.Add($info.Artist) | Out-Null
         $item.Tag = $info
+        
+        # 偶数行に背景色を設定
+        if ($rowIndex % 2 -eq 0) {
+            if ($script:currentTheme -eq "Dark") {
+                $item.BackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+            } else {
+                $item.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+            }
+        }
+        
         [void]$listView.Items.Add($item)
+        $rowIndex++
     }
     
     # 列ヘッダークリックでソート
@@ -1244,8 +1257,21 @@ function Show-FileOrganizer {
             }
         }
         
+        $rowIndex = 0
         foreach ($item in $sortedItems) {
+            # 偶数行に背景色を再設定
+            if ($rowIndex % 2 -eq 0) {
+                if ($script:currentTheme -eq "Dark") {
+                    $item.BackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+                } else {
+                    $item.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+                }
+            } else {
+                $item.BackColor = $script:inputBgColor
+            }
+            
             [void]$listView.Items.Add($item)
+            $rowIndex++
         }
     })
     
