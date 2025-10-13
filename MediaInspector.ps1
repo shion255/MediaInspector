@@ -234,6 +234,17 @@ $menuStrip.ForeColor = $script:fgColor
 $toolMenu = New-Object System.Windows.Forms.ToolStripMenuItem
 $toolMenu.Text = "ツール(&T)"
 
+# 動画ファイルを整理
+$organizeItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$organizeItem.Text = "動画ファイルを整理(&M)..."
+$organizeItem.Add_Click({
+    Show-FileOrganizer
+})
+$toolMenu.DropDownItems.Add($organizeItem)
+
+# セパレーター
+$toolMenu.DropDownItems.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
 # オプション
 $optionsItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $optionsItem.Text = "オプション(&O)..."
@@ -1060,6 +1071,335 @@ function Show-HistoryDialog {
 
 $showWindowButton.Add_Click({ Show-ResultWindows })
 $closeAllWindowsButton.Add_Click({ Close-AllResultWindows })
+
+# --- 動画ファイル整理機能 ---
+function Get-MediaInfoArtist($filePath) {
+    try {
+        $tempFile = [System.IO.Path]::GetTempFileName()
+        $null = & $script:mediaInfoPath --Output=Text --LogFile="$tempFile" "$filePath" 2>$null
+        
+        if (Test-Path $tempFile) {
+            $output = Get-Content -Path $tempFile -Encoding UTF8
+            Remove-Item -Path $tempFile -Force
+            
+            # Artist/Performerを検索
+            foreach ($line in $output) {
+                if ($line -match '^\s*(Performer|Artist)\s*:\s*(.+)$') {
+                    return $matches[2].Trim()
+                }
+            }
+        }
+        return $null
+    } catch {
+        return $null
+    }
+}
+
+function Show-FileOrganizer {
+    # フォルダ選択ダイアログ
+    $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+    $folderBrowser.Description = "動画ファイルが保存されているフォルダを選択してください"
+    $folderBrowser.ShowNewFolderButton = $false
+    
+    if ($folderBrowser.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+        return
+    }
+    
+    $targetPath = $folderBrowser.SelectedPath
+    
+    # 動画ファイルを検索
+    Write-Host "動画ファイルを検索中: $targetPath"
+    $videoExtensions = @('.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.m4v', '.ts', '.m2ts')
+    $files = Get-ChildItem -LiteralPath $targetPath -File | Where-Object {
+        $videoExtensions -contains $_.Extension.ToLower()
+    }
+    
+    if ($files.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("動画ファイルが見つかりませんでした。", "情報")
+        return
+    }
+    
+    # 作成者情報を取得
+    $fileInfoList = @()
+    $progressForm = New-Object System.Windows.Forms.Form
+    $progressForm.Text = "作成者情報を取得中..."
+    $progressForm.Size = New-Object System.Drawing.Size(400, 120)
+    $progressForm.StartPosition = "CenterScreen"
+    $progressForm.FormBorderStyle = "FixedDialog"
+    $progressForm.MaximizeBox = $false
+    $progressForm.MinimizeBox = $false
+    $progressForm.BackColor = $script:bgColor
+    
+    $progressLabel = New-Object System.Windows.Forms.Label
+    $progressLabel.Location = New-Object System.Drawing.Point(20, 20)
+    $progressLabel.Size = New-Object System.Drawing.Size(360, 20)
+    $progressLabel.ForeColor = $script:fgColor
+    $progressForm.Controls.Add($progressLabel)
+    
+    $progressBar = New-Object System.Windows.Forms.ProgressBar
+    $progressBar.Location = New-Object System.Drawing.Point(20, 50)
+    $progressBar.Size = New-Object System.Drawing.Size(360, 25)
+    $progressForm.Controls.Add($progressBar)
+    
+    $progressForm.Show()
+    $progressForm.Refresh()
+    
+    $count = 0
+    foreach ($file in $files) {
+        $count++
+        $progressLabel.Text = "処理中: $count / $($files.Count)"
+        $progressBar.Value = [int](($count / $files.Count) * 100)
+        $progressForm.Refresh()
+        [System.Windows.Forms.Application]::DoEvents()
+        
+        $artist = Get-MediaInfoArtist $file.FullName
+        
+        if ($artist) {
+            # ファイル名に使用できない文字を置換
+            $safeArtist = $artist -replace '[<>:"/\\|?*]', '-'
+            
+            $fileInfoList += [PSCustomObject]@{
+                FileName = $file.Name
+                FullPath = $file.FullName
+                Artist = $artist
+                SafeArtist = $safeArtist
+            }
+        }
+    }
+    
+    $progressForm.Close()
+    
+    if ($fileInfoList.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("作成者情報を持つ動画ファイルが見つかりませんでした。", "情報")
+        return
+    }
+    
+    # 整理ダイアログを表示
+    $organizerForm = New-Object System.Windows.Forms.Form
+    $organizerForm.Text = "動画ファイル整理 - $($fileInfoList.Count)件"
+    $organizerForm.Size = New-Object System.Drawing.Size(900, 600)
+    $organizerForm.StartPosition = "CenterScreen"
+    $organizerForm.BackColor = $script:bgColor
+    $organizerForm.ForeColor = $script:fgColor
+    
+    # ListView
+    $listView = New-Object System.Windows.Forms.ListView
+    $listView.Location = New-Object System.Drawing.Point(10, 10)
+    $listView.Size = New-Object System.Drawing.Size(860, 480)
+    $listView.View = [System.Windows.Forms.View]::Details
+    $listView.FullRowSelect = $true
+    $listView.GridLines = $true
+    $listView.Sorting = [System.Windows.Forms.SortOrder]::None
+    $listView.BackColor = $script:inputBgColor
+    $listView.ForeColor = $script:fgColor
+    $listView.Anchor = "Top,Bottom,Left,Right"
+    
+    # 列を追加
+    [void]$listView.Columns.Add("ファイル名", 500)
+    [void]$listView.Columns.Add("作成者", 340)
+    
+    # ソート用の変数
+    $script:sortColumn = 0
+    $script:sortOrder = $true  # true = 昇順, false = 降順
+    
+    # データを追加
+    foreach ($info in $fileInfoList) {
+        $item = New-Object System.Windows.Forms.ListViewItem($info.FileName)
+        $item.SubItems.Add($info.Artist) | Out-Null
+        $item.Tag = $info
+        [void]$listView.Items.Add($item)
+    }
+    
+    # 列ヘッダークリックでソート
+    $listView.Add_ColumnClick({
+        param($sender, $e)
+        
+        $columnIndex = $e.Column
+        
+        # 同じ列をクリックした場合は昇順/降順を切り替え
+        if ($script:sortColumn -eq $columnIndex) {
+            $script:sortOrder = -not $script:sortOrder
+        } else {
+            $script:sortColumn = $columnIndex
+            $script:sortOrder = $true
+        }
+        
+        # ソート実行
+        $items = @($listView.Items | ForEach-Object { $_ })
+        $listView.Items.Clear()
+        
+        $sortedItems = if ($columnIndex -eq 0) {
+            # ファイル名でソート
+            if ($script:sortOrder) {
+                $items | Sort-Object { $_.Tag.FileName }
+            } else {
+                $items | Sort-Object { $_.Tag.FileName } -Descending
+            }
+        } else {
+            # 作成者でソート
+            if ($script:sortOrder) {
+                $items | Sort-Object { $_.Tag.Artist }
+            } else {
+                $items | Sort-Object { $_.Tag.Artist } -Descending
+            }
+        }
+        
+        foreach ($item in $sortedItems) {
+            [void]$listView.Items.Add($item)
+        }
+    })
+    
+    $organizerForm.Controls.Add($listView)
+    
+    # ボタンパネル
+    $buttonPanel = New-Object System.Windows.Forms.Panel
+    $buttonPanel.Location = New-Object System.Drawing.Point(10, 500)
+    $buttonPanel.Size = New-Object System.Drawing.Size(860, 50)
+    $buttonPanel.Anchor = "Bottom,Left,Right"
+    $organizerForm.Controls.Add($buttonPanel)
+    
+    # 選択したファイルを移動ボタン
+    $moveSelectedButton = New-Object System.Windows.Forms.Button
+    $moveSelectedButton.Text = "選択したファイルを移動"
+    $moveSelectedButton.Location = New-Object System.Drawing.Point(0, 10)
+    $moveSelectedButton.Size = New-Object System.Drawing.Size(200, 35)
+    $moveSelectedButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $moveSelectedButton.ForeColor = $script:fgColor
+    $moveSelectedButton.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("移動するファイルを選択してください。", "情報")
+            return
+        }
+        
+        $selectedFiles = @()
+        foreach ($item in $listView.SelectedItems) {
+            $selectedFiles += $item.Tag
+        }
+        
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "$($selectedFiles.Count)件のファイルを作成者別フォルダに移動しますか？", 
+            "確認", 
+            [System.Windows.Forms.MessageBoxButtons]::YesNo
+        )
+        
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Move-FilesToChannelFolders $selectedFiles $targetPath $listView $organizerForm
+        }
+    })
+    $buttonPanel.Controls.Add($moveSelectedButton)
+    
+    # 全てのファイルを移動ボタン
+    $moveAllButton = New-Object System.Windows.Forms.Button
+    $moveAllButton.Text = "全てのファイルを移動"
+    $moveAllButton.Location = New-Object System.Drawing.Point(210, 10)
+    $moveAllButton.Size = New-Object System.Drawing.Size(200, 35)
+    $moveAllButton.BackColor = [System.Drawing.Color]::FromArgb(90, 150, 90)
+    $moveAllButton.ForeColor = $script:fgColor
+    $moveAllButton.Add_Click({
+        $allFiles = @()
+        foreach ($item in $listView.Items) {
+            $allFiles += $item.Tag
+        }
+        
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "$($allFiles.Count)件のファイルを作成者別フォルダに移動しますか？", 
+            "確認", 
+            [System.Windows.Forms.MessageBoxButtons]::YesNo
+        )
+        
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Move-FilesToChannelFolders $allFiles $targetPath $listView $organizerForm
+        }
+    })
+    $buttonPanel.Controls.Add($moveAllButton)
+    
+    # 閉じるボタン
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Text = "閉じる"
+    $closeButton.Location = New-Object System.Drawing.Point(760, 10)
+    $closeButton.Size = New-Object System.Drawing.Size(100, 35)
+    $closeButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
+    $closeButton.ForeColor = $script:fgColor
+    $closeButton.Anchor = "Bottom,Right"
+    $closeButton.Add_Click({
+        $organizerForm.Close()
+    })
+    $buttonPanel.Controls.Add($closeButton)
+    
+    [void]$organizerForm.ShowDialog($form)
+}
+
+function Move-FilesToChannelFolders($files, $basePath, $listView, $parentForm) {
+    $movedCount = 0
+    $skippedCount = 0
+    $errorCount = 0
+    
+    # 作成者別にグループ化
+    $groupedFiles = $files | Group-Object SafeArtist
+    
+    foreach ($group in $groupedFiles) {
+        $channelFolder = Join-Path $basePath $group.Name
+        
+        # フォルダを作成
+        if (-not (Test-Path -LiteralPath $channelFolder)) {
+            try {
+                New-Item -ItemType Directory -Path $channelFolder -Force | Out-Null
+            } catch {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "フォルダ作成エラー: $channelFolder`n$($_.Exception.Message)", 
+                    "エラー"
+                )
+                $errorCount += $group.Group.Count
+                continue
+            }
+        }
+        
+        # ファイルを移動
+        foreach ($fileInfo in $group.Group) {
+            try {
+                $destination = Join-Path $channelFolder ([System.IO.Path]::GetFileName($fileInfo.FullPath))
+                
+                # 同名ファイルが既に存在するかチェック
+                if (Test-Path -LiteralPath $destination) {
+                    $skippedCount++
+                    continue
+                }
+                
+                Move-Item -LiteralPath $fileInfo.FullPath -Destination $destination -ErrorAction Stop
+                $movedCount++
+                
+                # ListViewから削除
+                $itemToRemove = $listView.Items | Where-Object { $_.Tag.FullPath -eq $fileInfo.FullPath }
+                if ($itemToRemove) {
+                    $listView.Items.Remove($itemToRemove)
+                }
+                
+            } catch {
+                $errorCount++
+            }
+        }
+    }
+    
+    # 結果を表示
+    $message = "処理完了`n`n"
+    $message += "移動: $movedCount 件`n"
+    if ($skippedCount -gt 0) {
+        $message += "スキップ (同名ファイル): $skippedCount 件`n"
+    }
+    if ($errorCount -gt 0) {
+        $message += "エラー: $errorCount 件`n"
+    }
+    
+    [System.Windows.Forms.MessageBox]::Show($message, "処理結果")
+    
+    # リストが空になったらダイアログを閉じる
+    if ($listView.Items.Count -eq 0) {
+        $parentForm.Close()
+    } else {
+        # タイトルを更新
+        $parentForm.Text = "動画ファイル整理 - $($listView.Items.Count)件"
+    }
+}
 
 # --- MediaInfo 呼び出し ---
 function Invoke-MediaInfo($filePath) {
