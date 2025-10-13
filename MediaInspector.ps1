@@ -3,6 +3,9 @@ Add-Type -AssemblyName System.Drawing
 chcp 65001 > $null
 $ErrorActionPreference = "Stop"
 
+# コマンドライン引数を取得
+$droppedFiles = $args
+
 # 設定ファイルのパス
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $configDir = Join-Path $scriptDir "ini"
@@ -502,6 +505,12 @@ $textBox.ForeColor = $script:fgColor
 $textBox.AllowDrop = $true
 $textBox.Anchor = "Top,Left,Right"
 $form.Controls.Add($textBox)
+
+# コマンドライン引数からドロップされたファイルを挿入
+if ($droppedFiles -and $droppedFiles.Count -gt 0) {
+    $quotedFiles = $droppedFiles | ForEach-Object { "`"$_`"" }
+    $textBox.Text = $quotedFiles -join "`r`n"
+}
 
 $textBox.Add_DragEnter({
     param($sender, $e)
