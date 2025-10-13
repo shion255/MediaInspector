@@ -26,6 +26,7 @@ function Load-Config {
         WindowOpacity = 1.0
         YtDlpPath = "C:\encode\tools\yt-dlp.exe"
         MediaInfoPath = "C:\DTV\tools\MediaInfo_CLI\MediaInfo.exe"
+        IncludeSubfolders = $false
     }
     
     if (Test-Path $configFile) {
@@ -50,6 +51,7 @@ FontSize=$($script:currentFontSize)
 WindowOpacity=$($script:windowOpacity)
 YtDlpPath=$($script:ytDlpPath)
 MediaInfoPath=$($script:mediaInfoPath)
+IncludeSubfolders=$($script:includeSubfolders)
 "@
     Set-Content -Path $configFile -Value $content -Encoding UTF8
 }
@@ -79,6 +81,7 @@ $script:currentFontSize = [int]$config.FontSize
 $script:windowOpacity = [double]$config.WindowOpacity
 $script:ytDlpPath = $config.YtDlpPath
 $script:mediaInfoPath = $config.MediaInfoPath
+$script:includeSubfolders = [bool]::Parse($config.IncludeSubfolders)
 
 # --- ツールパスチェック ---
 foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
@@ -238,7 +241,7 @@ $optionsItem.Add_Click({
     # オプションダイアログを作成
     $optionsForm = New-Object System.Windows.Forms.Form
     $optionsForm.Text = "オプション"
-    $optionsForm.Size = New-Object System.Drawing.Size(450, 400)  # 高さを増加
+    $optionsForm.Size = New-Object System.Drawing.Size(450, 460)
     $optionsForm.StartPosition = "CenterParent"
     $optionsForm.FormBorderStyle = "FixedDialog"
     $optionsForm.MaximizeBox = $false
@@ -420,10 +423,19 @@ $optionsItem.Add_Click({
         $form.Opacity = $opacityTrackBar.Value / 100.0
     })
     
+    # サブフォルダを含めるオプション
+    $includeSubfoldersCheckBox = New-Object System.Windows.Forms.CheckBox
+    $includeSubfoldersCheckBox.Text = "フォルダ解析時にサブフォルダを含める"
+    $includeSubfoldersCheckBox.Location = New-Object System.Drawing.Point(20, 290)
+    $includeSubfoldersCheckBox.Size = New-Object System.Drawing.Size(400, 25)
+    $includeSubfoldersCheckBox.Checked = $script:includeSubfolders
+    $includeSubfoldersCheckBox.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($includeSubfoldersCheckBox)
+    
     # OKボタン
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(240, 310)
+    $okButton.Location = New-Object System.Drawing.Point(240, 370)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $okButton.Add_Click({
@@ -452,6 +464,9 @@ $optionsItem.Add_Click({
         $script:windowOpacity = $opacityTrackBar.Value / 100.0
         $form.Opacity = $script:windowOpacity
         
+        # サブフォルダオプション適用
+        $script:includeSubfolders = $includeSubfoldersCheckBox.Checked
+        
         # 設定を保存
         Save-Config
         
@@ -467,7 +482,7 @@ $optionsItem.Add_Click({
     # キャンセルボタン
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(330, 310)
+    $cancelButton.Location = New-Object System.Drawing.Point(330, 370)
     $cancelButton.Size = New-Object System.Drawing.Size(80, 30)
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $cancelButton.Add_Click({
@@ -1348,12 +1363,25 @@ function Analyze-Video {
                     Write-OutputBox("フォルダ内のファイルを解析します。")
                     $resultContent += "フォルダ内のファイルを解析します。`r`n"
                     
-                    # 動画ファイルを取得（一般的な拡張子）
+                    if ($script:includeSubfolders) {
+                        Write-OutputBox("(サブフォルダを含む)")
+                        $resultContent += "(サブフォルダを含む)`r`n"
+                    }
+                    
+                    # 動画ファイルを取得
                     $videoExtensions = @('*.mp4', '*.mkv', '*.avi', '*.mov', '*.wmv', '*.flv', '*.webm', '*.m4v', '*.ts', '*.m2ts')
-                    $files = Get-ChildItem -LiteralPath $input -File | Where-Object {
-                        $ext = $_.Extension.ToLower()
-                        $videoExtensions | ForEach-Object { $_ -replace '\*', '' } | Where-Object { $ext -eq $_ }
-                    } | Sort-Object Name
+                    
+                    if ($script:includeSubfolders) {
+                        $files = Get-ChildItem -LiteralPath $input -File -Recurse | Where-Object {
+                            $ext = $_.Extension.ToLower()
+                            $videoExtensions | ForEach-Object { $_ -replace '\*', '' } | Where-Object { $ext -eq $_ }
+                        } | Sort-Object FullName
+                    } else {
+                        $files = Get-ChildItem -LiteralPath $input -File | Where-Object {
+                            $ext = $_.Extension.ToLower()
+                            $videoExtensions | ForEach-Object { $_ -replace '\*', '' } | Where-Object { $ext -eq $_ }
+                        } | Sort-Object Name
+                    }
                     
                     if ($files.Count -eq 0) {
                         Write-OutputBox("⚠ フォルダ内に動画ファイルが見つかりませんでした。")
@@ -1373,8 +1401,15 @@ function Analyze-Video {
                         $target = $file.FullName
                         $resultTitle = $file.Name
                         
-                        Write-OutputBox("[$fileIndex/$($files.Count)] $($file.Name)")
-                        $resultContent += "[$fileIndex/$($files.Count)] $($file.Name)`r`n"
+                        # サブフォルダを含む場合は相対パスを表示
+                        if ($script:includeSubfolders) {
+                            $relativePath = $file.FullName.Substring($input.Length).TrimStart('\')
+                            Write-OutputBox("[$fileIndex/$($files.Count)] $relativePath")
+                            $resultContent += "[$fileIndex/$($files.Count)] $relativePath`r`n"
+                        } else {
+                            Write-OutputBox("[$fileIndex/$($files.Count)] $($file.Name)")
+                            $resultContent += "[$fileIndex/$($files.Count)] $($file.Name)`r`n"
+                        }
                         
                         Set-Progress(50 + [math]::Round(($count - 1 + $fileIndex / $files.Count) / $total * 50))
                         $mediaInfoOutput = Invoke-MediaInfo "$target"
