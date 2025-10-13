@@ -1367,6 +1367,7 @@ function Analyze-Video {
                     $duration = ""
                     $overallBitrate = ""
                     $fileSize = ""
+                    $artist = ""
                     $videoStreams = @()
                     $audioStreams = @()
                     $textStreams = @()
@@ -1427,6 +1428,7 @@ function Analyze-Video {
                                     if ($key -eq "Duration") { $duration = $value }
                                     if ($key -eq "Overall bit rate") { $overallBitrate = $value }
                                     if ($key -eq "File size") { $fileSize = $value }
+                                    if ($key -match "^(Performer|Artist)$") { $artist = $value }
                                 }
                                 "Video" {
                                     if ($key -eq "Format") { $videoInfo["format"] = $value }
@@ -1481,6 +1483,12 @@ function Analyze-Video {
                     $resultContent += "再生時間: $duration`r`n"
                     Write-OutputBox("ビットレート: $overallBitrate")
                     $resultContent += "ビットレート: $overallBitrate`r`n"
+                    
+                    # 作成者情報を表示
+                    if ($artist) {
+                        Write-OutputBox("作成者: $artist")
+                        $resultContent += "作成者: $artist`r`n"
+                    }
                     
                     # チャプター情報を表示（ローカルファイル用）
                     if ($hasChapters) {
