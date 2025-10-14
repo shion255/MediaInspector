@@ -1567,7 +1567,7 @@ function Show-FilteredResults($videoCodecs, $audioCodecs) {
     # 結果一覧を表示
     $resultForm = New-Object System.Windows.Forms.Form
     $resultForm.Text = "絞り込み結果 - $($filteredResults.Count)件"
-    $resultForm.Size = New-Object System.Drawing.Size(800, 600)
+    $resultForm.Size = New-Object System.Drawing.Size(800, 650)
     $resultForm.StartPosition = "CenterScreen"
     $resultForm.BackColor = $script:bgColor
     $resultForm.ForeColor = $script:fgColor
@@ -1575,7 +1575,7 @@ function Show-FilteredResults($videoCodecs, $audioCodecs) {
     # ListView
     $listView = New-Object System.Windows.Forms.ListView
     $listView.Location = New-Object System.Drawing.Point(10, 10)
-    $listView.Size = New-Object System.Drawing.Size(760, 530)
+    $listView.Size = New-Object System.Drawing.Size(760, 550)
     $listView.View = [System.Windows.Forms.View]::Details
     $listView.FullRowSelect = $true
     $listView.GridLines = $true
@@ -1618,7 +1618,7 @@ function Show-FilteredResults($videoCodecs, $audioCodecs) {
     # 閉じるボタン
     $closeButton = New-Object System.Windows.Forms.Button
     $closeButton.Text = "閉じる"
-    $closeButton.Location = New-Object System.Drawing.Point(340, 550)
+    $closeButton.Location = New-Object System.Drawing.Point(340, 570)
     $closeButton.Size = New-Object System.Drawing.Size(100, 30)
     $closeButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
     $closeButton.ForeColor = $script:fgColor
