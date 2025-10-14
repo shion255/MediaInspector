@@ -247,6 +247,7 @@ $toolMenu.Text = "ツール(&T)"
 # 動画ファイルを整理
 $organizeItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $organizeItem.Text = "動画ファイルを整理(&M)..."
+$organizeItem.ToolTipText = "指定したフォルダにある動画ファイルのタグ情報からフォルダを作成し、整理します"
 $organizeItem.Add_Click({
     Show-FileOrganizer
 })
