@@ -1295,10 +1295,30 @@ function Show-FileOrganizer {
     $buttonPanel.Anchor = "Bottom,Left,Right"
     $organizerForm.Controls.Add($buttonPanel)
     
+    # 移動先パス変更ボタン
+    $changePathButton = New-Object System.Windows.Forms.Button
+    $changePathButton.Text = "移動先パスを変更"
+    $changePathButton.Location = New-Object System.Drawing.Point(0, 10)
+    $changePathButton.Size = New-Object System.Drawing.Size(150, 35)
+    $changePathButton.BackColor = [System.Drawing.Color]::FromArgb(100, 120, 140)
+    $changePathButton.ForeColor = $script:fgColor
+    $changePathButton.Add_Click({
+        $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+        $folderBrowser.Description = "フォルダの作成先を選択してください"
+        $folderBrowser.SelectedPath = $targetPath
+        $folderBrowser.ShowNewFolderButton = $true
+        
+        if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $targetPath = $folderBrowser.SelectedPath
+            [System.Windows.Forms.MessageBox]::Show("移動先パスを変更しました：`n$targetPath", "確認")
+        }
+    })
+    $buttonPanel.Controls.Add($changePathButton)
+    
     # 選択したファイルを移動ボタン
     $moveSelectedButton = New-Object System.Windows.Forms.Button
     $moveSelectedButton.Text = "選択したファイルを移動"
-    $moveSelectedButton.Location = New-Object System.Drawing.Point(0, 10)
+    $moveSelectedButton.Location = New-Object System.Drawing.Point(160, 10)
     $moveSelectedButton.Size = New-Object System.Drawing.Size(200, 35)
     $moveSelectedButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
     $moveSelectedButton.ForeColor = $script:fgColor
@@ -1328,7 +1348,7 @@ function Show-FileOrganizer {
     # 全てのファイルを移動ボタン
     $moveAllButton = New-Object System.Windows.Forms.Button
     $moveAllButton.Text = "全てのファイルを移動"
-    $moveAllButton.Location = New-Object System.Drawing.Point(210, 10)
+    $moveAllButton.Location = New-Object System.Drawing.Point(370, 10)
     $moveAllButton.Size = New-Object System.Drawing.Size(200, 35)
     $moveAllButton.BackColor = [System.Drawing.Color]::FromArgb(90, 150, 90)
     $moveAllButton.ForeColor = $script:fgColor
@@ -1353,7 +1373,7 @@ function Show-FileOrganizer {
     # 閉じるボタン
     $closeButton = New-Object System.Windows.Forms.Button
     $closeButton.Text = "閉じる"
-    $closeButton.Location = New-Object System.Drawing.Point(760, 10)
+    $closeButton.Location = New-Object System.Drawing.Point(580, 10)
     $closeButton.Size = New-Object System.Drawing.Size(100, 35)
     $closeButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
     $closeButton.ForeColor = $script:fgColor
