@@ -825,116 +825,99 @@ function Show-ResultWindows {
     # 既存のウィンドウを閉じる
     Close-AllResultWindows
     
-    # 画面サイズを取得
-    $screenWidth = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Width
-    $screenHeight = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea.Height
+    # 固定サイズを設定
+    $windowWidth = 300
+    $windowHeight = 400
+    $spacing = 10
+    $startX = 20
+    $startY = 20
     
+    # 作業領域（タスクバーを除いた領域）のサイズを取得
+    $workingArea = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
+    $screenWidth = $workingArea.Width
+    $screenHeight = $workingArea.Height
+    
+    # 横方向に配置できるウィンドウ数を計算
+    $columnsPerRow = [math]::Floor(($screenWidth - $startX) / ($windowWidth + $spacing))
+    if ($columnsPerRow -lt 1) { $columnsPerRow = 1 }
+    
+    # 縦方向に配置できるウィンドウ数を計算
+    $rowsPerScreen = [math]::Floor(($screenHeight - $startY) / ($windowHeight + $spacing))
+    if ($rowsPerScreen -lt 1) { $rowsPerScreen = 1 }
+    
+    # 画面内に収まる最大ウィンドウ数
+    $maxWindowsPerScreen = $columnsPerRow * $rowsPerScreen
+    
+    # 表示するウィンドウ数を決定
     $totalCount = $script:analysisResults.Count
+    $displayCount = [math]::Min($totalCount, $maxWindowsPerScreen)
     
-    # 2段組みで表示する場合の計算
-    if ($totalCount -le 5) {
-        # 5個以下：1段のみ
-        $row1Count = $totalCount
-        $row2Count = 0
-        $windowHeight = [int]($screenHeight - 50)
-    } else {
-        # 6個以上：2段組み
-        $row1Count = [Math]::Min($totalCount, 5)
-        $row2Count = $totalCount - $row1Count
-        $windowHeight = [int](($screenHeight - 60) / 2)
-    }
-    
-    $currentIndex = 0
-    
-    # 1段目を表示
-    if ($row1Count -gt 0) {
-        $windowWidth = [int]([Math]::Floor($screenWidth / $row1Count) - 10)
-        $xOffset = 0
-        $yOffset = 20
+    # 表示数が制限される場合は確認メッセージ
+    if ($totalCount -gt $maxWindowsPerScreen) {
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "解析結果が ${totalCount} 件ありますが、画面サイズの制限により最大 ${maxWindowsPerScreen} 件まで表示できます。`n`n最初の ${maxWindowsPerScreen} 件を表示しますか？",
+            "確認",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
         
-        for ($i = 0; $i -lt $row1Count; $i++) {
-            $result = $script:analysisResults[$currentIndex]
-            
-            $resultForm = New-Object System.Windows.Forms.Form
-            $resultForm.Text = "解析結果: $($result.Title)"
-            $resultForm.Size = New-Object System.Drawing.Size([int]$windowWidth, [int]$windowHeight)
-            $resultForm.StartPosition = "Manual"
-            $resultForm.Location = New-Object System.Drawing.Point([int]$xOffset, [int]$yOffset)
-            $resultForm.BackColor = $script:bgColor
-            $resultForm.ForeColor = $script:fgColor
-            $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
-            
-            $resultTextBox = New-Object System.Windows.Forms.TextBox
-            $resultTextBox.Multiline = $true
-            $resultTextBox.ScrollBars = "Vertical"
-            $resultTextBox.ReadOnly = $true
-            $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
-            $resultTextBox.Dock = "Fill"
-            $resultTextBox.BackColor = $script:outputBgColor
-            $resultTextBox.ForeColor = $script:fgColor
-            $resultTextBox.Text = $result.Content
-            $resultForm.Controls.Add($resultTextBox)
-            
-            # FormClosedイベントでリストから削除
-            $resultForm.Add_FormClosed({
-                param($sender, $e)
-                $script:resultForms = $script:resultForms | Where-Object { $_ -ne $sender }
-                if ($script:resultForms.Count -eq 0) {
-                    $closeAllWindowsButton.Enabled = $false
-                }
-            })
-            
-            $resultForm.Show()
-            $script:resultForms += $resultForm
-            
-            $xOffset = [int]($xOffset + $windowWidth + 5)
-            $currentIndex++
+        if ($result -ne [System.Windows.Forms.DialogResult]::Yes) {
+            return
         }
     }
     
-    # 2段目を表示
-    if ($row2Count -gt 0) {
-        $windowWidth = [int]([Math]::Floor($screenWidth / $row2Count) - 10)
-        $xOffset = 0
-        $yOffset = [int](20 + $windowHeight + 10)
+    # 表示位置の初期化
+    $xOffset = $startX
+    $yOffset = $startY
+    $currentColumn = 0
+    
+    # ウィンドウを表示
+    for ($i = 0; $i -lt $displayCount; $i++) {
+        $result = $script:analysisResults[$i]
         
-        for ($i = 0; $i -lt $row2Count; $i++) {
-            $result = $script:analysisResults[$currentIndex]
-            
-            $resultForm = New-Object System.Windows.Forms.Form
-            $resultForm.Text = "解析結果: $($result.Title)"
-            $resultForm.Size = New-Object System.Drawing.Size([int]$windowWidth, [int]$windowHeight)
-            $resultForm.StartPosition = "Manual"
-            $resultForm.Location = New-Object System.Drawing.Point([int]$xOffset, [int]$yOffset)
-            $resultForm.BackColor = $script:bgColor
-            $resultForm.ForeColor = $script:fgColor
-            $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
-            
-            $resultTextBox = New-Object System.Windows.Forms.TextBox
-            $resultTextBox.Multiline = $true
-            $resultTextBox.ScrollBars = "Vertical"
-            $resultTextBox.ReadOnly = $true
-            $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
-            $resultTextBox.Dock = "Fill"
-            $resultTextBox.BackColor = $script:outputBgColor
-            $resultTextBox.ForeColor = $script:fgColor
-            $resultTextBox.Text = $result.Content
-            $resultForm.Controls.Add($resultTextBox)
-            
-            # FormClosedイベントでリストから削除
-            $resultForm.Add_FormClosed({
-                param($sender, $e)
-                $script:resultForms = $script:resultForms | Where-Object { $_ -ne $sender }
-                if ($script:resultForms.Count -eq 0) {
-                    $closeAllWindowsButton.Enabled = $false
-                }
-            })
-            
-            $resultForm.Show()
-            $script:resultForms += $resultForm
-            
-            $xOffset = [int]($xOffset + $windowWidth + 5)
-            $currentIndex++
+        $resultForm = New-Object System.Windows.Forms.Form
+        $resultForm.Text = "解析結果: $($result.Title)"
+        $resultForm.Size = New-Object System.Drawing.Size($windowWidth, $windowHeight)
+        $resultForm.StartPosition = "Manual"
+        $resultForm.Location = New-Object System.Drawing.Point($xOffset, $yOffset)
+        $resultForm.BackColor = $script:bgColor
+        $resultForm.ForeColor = $script:fgColor
+        $resultForm.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
+        
+        $resultTextBox = New-Object System.Windows.Forms.TextBox
+        $resultTextBox.Multiline = $true
+        $resultTextBox.ScrollBars = "Vertical"
+        $resultTextBox.ReadOnly = $true
+        $resultTextBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+        $resultTextBox.Dock = "Fill"
+        $resultTextBox.BackColor = $script:outputBgColor
+        $resultTextBox.ForeColor = $script:fgColor
+        $resultTextBox.Text = $result.Content
+        $resultForm.Controls.Add($resultTextBox)
+        
+        # FormClosedイベントでリストから削除
+        $resultForm.Add_FormClosed({
+            param($sender, $e)
+            $script:resultForms = $script:resultForms | Where-Object { $_ -ne $sender }
+            if ($script:resultForms.Count -eq 0) {
+                $closeAllWindowsButton.Enabled = $false
+            }
+        })
+        
+        $resultForm.Show()
+        $script:resultForms += $resultForm
+        
+        # 次のウィンドウの位置を計算
+        $currentColumn++
+        
+        if ($currentColumn -ge $columnsPerRow) {
+            # 次の行へ
+            $currentColumn = 0
+            $xOffset = $startX
+            $yOffset += $windowHeight + $spacing
+        } else {
+            # 右へ移動
+            $xOffset += $windowWidth + $spacing
         }
     }
     
