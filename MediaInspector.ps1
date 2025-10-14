@@ -3,7 +3,7 @@ Add-Type -AssemblyName System.Drawing
 chcp 65001 > $null
 $ErrorActionPreference = "Stop"
 
-# PowerShell ウィンドウを最小化
+# PowerShell ウィンドウを非表示
 Add-Type -Name Window -Namespace Console -MemberDefinition '
 [DllImport("Kernel32.dll")]
 public static extern IntPtr GetConsoleWindow();
@@ -11,7 +11,7 @@ public static extern IntPtr GetConsoleWindow();
 public static extern bool ShowWindow(IntPtr hWnd, Int32 nCmdShow);
 '
 $consolePtr = [Console.Window]::GetConsoleWindow()
-[Console.Window]::ShowWindow($consolePtr, 6) | Out-Null  # 6 = SW_MINIMIZE
+[Console.Window]::ShowWindow($consolePtr, 0) | Out-Null  # 0 = SW_HIDE (完全に非表示)
 
 # コマンドライン引数を取得
 $droppedFiles = $args
