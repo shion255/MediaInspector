@@ -244,6 +244,38 @@ $menuStrip.ForeColor = $script:fgColor
 $fileMenu = New-Object System.Windows.Forms.ToolStripMenuItem
 $fileMenu.Text = "ファイル(&F)"
 
+# 新規
+$newItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$newItem.Text = "新規(&N)"
+$newItem.Add_Click({
+    if ($textBox.Text.Trim() -or $outputBox.Text.Trim()) {
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "入力内容と出力結果をクリアしますか？",
+            "確認",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+        
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            $textBox.Clear()
+            $outputBox.Clear()
+            $script:analysisResults = @()
+            $showWindowButton.Enabled = $false
+            $textBox.Focus()
+        }
+    } else {
+        $textBox.Clear()
+        $outputBox.Clear()
+        $script:analysisResults = @()
+        $showWindowButton.Enabled = $false
+        $textBox.Focus()
+    }
+})
+$fileMenu.DropDownItems.Add($newItem)
+
+# セパレーター
+$fileMenu.DropDownItems.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
 # ファイルを追加
 $addFileItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $addFileItem.Text = "ファイルを追加(&F)..."
