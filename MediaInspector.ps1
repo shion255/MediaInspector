@@ -352,6 +352,14 @@ $organizeItem.Add_Click({
 })
 $toolMenu.DropDownItems.Add($organizeItem)
 
+# 解析結果から絞り込み
+$filterItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$filterItem.Text = "解析結果から絞り込み(&F)..."
+$filterItem.Add_Click({
+    Show-FilterDialog
+})
+$toolMenu.DropDownItems.Add($filterItem)
+
 # セパレーター
 $toolMenu.DropDownItems.Add((New-Object System.Windows.Forms.ToolStripSeparator))
 
@@ -1346,6 +1354,303 @@ function Show-MediaInfoInfo {
     $infoForm.AcceptButton = $okButton
     
     [void]$infoForm.ShowDialog($form)
+}
+
+# --- 解析結果絞り込み機能 ---
+function Show-FilterDialog {
+    if ($script:analysisResults.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("解析結果がありません。先に解析を実行してください。", "情報")
+        return
+    }
+    
+    # 利用可能なコーデックを収集
+    $videoCodecs = @{}
+    $audioCodecs = @{}
+    
+    foreach ($result in $script:analysisResults) {
+        $content = $result.Content
+        
+        # 映像コーデックを抽出
+        if ($content -match '映像\d+:\s*([^\s]+)') {
+            $codec = $matches[1]
+            if (-not $videoCodecs.ContainsKey($codec)) {
+                $videoCodecs[$codec] = 0
+            }
+            $videoCodecs[$codec]++
+        }
+        
+        # 音声コーデックを抽出
+        if ($content -match '音声\d+:\s*([^\s]+)') {
+            $codec = $matches[1]
+            if (-not $audioCodecs.ContainsKey($codec)) {
+                $audioCodecs[$codec] = 0
+            }
+            $audioCodecs[$codec]++
+        }
+    }
+    
+    if ($videoCodecs.Count -eq 0 -and $audioCodecs.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("コーデック情報が見つかりませんでした。", "情報")
+        return
+    }
+    
+    # 絞り込みダイアログ
+    $filterForm = New-Object System.Windows.Forms.Form
+    $filterForm.Text = "解析結果から絞り込み"
+    $filterForm.Size = New-Object System.Drawing.Size(600, 500)
+    $filterForm.StartPosition = "CenterParent"
+    $filterForm.BackColor = $script:bgColor
+    $filterForm.ForeColor = $script:fgColor
+    
+    # 映像コーデックグループ
+    $videoGroupBox = New-Object System.Windows.Forms.GroupBox
+    $videoGroupBox.Text = "映像コーデック"
+    $videoGroupBox.Location = New-Object System.Drawing.Point(20, 20)
+    $videoGroupBox.Size = New-Object System.Drawing.Size(260, 350)
+    $videoGroupBox.ForeColor = $script:fgColor
+    $filterForm.Controls.Add($videoGroupBox)
+    
+    $videoPanel = New-Object System.Windows.Forms.Panel
+    $videoPanel.Location = New-Object System.Drawing.Point(10, 25)
+    $videoPanel.Size = New-Object System.Drawing.Size(240, 315)
+    $videoPanel.AutoScroll = $true
+    $videoGroupBox.Controls.Add($videoPanel)
+    
+    $videoCheckBoxes = @{}
+    $yPos = 5
+    foreach ($codec in ($videoCodecs.Keys | Sort-Object)) {
+        $checkBox = New-Object System.Windows.Forms.CheckBox
+        $checkBox.Text = "$codec ($($videoCodecs[$codec]))"
+        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+        $checkBox.Size = New-Object System.Drawing.Size(220, 25)
+        $checkBox.ForeColor = $script:fgColor
+        $videoPanel.Controls.Add($checkBox)
+        $videoCheckBoxes[$codec] = $checkBox
+        $yPos += 30
+    }
+    
+    # 音声コーデックグループ
+    $audioGroupBox = New-Object System.Windows.Forms.GroupBox
+    $audioGroupBox.Text = "音声コーデック"
+    $audioGroupBox.Location = New-Object System.Drawing.Point(300, 20)
+    $audioGroupBox.Size = New-Object System.Drawing.Size(260, 350)
+    $audioGroupBox.ForeColor = $script:fgColor
+    $filterForm.Controls.Add($audioGroupBox)
+    
+    $audioPanel = New-Object System.Windows.Forms.Panel
+    $audioPanel.Location = New-Object System.Drawing.Point(10, 25)
+    $audioPanel.Size = New-Object System.Drawing.Size(240, 315)
+    $audioPanel.AutoScroll = $true
+    $audioGroupBox.Controls.Add($audioPanel)
+    
+    $audioCheckBoxes = @{}
+    $yPos = 5
+    foreach ($codec in ($audioCodecs.Keys | Sort-Object)) {
+        $checkBox = New-Object System.Windows.Forms.CheckBox
+        $checkBox.Text = "$codec ($($audioCodecs[$codec]))"
+        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+        $checkBox.Size = New-Object System.Drawing.Size(220, 25)
+        $checkBox.ForeColor = $script:fgColor
+        $audioPanel.Controls.Add($checkBox)
+        $audioCheckBoxes[$codec] = $checkBox
+        $yPos += 30
+    }
+    
+    # 検索ボタン
+    $searchButton = New-Object System.Windows.Forms.Button
+    $searchButton.Text = "検索"
+    $searchButton.Location = New-Object System.Drawing.Point(200, 390)
+    $searchButton.Size = New-Object System.Drawing.Size(100, 35)
+    $searchButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $searchButton.ForeColor = $script:fgColor
+    $searchButton.Add_Click({
+        $selectedVideoCodecs = @()
+        foreach ($codec in $videoCheckBoxes.Keys) {
+            if ($videoCheckBoxes[$codec].Checked) {
+                $selectedVideoCodecs += $codec
+            }
+        }
+        
+        $selectedAudioCodecs = @()
+        foreach ($codec in $audioCheckBoxes.Keys) {
+            if ($audioCheckBoxes[$codec].Checked) {
+                $selectedAudioCodecs += $codec
+            }
+        }
+        
+        if ($selectedVideoCodecs.Count -eq 0 -and $selectedAudioCodecs.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("少なくとも1つのコーデックを選択してください。", "情報")
+            return
+        }
+        
+        Show-FilteredResults $selectedVideoCodecs $selectedAudioCodecs
+        $filterForm.Close()
+    })
+    $filterForm.Controls.Add($searchButton)
+    
+    # キャンセルボタン
+    $cancelButton = New-Object System.Windows.Forms.Button
+    $cancelButton.Text = "キャンセル"
+    $cancelButton.Location = New-Object System.Drawing.Point(310, 390)
+    $cancelButton.Size = New-Object System.Drawing.Size(100, 35)
+    $cancelButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
+    $cancelButton.ForeColor = $script:fgColor
+    $cancelButton.Add_Click({
+        $filterForm.Close()
+    })
+    $filterForm.Controls.Add($cancelButton)
+    
+    [void]$filterForm.ShowDialog($form)
+}
+
+function Show-FilteredResults($videoCodecs, $audioCodecs) {
+    # 絞り込み実行
+    $filteredResults = @()
+    
+    foreach ($result in $script:analysisResults) {
+        $content = $result.Content
+        $match = $false
+        
+        # 映像コーデックチェック
+        if ($videoCodecs.Count -gt 0) {
+            foreach ($codec in $videoCodecs) {
+                if ($content -match "映像\d+:\s*$([regex]::Escape($codec))") {
+                    $match = $true
+                    break
+                }
+            }
+        }
+        
+        # 音声コーデックチェック
+        if (-not $match -and $audioCodecs.Count -gt 0) {
+            foreach ($codec in $audioCodecs) {
+                if ($content -match "音声\d+:\s*$([regex]::Escape($codec))") {
+                    $match = $true
+                    break
+                }
+            }
+        }
+        
+        # OR条件: 映像または音声のいずれかに一致
+        if ($videoCodecs.Count -gt 0 -and $audioCodecs.Count -gt 0) {
+            $match = $false
+            $videoMatch = $false
+            $audioMatch = $false
+            
+            foreach ($codec in $videoCodecs) {
+                if ($content -match "映像\d+:\s*$([regex]::Escape($codec))") {
+                    $videoMatch = $true
+                    break
+                }
+            }
+            
+            foreach ($codec in $audioCodecs) {
+                if ($content -match "音声\d+:\s*$([regex]::Escape($codec))") {
+                    $audioMatch = $true
+                    break
+                }
+            }
+            
+            $match = $videoMatch -or $audioMatch
+        }
+        
+        if ($match) {
+            $filteredResults += $result
+        }
+    }
+    
+    if ($filteredResults.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("条件に一致する結果が見つかりませんでした。", "情報")
+        return
+    }
+    
+    # 結果一覧を表示
+    $resultForm = New-Object System.Windows.Forms.Form
+    $resultForm.Text = "絞り込み結果 - $($filteredResults.Count)件"
+    $resultForm.Size = New-Object System.Drawing.Size(800, 600)
+    $resultForm.StartPosition = "CenterScreen"
+    $resultForm.BackColor = $script:bgColor
+    $resultForm.ForeColor = $script:fgColor
+    
+    # ListView
+    $listView = New-Object System.Windows.Forms.ListView
+    $listView.Location = New-Object System.Drawing.Point(10, 10)
+    $listView.Size = New-Object System.Drawing.Size(760, 530)
+    $listView.View = [System.Windows.Forms.View]::Details
+    $listView.FullRowSelect = $true
+    $listView.GridLines = $true
+    $listView.BackColor = $script:inputBgColor
+    $listView.ForeColor = $script:fgColor
+    $listView.Anchor = "Top,Bottom,Left,Right"
+    
+    # 列を追加
+    [void]$listView.Columns.Add("ファイル名", 700)
+    
+    # データを追加
+    $rowIndex = 0
+    foreach ($result in $filteredResults) {
+        $item = New-Object System.Windows.Forms.ListViewItem($result.Title)
+        $item.Tag = $result
+        
+        # 偶数行に背景色を設定
+        if ($rowIndex % 2 -eq 0) {
+            if ($script:currentTheme -eq "Dark") {
+                $item.BackColor = [System.Drawing.Color]::FromArgb(55, 60, 65)
+            } else {
+                $item.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+            }
+        }
+        
+        [void]$listView.Items.Add($item)
+        $rowIndex++
+    }
+    
+    # ダブルクリックで詳細表示
+    $listView.Add_DoubleClick({
+        if ($listView.SelectedItems.Count -gt 0) {
+            $selectedResult = $listView.SelectedItems[0].Tag
+            Show-ResultDetail $selectedResult
+        }
+    })
+    
+    $resultForm.Controls.Add($listView)
+    
+    # 閉じるボタン
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Text = "閉じる"
+    $closeButton.Location = New-Object System.Drawing.Point(340, 550)
+    $closeButton.Size = New-Object System.Drawing.Size(100, 30)
+    $closeButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
+    $closeButton.ForeColor = $script:fgColor
+    $closeButton.Anchor = "Bottom"
+    $closeButton.Add_Click({
+        $resultForm.Close()
+    })
+    $resultForm.Controls.Add($closeButton)
+    
+    [void]$resultForm.ShowDialog($form)
+}
+
+function Show-ResultDetail($result) {
+    $detailForm = New-Object System.Windows.Forms.Form
+    $detailForm.Text = "解析結果: $($result.Title)"
+    $detailForm.Size = New-Object System.Drawing.Size(700, 600)
+    $detailForm.StartPosition = "CenterScreen"
+    $detailForm.BackColor = $script:bgColor
+    $detailForm.ForeColor = $script:fgColor
+    
+    $detailTextBox = New-Object System.Windows.Forms.TextBox
+    $detailTextBox.Multiline = $true
+    $detailTextBox.ScrollBars = "Vertical"
+    $detailTextBox.ReadOnly = $true
+    $detailTextBox.Font = New-Object System.Drawing.Font($script:currentFontName, $script:currentFontSize)
+    $detailTextBox.Dock = "Fill"
+    $detailTextBox.BackColor = $script:outputBgColor
+    $detailTextBox.ForeColor = $script:fgColor
+    $detailTextBox.Text = $result.Content
+    $detailForm.Controls.Add($detailTextBox)
+    
+    [void]$detailForm.ShowDialog()
 }
 
 # --- 動画ファイル整理機能 ---
