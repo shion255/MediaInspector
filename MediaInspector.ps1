@@ -829,21 +829,28 @@ function Show-ResultWindows {
     $windowWidth = 300
     $windowHeight = 400
     $spacing = 10
-    $startX = 20
-    $startY = 20
     
     # 作業領域（タスクバーを除いた領域）のサイズを取得
     $workingArea = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
     $screenWidth = $workingArea.Width
     $screenHeight = $workingArea.Height
     
-    # 横方向に配置できるウィンドウ数を計算
-    $columnsPerRow = [math]::Floor(($screenWidth - $startX) / ($windowWidth + $spacing))
+    # 横方向に配置できるウィンドウ数を計算（最小マージンを20pxとする）
+    $minMargin = 20
+    $columnsPerRow = [math]::Floor(($screenWidth - $minMargin * 2 + $spacing) / ($windowWidth + $spacing))
     if ($columnsPerRow -lt 1) { $columnsPerRow = 1 }
     
     # 縦方向に配置できるウィンドウ数を計算
-    $rowsPerScreen = [math]::Floor(($screenHeight - $startY) / ($windowHeight + $spacing))
+    $rowsPerScreen = [math]::Floor(($screenHeight - $minMargin * 2 + $spacing) / ($windowHeight + $spacing))
     if ($rowsPerScreen -lt 1) { $rowsPerScreen = 1 }
+    
+    # 実際に必要な幅と高さを計算
+    $totalWidth = $columnsPerRow * $windowWidth + ($columnsPerRow - 1) * $spacing
+    $totalHeight = $rowsPerScreen * $windowHeight + ($rowsPerScreen - 1) * $spacing
+    
+    # 中央配置のための開始位置を計算
+    $startX = [math]::Max($minMargin, [math]::Floor(($screenWidth - $totalWidth) / 2))
+    $startY = [math]::Max($minMargin, [math]::Floor(($screenHeight - $totalHeight) / 2))
     
     # 画面内に収まる最大ウィンドウ数
     $maxWindowsPerScreen = $columnsPerRow * $rowsPerScreen
