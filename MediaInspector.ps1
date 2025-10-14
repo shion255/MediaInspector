@@ -240,6 +240,62 @@ $menuStrip = New-Object System.Windows.Forms.MenuStrip
 $menuStrip.BackColor = $script:menuBgColor
 $menuStrip.ForeColor = $script:fgColor
 
+# 「ファイル」メニュー
+$fileMenu = New-Object System.Windows.Forms.ToolStripMenuItem
+$fileMenu.Text = "ファイル(&F)"
+
+# ファイルを追加
+$addFileItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$addFileItem.Text = "ファイルを追加(&F)..."
+$addFileItem.Add_Click({
+    $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openFileDialog.Filter = "動画ファイル (*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.ts;*.m2ts)|*.mp4;*.mkv;*.avi;*.mov;*.wmv;*.flv;*.webm;*.m4v;*.ts;*.m2ts|すべてのファイル (*.*)|*.*"
+    $openFileDialog.Multiselect = $true
+    $openFileDialog.Title = "ファイルを選択"
+    
+    if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $existingText = $textBox.Text.Trim()
+        $quotedFiles = $openFileDialog.FileNames | ForEach-Object { "`"$_`"" }
+        $newFiles = $quotedFiles -join "`r`n"
+        
+        if ($existingText) {
+            $textBox.Text = $existingText + "`r`n" + $newFiles
+        } else {
+            $textBox.Text = $newFiles
+        }
+        
+        $textBox.SelectionStart = $textBox.Text.Length
+        $textBox.ScrollToCaret()
+    }
+})
+$fileMenu.DropDownItems.Add($addFileItem)
+
+# フォルダを追加
+$addFolderItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$addFolderItem.Text = "フォルダを追加(&D)..."
+$addFolderItem.Add_Click({
+    $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+    $folderBrowser.Description = "フォルダを選択"
+    $folderBrowser.ShowNewFolderButton = $false
+    
+    if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $existingText = $textBox.Text.Trim()
+        $selectedFolder = "`"$($folderBrowser.SelectedPath)`""
+        
+        if ($existingText) {
+            $textBox.Text = $existingText + "`r`n" + $selectedFolder
+        } else {
+            $textBox.Text = $selectedFolder
+        }
+        
+        $textBox.SelectionStart = $textBox.Text.Length
+        $textBox.ScrollToCaret()
+    }
+})
+$fileMenu.DropDownItems.Add($addFolderItem)
+
+$menuStrip.Items.Add($fileMenu)
+
 # 「ツール」メニュー
 $toolMenu = New-Object System.Windows.Forms.ToolStripMenuItem
 $toolMenu.Text = "ツール(&T)"
