@@ -1213,7 +1213,7 @@ function Show-FileOrganizer {
         # 偶数行に背景色を設定
         if ($rowIndex % 2 -eq 0) {
             if ($script:currentTheme -eq "Dark") {
-                $item.BackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+                $item.BackColor = [System.Drawing.Color]::FromArgb(55, 60, 65)
             } else {
                 $item.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
             }
@@ -1262,7 +1262,7 @@ function Show-FileOrganizer {
             # 偶数行に背景色を再設定
             if ($rowIndex % 2 -eq 0) {
                 if ($script:currentTheme -eq "Dark") {
-                    $item.BackColor = [System.Drawing.Color]::FromArgb(50, 50, 50)
+                    $item.BackColor = [System.Drawing.Color]::FromArgb(55, 60, 65)
                 } else {
                     $item.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
                 }
