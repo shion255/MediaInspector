@@ -522,6 +522,28 @@ $optionsItem.Add_Click({
 $toolMenu.DropDownItems.Add($optionsItem)
 $menuStrip.Items.Add($toolMenu)
 
+# 「ヘルプ」メニュー
+$helpMenu = New-Object System.Windows.Forms.ToolStripMenuItem
+$helpMenu.Text = "ヘルプ(&H)"
+
+# yt-dlp について
+$ytDlpInfoItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$ytDlpInfoItem.Text = "yt-dlp について(&Y)..."
+$ytDlpInfoItem.Add_Click({
+    Show-YtDlpInfo
+})
+$helpMenu.DropDownItems.Add($ytDlpInfoItem)
+
+# MediaInfo CLI について
+$mediaInfoInfoItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$mediaInfoInfoItem.Text = "MediaInfo CLI について(&M)..."
+$mediaInfoInfoItem.Add_Click({
+    Show-MediaInfoInfo
+})
+$helpMenu.DropDownItems.Add($mediaInfoInfoItem)
+
+$menuStrip.Items.Add($helpMenu)
+
 $form.MainMenuStrip = $menuStrip
 $form.Controls.Add($menuStrip)
 
@@ -1082,6 +1104,150 @@ function Show-HistoryDialog {
 
 $showWindowButton.Add_Click({ Show-ResultWindows })
 $closeAllWindowsButton.Add_Click({ Close-AllResultWindows })
+
+# --- ツール情報表示機能 ---
+function Show-YtDlpInfo {
+    $version = "不明"
+    $url = "https://github.com/yt-dlp/yt-dlp"
+    
+    if (Test-Path $script:ytDlpPath) {
+        try {
+            $versionOutput = & $script:ytDlpPath --version 2>$null
+            if ($versionOutput) {
+                $version = $versionOutput.Trim()
+            }
+        } catch {
+            $version = "取得失敗"
+        }
+    } else {
+        $version = "ツールが見つかりません"
+    }
+    
+    $infoForm = New-Object System.Windows.Forms.Form
+    $infoForm.Text = "yt-dlp について"
+    $infoForm.Size = New-Object System.Drawing.Size(450, 220)
+    $infoForm.StartPosition = "CenterParent"
+    $infoForm.FormBorderStyle = "FixedDialog"
+    $infoForm.MaximizeBox = $false
+    $infoForm.MinimizeBox = $false
+    $infoForm.BackColor = $script:bgColor
+    $infoForm.ForeColor = $script:fgColor
+    
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "yt-dlp"
+    $titleLabel.Location = New-Object System.Drawing.Point(20, 20)
+    $titleLabel.Size = New-Object System.Drawing.Size(400, 25)
+    $titleLabel.Font = New-Object System.Drawing.Font("Meiryo UI", 12, [System.Drawing.FontStyle]::Bold)
+    $titleLabel.ForeColor = $script:fgColor
+    $infoForm.Controls.Add($titleLabel)
+    
+    $versionLabel = New-Object System.Windows.Forms.Label
+    $versionLabel.Text = "バージョン: $version"
+    $versionLabel.Location = New-Object System.Drawing.Point(20, 55)
+    $versionLabel.Size = New-Object System.Drawing.Size(400, 20)
+    $versionLabel.ForeColor = $script:fgColor
+    $infoForm.Controls.Add($versionLabel)
+    
+    $urlLabel = New-Object System.Windows.Forms.Label
+    $urlLabel.Text = "URL:"
+    $urlLabel.Location = New-Object System.Drawing.Point(20, 85)
+    $urlLabel.Size = New-Object System.Drawing.Size(400, 20)
+    $urlLabel.ForeColor = $script:fgColor
+    $infoForm.Controls.Add($urlLabel)
+    
+    $urlLink = New-Object System.Windows.Forms.LinkLabel
+    $urlLink.Text = $url
+    $urlLink.Location = New-Object System.Drawing.Point(20, 105)
+    $urlLink.Size = New-Object System.Drawing.Size(400, 20)
+    $urlLink.LinkColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $urlLink.Add_LinkClicked({
+        Start-Process $url
+    })
+    $infoForm.Controls.Add($urlLink)
+    
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = "OK"
+    $okButton.Location = New-Object System.Drawing.Point(175, 140)
+    $okButton.Size = New-Object System.Drawing.Size(80, 30)
+    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $infoForm.Controls.Add($okButton)
+    $infoForm.AcceptButton = $okButton
+    
+    [void]$infoForm.ShowDialog($form)
+}
+
+function Show-MediaInfoInfo {
+    $version = "不明"
+    $url = "https://mediaarea.net/en/MediaInfo/Download/Windows"
+    
+    if (Test-Path $script:mediaInfoPath) {
+        try {
+            # ファイルのバージョン情報から取得
+            $fileInfo = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($script:mediaInfoPath)
+            if ($fileInfo.FileVersion) {
+                $version = $fileInfo.FileVersion
+            } elseif ($fileInfo.ProductVersion) {
+                $version = $fileInfo.ProductVersion
+            }
+        } catch {
+            $version = "取得失敗"
+        }
+    } else {
+        $version = "ツールが見つかりません"
+    }
+    
+    $infoForm = New-Object System.Windows.Forms.Form
+    $infoForm.Text = "MediaInfo CLI について"
+    $infoForm.Size = New-Object System.Drawing.Size(450, 220)
+    $infoForm.StartPosition = "CenterParent"
+    $infoForm.FormBorderStyle = "FixedDialog"
+    $infoForm.MaximizeBox = $false
+    $infoForm.MinimizeBox = $false
+    $infoForm.BackColor = $script:bgColor
+    $infoForm.ForeColor = $script:fgColor
+    
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "MediaInfo CLI"
+    $titleLabel.Location = New-Object System.Drawing.Point(20, 20)
+    $titleLabel.Size = New-Object System.Drawing.Size(400, 25)
+    $titleLabel.Font = New-Object System.Drawing.Font("Meiryo UI", 12, [System.Drawing.FontStyle]::Bold)
+    $titleLabel.ForeColor = $script:fgColor
+    $infoForm.Controls.Add($titleLabel)
+    
+    $versionLabel = New-Object System.Windows.Forms.Label
+    $versionLabel.Text = "バージョン: $version"
+    $versionLabel.Location = New-Object System.Drawing.Point(20, 55)
+    $versionLabel.Size = New-Object System.Drawing.Size(400, 20)
+    $versionLabel.ForeColor = $script:fgColor
+    $infoForm.Controls.Add($versionLabel)
+    
+    $urlLabel = New-Object System.Windows.Forms.Label
+    $urlLabel.Text = "URL:"
+    $urlLabel.Location = New-Object System.Drawing.Point(20, 85)
+    $urlLabel.Size = New-Object System.Drawing.Size(400, 20)
+    $urlLabel.ForeColor = $script:fgColor
+    $infoForm.Controls.Add($urlLabel)
+    
+    $urlLink = New-Object System.Windows.Forms.LinkLabel
+    $urlLink.Text = $url
+    $urlLink.Location = New-Object System.Drawing.Point(20, 105)
+    $urlLink.Size = New-Object System.Drawing.Size(400, 20)
+    $urlLink.LinkColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $urlLink.Add_LinkClicked({
+        Start-Process $url
+    })
+    $infoForm.Controls.Add($urlLink)
+    
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = "OK"
+    $okButton.Location = New-Object System.Drawing.Point(175, 140)
+    $okButton.Size = New-Object System.Drawing.Size(80, 30)
+    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $infoForm.Controls.Add($okButton)
+    $infoForm.AcceptButton = $okButton
+    
+    [void]$infoForm.ShowDialog($form)
+}
 
 # --- 動画ファイル整理機能 ---
 function Get-MediaInfoArtist($filePath) {
