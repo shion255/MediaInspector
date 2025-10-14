@@ -2367,6 +2367,7 @@ function Analyze-Video {
                         $fileIndex++
                         $target = $file.FullName
                         $resultTitle = $file.Name
+                        $resultContent = ""
                         
                         # サブフォルダを含む場合は相対パスを表示
                         if ($script:includeSubfolders) {
@@ -2576,6 +2577,12 @@ function Analyze-Video {
                         
                         Write-OutputBox("")
                         $resultContent += "`r`n"
+                        
+                        # フォルダ解析結果を保存
+                        $script:analysisResults += @{
+                            Title = $resultTitle
+                            Content = $resultContent
+                        }
                     }
                     
                     continue
