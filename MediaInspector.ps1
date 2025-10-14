@@ -294,6 +294,17 @@ $addFolderItem.Add_Click({
 })
 $fileMenu.DropDownItems.Add($addFolderItem)
 
+# セパレーター
+$fileMenu.DropDownItems.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+# 終了
+$exitItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$exitItem.Text = "終了(&X)"
+$exitItem.Add_Click({
+    $form.Close()
+})
+$fileMenu.DropDownItems.Add($exitItem)
+
 $menuStrip.Items.Add($fileMenu)
 
 # 「ツール」メニュー
