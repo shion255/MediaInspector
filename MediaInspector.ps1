@@ -1458,9 +1458,10 @@ function Show-FilterDialog {
         return
     }
     
-    # 利用可能なコーデックを収集
+    # 利用可能なコーデックとHDR/SDR情報を収集
     $videoCodecs = @{}
     $audioCodecs = @{}
+    $hdrTypes = @{}
     
     foreach ($result in $script:analysisResults) {
         $content = $result.Content
@@ -1482,9 +1483,18 @@ function Show-FilterDialog {
             }
             $audioCodecs[$codec]++
         }
+        
+        # HDR/SDR情報を抽出
+        if ($content -match '\[(HDR10|HLG|SDR)\]') {
+            $hdrType = $matches[1]
+            if (-not $hdrTypes.ContainsKey($hdrType)) {
+                $hdrTypes[$hdrType] = 0
+            }
+            $hdrTypes[$hdrType]++
+        }
     }
     
-    if ($videoCodecs.Count -eq 0 -and $audioCodecs.Count -eq 0) {
+    if ($videoCodecs.Count -eq 0 -and $audioCodecs.Count -eq 0 -and $hdrTypes.Count -eq 0) {
         [System.Windows.Forms.MessageBox]::Show("コーデック情報が見つかりませんでした。", "情報")
         return
     }
@@ -1492,7 +1502,7 @@ function Show-FilterDialog {
     # 絞り込みダイアログ
     $filterForm = New-Object System.Windows.Forms.Form
     $filterForm.Text = "解析結果から絞り込み"
-    $filterForm.Size = New-Object System.Drawing.Size(600, 500)
+    $filterForm.Size = New-Object System.Drawing.Size(850, 500)
     $filterForm.StartPosition = "CenterParent"
     $filterForm.BackColor = $script:bgColor
     $filterForm.ForeColor = $script:fgColor
@@ -1501,13 +1511,13 @@ function Show-FilterDialog {
     $videoGroupBox = New-Object System.Windows.Forms.GroupBox
     $videoGroupBox.Text = "映像コーデック"
     $videoGroupBox.Location = New-Object System.Drawing.Point(20, 20)
-    $videoGroupBox.Size = New-Object System.Drawing.Size(260, 350)
+    $videoGroupBox.Size = New-Object System.Drawing.Size(240, 350)
     $videoGroupBox.ForeColor = $script:fgColor
     $filterForm.Controls.Add($videoGroupBox)
     
     $videoPanel = New-Object System.Windows.Forms.Panel
     $videoPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $videoPanel.Size = New-Object System.Drawing.Size(240, 315)
+    $videoPanel.Size = New-Object System.Drawing.Size(220, 315)
     $videoPanel.AutoScroll = $true
     $videoGroupBox.Controls.Add($videoPanel)
     
@@ -1527,14 +1537,14 @@ function Show-FilterDialog {
     # 音声コーデックグループ
     $audioGroupBox = New-Object System.Windows.Forms.GroupBox
     $audioGroupBox.Text = "音声コーデック"
-    $audioGroupBox.Location = New-Object System.Drawing.Point(300, 20)
-    $audioGroupBox.Size = New-Object System.Drawing.Size(260, 350)
+    $audioGroupBox.Location = New-Object System.Drawing.Point(280, 20)
+    $audioGroupBox.Size = New-Object System.Drawing.Size(240, 350)
     $audioGroupBox.ForeColor = $script:fgColor
     $filterForm.Controls.Add($audioGroupBox)
     
     $audioPanel = New-Object System.Windows.Forms.Panel
     $audioPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $audioPanel.Size = New-Object System.Drawing.Size(240, 315)
+    $audioPanel.Size = New-Object System.Drawing.Size(220, 315)
     $audioPanel.AutoScroll = $true
     $audioGroupBox.Controls.Add($audioPanel)
     
@@ -1551,10 +1561,42 @@ function Show-FilterDialog {
         $yPos += 30
     }
     
+    # HDR/SDRグループ
+    $hdrGroupBox = New-Object System.Windows.Forms.GroupBox
+    $hdrGroupBox.Text = "HDR/SDR"
+    $hdrGroupBox.Location = New-Object System.Drawing.Point(540, 20)
+    $hdrGroupBox.Size = New-Object System.Drawing.Size(280, 350)
+    $hdrGroupBox.ForeColor = $script:fgColor
+    $filterForm.Controls.Add($hdrGroupBox)
+    
+    $hdrPanel = New-Object System.Windows.Forms.Panel
+    $hdrPanel.Location = New-Object System.Drawing.Point(10, 25)
+    $hdrPanel.Size = New-Object System.Drawing.Size(260, 315)
+    $hdrPanel.AutoScroll = $true
+    $hdrGroupBox.Controls.Add($hdrPanel)
+    
+    $hdrCheckBoxes = @{}
+    $yPos = 5
+    
+    # HDR/SDRの順序を定義（HDR10 -> HLG -> SDR）
+    $hdrOrder = @("HDR10", "HLG", "SDR")
+    foreach ($hdrType in $hdrOrder) {
+        if ($hdrTypes.ContainsKey($hdrType)) {
+            $checkBox = New-Object System.Windows.Forms.CheckBox
+            $checkBox.Text = "$hdrType ($($hdrTypes[$hdrType]))"
+            $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+            $checkBox.Size = New-Object System.Drawing.Size(250, 25)
+            $checkBox.ForeColor = $script:fgColor
+            $hdrPanel.Controls.Add($checkBox)
+            $hdrCheckBoxes[$hdrType] = $checkBox
+            $yPos += 30
+        }
+    }
+    
     # 検索ボタン
     $searchButton = New-Object System.Windows.Forms.Button
     $searchButton.Text = "検索"
-    $searchButton.Location = New-Object System.Drawing.Point(200, 390)
+    $searchButton.Location = New-Object System.Drawing.Point(300, 390)
     $searchButton.Size = New-Object System.Drawing.Size(100, 35)
     $searchButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
     $searchButton.ForeColor = $script:fgColor
@@ -1573,12 +1615,19 @@ function Show-FilterDialog {
             }
         }
         
-        if ($selectedVideoCodecs.Count -eq 0 -and $selectedAudioCodecs.Count -eq 0) {
-            [System.Windows.Forms.MessageBox]::Show("少なくとも1つのコーデックを選択してください。", "情報")
+        $selectedHdrTypes = @()
+        foreach ($hdrType in $hdrCheckBoxes.Keys) {
+            if ($hdrCheckBoxes[$hdrType].Checked) {
+                $selectedHdrTypes += $hdrType
+            }
+        }
+        
+        if ($selectedVideoCodecs.Count -eq 0 -and $selectedAudioCodecs.Count -eq 0 -and $selectedHdrTypes.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("少なくとも1つの条件を選択してください。", "情報")
             return
         }
         
-        Show-FilteredResults $selectedVideoCodecs $selectedAudioCodecs
+        Show-FilteredResults $selectedVideoCodecs $selectedAudioCodecs $selectedHdrTypes
         $filterForm.Close()
     })
     $filterForm.Controls.Add($searchButton)
@@ -1586,7 +1635,7 @@ function Show-FilterDialog {
     # キャンセルボタン
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(310, 390)
+    $cancelButton.Location = New-Object System.Drawing.Point(450, 390)
     $cancelButton.Size = New-Object System.Drawing.Size(100, 35)
     $cancelButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
     $cancelButton.ForeColor = $script:fgColor
@@ -1598,58 +1647,54 @@ function Show-FilterDialog {
     [void]$filterForm.ShowDialog($form)
 }
 
-function Show-FilteredResults($videoCodecs, $audioCodecs) {
+function Show-FilteredResults($videoCodecs, $audioCodecs, $hdrTypes) {
     # 絞り込み実行
     $filteredResults = @()
     
     foreach ($result in $script:analysisResults) {
         $content = $result.Content
-        $match = $false
+        $videoMatch = $false
+        $audioMatch = $false
+        $hdrMatch = $false
         
         # 映像コーデックチェック
         if ($videoCodecs.Count -gt 0) {
-            foreach ($codec in $videoCodecs) {
-                if ($content -match "映像\d+:\s*$([regex]::Escape($codec))") {
-                    $match = $true
-                    break
-                }
-            }
-        }
-        
-        # 音声コーデックチェック
-        if (-not $match -and $audioCodecs.Count -gt 0) {
-            foreach ($codec in $audioCodecs) {
-                if ($content -match "音声\d+:\s*$([regex]::Escape($codec))") {
-                    $match = $true
-                    break
-                }
-            }
-        }
-        
-        # OR条件: 映像または音声のいずれかに一致
-        if ($videoCodecs.Count -gt 0 -and $audioCodecs.Count -gt 0) {
-            $match = $false
-            $videoMatch = $false
-            $audioMatch = $false
-            
             foreach ($codec in $videoCodecs) {
                 if ($content -match "映像\d+:\s*$([regex]::Escape($codec))") {
                     $videoMatch = $true
                     break
                 }
             }
-            
+        } else {
+            $videoMatch = $true
+        }
+        
+        # 音声コーデックチェック
+        if ($audioCodecs.Count -gt 0) {
             foreach ($codec in $audioCodecs) {
                 if ($content -match "音声\d+:\s*$([regex]::Escape($codec))") {
                     $audioMatch = $true
                     break
                 }
             }
-            
-            $match = $videoMatch -or $audioMatch
+        } else {
+            $audioMatch = $true
         }
         
-        if ($match) {
+        # HDR/SDRチェック
+        if ($hdrTypes.Count -gt 0) {
+            foreach ($hdrType in $hdrTypes) {
+                if ($content -match "\[$([regex]::Escape($hdrType))\]") {
+                    $hdrMatch = $true
+                    break
+                }
+            }
+        } else {
+            $hdrMatch = $true
+        }
+        
+        # すべての選択された条件に一致する場合のみ追加
+        if ($videoMatch -and $audioMatch -and $hdrMatch) {
             $filteredResults += $result
         }
     }
