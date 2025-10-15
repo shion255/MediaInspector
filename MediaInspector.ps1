@@ -1708,6 +1708,232 @@ function Show-FilteredResults($videoCodecs, $audioCodecs) {
         }
     })
     
+    # コンテキストメニューを作成
+    $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
+    $contextMenu.BackColor = $script:menuBgColor
+    $contextMenu.ForeColor = $script:fgColor
+    
+    # ファイルを開く
+    $openFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $openFileMenuItem.Text = "ファイルを開く(&O)"
+    $openFileMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -gt 0) {
+            $selectedResult = $listView.SelectedItems[0].Tag
+            if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
+                $filePath = $selectedResult.FullPath
+            } else {
+                $filePath = $selectedResult.Title
+            }
+            
+            if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                try {
+                    Start-Process $filePath
+                } catch {
+                    [System.Windows.Forms.MessageBox]::Show("ファイルを開けませんでした。`n$($_.Exception.Message)", "エラー")
+                }
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("ファイルが見つかりません:`n$filePath", "エラー")
+            }
+        }
+    })
+    $contextMenu.Items.Add($openFileMenuItem)
+    
+    # フォルダを開く
+    $openFolderMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $openFolderMenuItem.Text = "フォルダを開く(&F)"
+    $openFolderMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -gt 0) {
+            $selectedResult = $listView.SelectedItems[0].Tag
+            if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
+                $filePath = $selectedResult.FullPath
+            } else {
+                $filePath = $selectedResult.Title
+            }
+            
+            if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                try {
+                    Start-Process "explorer.exe" -ArgumentList "/select,`"$filePath`""
+                } catch {
+                    [System.Windows.Forms.MessageBox]::Show("フォルダを開けませんでした。`n$($_.Exception.Message)", "エラー")
+                }
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("ファイルが見つかりません:`n$filePath", "エラー")
+            }
+        }
+    })
+    $contextMenu.Items.Add($openFolderMenuItem)
+    
+    # セパレーター
+    $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+    
+    # ファイルをコピー
+    $copyFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $copyFileMenuItem.Text = "ファイルをコピー(&C)..."
+    $copyFileMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+        $folderBrowser.Description = "コピー先のフォルダを選択してください"
+        $folderBrowser.ShowNewFolderButton = $true
+        
+        if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $destFolder = $folderBrowser.SelectedPath
+            $successCount = 0
+            $errorCount = 0
+            
+            foreach ($item in $listView.SelectedItems) {
+                $selectedResult = $item.Tag
+                if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
+                    $filePath = $selectedResult.FullPath
+                } else {
+                    $filePath = $selectedResult.Title
+                }
+                
+                if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                    $fileName = [System.IO.Path]::GetFileName($filePath)
+                    $destPath = Join-Path $destFolder $fileName
+                    
+                    try {
+                        Copy-Item -LiteralPath $filePath -Destination $destPath -ErrorAction Stop
+                        $successCount++
+                    } catch {
+                        $errorCount++
+                    }
+                }
+            }
+            
+            $message = "処理完了`n`nコピー: $successCount 件"
+            if ($errorCount -gt 0) {
+                $message += "`nエラー: $errorCount 件"
+            }
+            [System.Windows.Forms.MessageBox]::Show($message, "処理結果")
+        }
+    })
+    $contextMenu.Items.Add($copyFileMenuItem)
+    
+    # ファイルを移動
+    $moveFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $moveFileMenuItem.Text = "ファイルを移動(&M)..."
+    $moveFileMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+        $folderBrowser.Description = "移動先のフォルダを選択してください"
+        $folderBrowser.ShowNewFolderButton = $true
+        
+        if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $destFolder = $folderBrowser.SelectedPath
+            $successCount = 0
+            $errorCount = 0
+            
+            $itemsToRemove = @($listView.SelectedItems)
+            foreach ($item in $itemsToRemove) {
+                $selectedResult = $item.Tag
+                if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
+                       $filePath = $selectedResult.FullPath
+                } else {
+                       $filePath = $selectedResult.Title
+                }
+                
+                if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                    $fileName = [System.IO.Path]::GetFileName($filePath)
+                    $destPath = Join-Path $destFolder $fileName
+                    
+                    try {
+                        Move-Item -LiteralPath $filePath -Destination $destPath -ErrorAction Stop
+                        $listView.Items.Remove($item)
+                        $successCount++
+                    } catch {
+                        $errorCount++
+                    }
+                }
+            }
+            
+            $message = "処理完了`n`n移動: $successCount 件"
+            if ($errorCount -gt 0) {
+                $message += "`nエラー: $errorCount 件"
+            }
+            [System.Windows.Forms.MessageBox]::Show($message, "処理結果")
+            
+            if ($listView.Items.Count -eq 0) {
+                [System.Windows.Forms.MessageBox]::Show("すべてのファイルが移動されました。", "情報")
+                $resultForm.Close()
+            } else {
+                $resultForm.Text = "絞り込み結果 - $($listView.Items.Count)件"
+            }
+        }
+    })
+    $contextMenu.Items.Add($moveFileMenuItem)
+    
+    # セパレーター
+    $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+    
+    # ファイルを削除
+    $deleteFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $deleteFileMenuItem.Text = "ファイルを削除(ごみ箱)(&D)"
+    $deleteFileMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "$($listView.SelectedItems.Count)件のファイルをごみ箱に移動しますか？",
+            "確認",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+        
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            $successCount = 0
+            $errorCount = 0
+            
+            $itemsToRemove = @($listView.SelectedItems)
+            foreach ($item in $itemsToRemove) {
+                $selectedResult = $item.Tag
+                if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
+                    $filePath = $selectedResult.FullPath
+                } else {
+                    $filePath = $selectedResult.Title
+                }
+                
+                if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                    try {
+                        [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($filePath, 'OnlyErrorDialogs', 'SendToRecycleBin')
+                        $listView.Items.Remove($item)
+                        $successCount++
+                    } catch {
+                        $errorCount++
+                    }
+                }
+            }
+            
+            $message = "処理完了`n`nごみ箱に移動: $successCount 件"
+            if ($errorCount -gt 0) {
+                $message += "`nエラー: $errorCount 件"
+            }
+            [System.Windows.Forms.MessageBox]::Show($message, "処理結果")
+            
+            if ($listView.Items.Count -eq 0) {
+                [System.Windows.Forms.MessageBox]::Show("すべてのファイルが削除されました。", "情報")
+                $resultForm.Close()
+            } else {
+                $resultForm.Text = "絞り込み結果 - $($listView.Items.Count)件"
+            }
+        }
+    })
+    $contextMenu.Items.Add($deleteFileMenuItem)
+    
+    # コンテキストメニューをListViewに設定
+    $listView.ContextMenuStrip = $contextMenu
+    
     $resultForm.Controls.Add($listView)
     
     # 閉じるボタン
@@ -2789,6 +3015,7 @@ function Analyze-Video {
                         $script:analysisResults += @{
                             Title = $resultTitle
                             Content = $resultContent
+                            FullPath = $target
                         }
                     }
                     
@@ -2839,6 +3066,7 @@ function Analyze-Video {
         $script:analysisResults += @{
             Title = $resultTitle
             Content = $resultContent
+            FullPath = $target
         }
     }
 
