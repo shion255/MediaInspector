@@ -37,6 +37,23 @@ function Load-Config {
         YtDlpPath = "C:\encode\tools\yt-dlp.exe"
         MediaInfoPath = "C:\DTV\tools\MediaInfo_CLI\MediaInfo.exe"
         IncludeSubfolders = $false
+        ShowDuration = $true
+        ShowBitrate = $true
+        ShowArtist = $true
+        ShowChapters = $true
+        ShowVideoCodec = $true
+        ShowResolution = $true
+        ShowFPS = $true
+        ShowHDR = $true
+        ShowVideoBitrate = $true
+        ShowVideoStreamSize = $true
+        ShowAudioCodec = $true
+        ShowSampleRate = $true
+        ShowAudioBitrate = $true
+        ShowAudioStreamSize = $true
+        ShowCoverImage = $true
+        ShowTextStream = $true
+        ShowComment = $true
     }
     
     if (Test-Path $configFile) {
@@ -62,6 +79,23 @@ WindowOpacity=$($script:windowOpacity)
 YtDlpPath=$($script:ytDlpPath)
 MediaInfoPath=$($script:mediaInfoPath)
 IncludeSubfolders=$($script:includeSubfolders)
+ShowDuration=$($script:showDuration)
+ShowBitrate=$($script:showBitrate)
+ShowArtist=$($script:showArtist)
+ShowChapters=$($script:showChapters)
+ShowVideoCodec=$($script:showVideoCodec)
+ShowResolution=$($script:showResolution)
+ShowFPS=$($script:showFPS)
+ShowHDR=$($script:showHDR)
+ShowVideoBitrate=$($script:showVideoBitrate)
+ShowVideoStreamSize=$($script:showVideoStreamSize)
+ShowAudioCodec=$($script:showAudioCodec)
+ShowSampleRate=$($script:showSampleRate)
+ShowAudioBitrate=$($script:showAudioBitrate)
+ShowAudioStreamSize=$($script:showAudioStreamSize)
+ShowCoverImage=$($script:showCoverImage)
+ShowTextStream=$($script:showTextStream)
+ShowComment=$($script:showComment)
 "@
     Set-Content -Path $configFile -Value $content -Encoding UTF8
 }
@@ -92,6 +126,23 @@ $script:windowOpacity = [double]$config.WindowOpacity
 $script:ytDlpPath = $config.YtDlpPath
 $script:mediaInfoPath = $config.MediaInfoPath
 $script:includeSubfolders = [bool]::Parse($config.IncludeSubfolders)
+$script:showDuration = [bool]::Parse($config.ShowDuration)
+$script:showBitrate = [bool]::Parse($config.ShowBitrate)
+$script:showArtist = [bool]::Parse($config.ShowArtist)
+$script:showChapters = [bool]::Parse($config.ShowChapters)
+$script:showVideoCodec = [bool]::Parse($config.ShowVideoCodec)
+$script:showResolution = [bool]::Parse($config.ShowResolution)
+$script:showFPS = [bool]::Parse($config.ShowFPS)
+$script:showHDR = [bool]::Parse($config.ShowHDR)
+$script:showVideoBitrate = [bool]::Parse($config.ShowVideoBitrate)
+$script:showVideoStreamSize = [bool]::Parse($config.ShowVideoStreamSize)
+$script:showAudioCodec = [bool]::Parse($config.ShowAudioCodec)
+$script:showSampleRate = [bool]::Parse($config.ShowSampleRate)
+$script:showAudioBitrate = [bool]::Parse($config.ShowAudioBitrate)
+$script:showAudioStreamSize = [bool]::Parse($config.ShowAudioStreamSize)
+$script:showCoverImage = [bool]::Parse($config.ShowCoverImage)
+$script:showTextStream = [bool]::Parse($config.ShowTextStream)
+$script:showComment = [bool]::Parse($config.ShowComment)
 
 # --- ツールパスチェック ---
 foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
@@ -561,10 +612,60 @@ $optionsItem.Add_Click({
     $includeSubfoldersCheckBox.ForeColor = $script:fgColor
     $optionsForm.Controls.Add($includeSubfoldersCheckBox)
     
-    # OKボタン
+    $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
+    $analysisItemsGroupBox.Text = "表示する解析項目"
+    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 325)
+    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(400, 300)
+    $analysisItemsGroupBox.ForeColor = $script:fgColor
+    $optionsForm.Controls.Add($analysisItemsGroupBox)
+    
+    $analysisItemsPanel = New-Object System.Windows.Forms.Panel
+    $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
+    $analysisItemsPanel.Size = New-Object System.Drawing.Size(380, 265)
+    $analysisItemsPanel.AutoScroll = $true
+    $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
+    
+    $analysisCheckBoxes = @{}
+    $yPos = 5
+    
+    $analysisItems = @(
+        @{Key="ShowDuration"; Label="再生時間"},
+        @{Key="ShowBitrate"; Label="ビットレート（全体）"},
+        @{Key="ShowArtist"; Label="作成者"},
+        @{Key="ShowComment"; Label="コメント"},
+        @{Key="ShowChapters"; Label="チャプター"},
+        @{Key="ShowVideoCodec"; Label="映像: コーデック"},
+        @{Key="ShowResolution"; Label="映像: 解像度"},
+        @{Key="ShowFPS"; Label="映像: フレームレート"},
+        @{Key="ShowHDR"; Label="映像: HDR/SDR"},
+        @{Key="ShowVideoBitrate"; Label="映像: ビットレート"},
+        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"},
+        @{Key="ShowAudioCodec"; Label="音声: コーデック"},
+        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"},
+        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"},
+        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"},
+        @{Key="ShowCoverImage"; Label="カバー画像"},
+        @{Key="ShowTextStream"; Label="テキストストリーム（字幕）"}
+    )
+    
+    foreach ($item in $analysisItems) {
+        $checkBox = New-Object System.Windows.Forms.CheckBox
+        $checkBox.Text = $item.Label
+        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+        $checkBox.Size = New-Object System.Drawing.Size(360, 25)
+        $varName = $item.Key.Substring(0,1).ToLower() + $item.Key.Substring(1)
+        $checkBox.Checked = (Get-Variable -Name $varName -Scope Script).Value
+        $checkBox.ForeColor = $script:fgColor
+        $analysisItemsPanel.Controls.Add($checkBox)
+        $analysisCheckBoxes[$item.Key] = $checkBox
+        $yPos += 30
+    }
+    
+    $optionsForm.Size = New-Object System.Drawing.Size(450, 710)
+    
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(240, 370)
+    $okButton.Location = New-Object System.Drawing.Point(240, 635)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $okButton.Add_Click({
@@ -596,7 +697,11 @@ $optionsItem.Add_Click({
         # サブフォルダオプション適用
         $script:includeSubfolders = $includeSubfoldersCheckBox.Checked
         
-        # 設定を保存
+        foreach ($key in $analysisCheckBoxes.Keys) {
+            $varName = $key.Substring(0,1).ToLower() + $key.Substring(1)
+            Set-Variable -Name $varName -Value $analysisCheckBoxes[$key].Checked -Scope Script
+        }
+        
         Save-Config
         
         # ツールの存在確認
@@ -611,7 +716,7 @@ $optionsItem.Add_Click({
     # キャンセルボタン
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(330, 370)
+    $cancelButton.Location = New-Object System.Drawing.Point(330, 635)
     $cancelButton.Size = New-Object System.Drawing.Size(80, 30)
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $cancelButton.Add_Click({
@@ -2037,6 +2142,299 @@ function Invoke-MediaInfo($filePath) {
     }
 }
 
+# MediaInfo出力をパースする関数
+function Parse-MediaInfo($mediaInfoOutput) {
+    $currentSection = ""
+    $duration = ""
+    $overallBitrate = ""
+    $fileSize = ""
+    $artist = ""
+    $comment = ""
+    $videoStreams = @()
+    $audioStreams = @()
+    $textStreams = @()
+    $imageStreams = @()
+    $hasChapters = $false
+    $chapterCount = 0
+    
+    $videoInfo = @{}
+    $audioInfo = @{}
+    $textInfo = @{}
+    $imageInfo = @{}
+    
+    foreach ($line in $mediaInfoOutput) {
+        $line = $line.Trim()
+        if (-not $line) { continue }
+        
+        # セクションヘッダー検出
+        if ($line -match '^(General|Video|Audio|Text|Menu|Image)') {
+            if ($currentSection -eq "Video" -and $videoInfo.Count -gt 0) {
+                $videoStreams += $videoInfo.Clone()
+                $videoInfo.Clear()
+            }
+            if ($currentSection -eq "Audio" -and $audioInfo.Count -gt 0) {
+                $audioStreams += $audioInfo.Clone()
+                $audioInfo.Clear()
+            }
+            if ($currentSection -eq "Text" -and $textInfo.Count -gt 0) {
+                $textStreams += $textInfo.Clone()
+                $textInfo.Clear()
+            }
+            if ($currentSection -eq "Image" -and $imageInfo.Count -gt 0) {
+                $imageStreams += $imageInfo.Clone()
+                $imageInfo.Clear()
+            }
+            
+            $currentSection = $matches[1]
+            
+            if ($currentSection -eq "Menu") {
+                $hasChapters = $true
+                $chapterCount++
+            }
+            continue
+        }
+        
+        if ($currentSection -eq "Menu" -and $line -match '^Chapters') {
+            $hasChapters = $true
+        }
+        
+        if ($line -match '^(.+?)\s*:\s*(.+)$') {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            
+            switch ($currentSection) {
+                "General" {
+                    if ($key -eq "Duration") { $duration = $value }
+                    if ($key -eq "Overall bit rate") { $overallBitrate = $value }
+                    if ($key -eq "File size") { $fileSize = $value }
+                    if ($key -match "^(Performer|Artist)$") { $artist = $value }
+                    if ($key -eq "Comment") { $comment = $value }
+                }
+                "Video" {
+                    if ($key -eq "Format") { $videoInfo["format"] = $value }
+                    if ($key -eq "Width") { $videoInfo["width"] = $value -replace '\D', '' }
+                    if ($key -eq "Height") { $videoInfo["height"] = $value -replace '\D', '' }
+                    if ($key -eq "Frame rate") { $videoInfo["fps"] = $value }
+                    if ($key -eq "Frame rate mode") { $videoInfo["fps_mode"] = $value }
+                    if ($key -eq "Bit rate") { $videoInfo["bitrate"] = $value }
+                    if ($key -eq "Bit rate mode") { $videoInfo["bitrate_mode"] = $value }
+                    if ($key -eq "Stream size") { $videoInfo["stream_size"] = $value }
+                    if ($key -eq "Color primaries") { $videoInfo["color_primaries"] = $value }
+                    if ($key -eq "Transfer characteristics") { $videoInfo["transfer_characteristics"] = $value }
+                    if ($key -eq "Matrix coefficients") { $videoInfo["matrix_coefficients"] = $value }
+                }
+                "Audio" {
+                    if ($key -eq "Format") { $audioInfo["format"] = $value }
+                    if ($key -match "Channel") { $audioInfo["channels"] = $value }
+                    if ($key -eq "Sampling rate") { $audioInfo["samplerate"] = $value }
+                    if ($key -eq "Bit rate") { $audioInfo["bitrate"] = $value }
+                    if ($key -eq "Stream size") { $audioInfo["stream_size"] = $value }
+                }
+                "Text" {
+                    if ($key -eq "Language") { $textInfo["language"] = $value }
+                    if ($key -eq "Default") { $textInfo["default"] = $value }
+                    if ($key -eq "Forced") { $textInfo["forced"] = $value }
+                    if ($key -eq "Stream size") { $textInfo["stream_size"] = $value }
+                }
+                "Image" {
+                    if ($key -eq "Format") { $imageInfo["format"] = $value }
+                    if ($key -eq "Width") { $imageInfo["width"] = $value -replace '\D', '' }
+                    if ($key -eq "Height") { $imageInfo["height"] = $value -replace '\D', '' }
+                    if ($key -eq "Stream size") { $imageInfo["stream_size"] = $value }
+                }
+            }
+        }
+    }
+    
+    # 最後のストリームを追加
+    if ($videoInfo.Count -gt 0) { $videoStreams += $videoInfo }
+    if ($audioInfo.Count -gt 0) { $audioStreams += $audioInfo }
+    if ($textInfo.Count -gt 0) { $textStreams += $textInfo }
+    if ($imageInfo.Count -gt 0) { $imageStreams += $imageInfo }
+    
+    return @{
+        Duration = $duration
+        OverallBitrate = $overallBitrate
+        FileSize = $fileSize
+        Artist = $artist
+        Comment = $comment
+        VideoStreams = $videoStreams
+        AudioStreams = $audioStreams
+        TextStreams = $textStreams
+        ImageStreams = $imageStreams
+        HasChapters = $hasChapters
+        ChapterCount = $chapterCount
+    }
+}
+
+# MediaInfo情報を表示する関数（設定に基づく）
+function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
+    # 再生時間の日本語表記に変換
+    $duration = Convert-DurationToJapanese $parsedInfo.Duration
+    
+    # ビットレートのフォーマット
+    $overallBitrate = Format-Bitrate $parsedInfo.OverallBitrate
+    
+    # 基本情報を表示
+    if ($script:showDuration) {
+        Write-OutputBox("再生時間: $duration")
+        $resultContentRef.Value += "再生時間: $duration`r`n"
+    }
+    
+    if ($script:showBitrate) {
+        Write-OutputBox("ビットレート: $overallBitrate")
+        $resultContentRef.Value += "ビットレート: $overallBitrate`r`n"
+    }
+    
+    # 作成者情報を表示
+    if ($script:showArtist -and $parsedInfo.Artist) {
+        Write-OutputBox("作成者: $($parsedInfo.Artist)")
+        $resultContentRef.Value += "作成者: $($parsedInfo.Artist)`r`n"
+    }
+    
+    # コメント情報を表示
+    if ($script:showComment -and $parsedInfo.Comment) {
+        Write-OutputBox("コメント: $($parsedInfo.Comment)")
+        $resultContentRef.Value += "コメント: $($parsedInfo.Comment)`r`n"
+    }
+    
+    # チャプター情報を表示
+    if ($script:showChapters) {
+        if ($parsedInfo.HasChapters) {
+            Write-OutputBox("✅ チャプターあり")
+            $resultContentRef.Value += "✅ チャプターあり`r`n"
+        } else {
+            Write-OutputBox("❌ チャプターなし")
+            $resultContentRef.Value += "❌ チャプターなし`r`n"
+        }
+    }
+    
+    # 映像ストリーム情報（番号付き）
+    $videoIndex = 1
+    foreach ($v in $parsedInfo.VideoStreams) {
+        $videoLine = ""
+        $parts = @()
+        
+        # コーデック
+        if ($script:showVideoCodec) {
+            $format = if ($v["format"]) { $v["format"] } else { "不明" }
+            $parts += $format
+        }
+        
+        # 解像度
+        if ($script:showResolution) {
+            $res = if ($v["width"] -and $v["height"]) { "$($v['width'])x$($v['height'])" } else { "不明" }
+            $parts += $res
+        }
+        
+        # FPS
+        if ($script:showFPS) {
+            $fpsMode = if ($v["fps_mode"]) { "[$($v['fps_mode'])]" } else { "" }
+            $fps = if ($v["fps"]) { 
+                ($v["fps"] -replace '\s*FPS', '') + " fps"
+            } else { 
+                "不明" 
+            }
+            $parts += "$fpsMode $fps"
+        }
+        
+        # HDR/SDR情報
+        if ($script:showHDR) {
+            $hdrInfo = Get-HDRInfo $v["color_primaries"] $v["transfer_characteristics"] $v["matrix_coefficients"]
+            $parts += $hdrInfo
+        }
+        
+        # ビットレート
+        if ($script:showVideoBitrate) {
+            $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
+            $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
+            $parts += "$bitrateMode $bitrate"
+        }
+        
+        # ストリームサイズ
+        if ($script:showVideoStreamSize -and $v["stream_size"]) {
+            $parts += $v["stream_size"]
+        }
+        
+        if ($parts.Count -gt 0) {
+            $videoLine = "映像${videoIndex}: " + ($parts -join " | ")
+            Write-OutputBox($videoLine)
+            $resultContentRef.Value += $videoLine + "`r`n"
+        }
+        
+        $videoIndex++
+    }
+    
+    # 音声ストリーム情報（番号付き）
+    $audioIndex = 1
+    foreach ($a in $parsedInfo.AudioStreams) {
+        $audioLine = ""
+        $parts = @()
+        
+        # コーデック
+        if ($script:showAudioCodec) {
+            $format = if ($a["format"]) { $a["format"] } else { "不明" }
+            $parts += $format
+        }
+        
+        # サンプリングレート
+        if ($script:showSampleRate) {
+            $samplerate = if ($a["samplerate"]) { $a["samplerate"] } else { "不明" }
+            $parts += $samplerate
+        }
+        
+        # ビットレート
+        if ($script:showAudioBitrate) {
+            $bitrate = if ($a["bitrate"]) { (Format-Bitrate $a["bitrate"]) } else { "不明" }
+            $parts += $bitrate
+        }
+        
+        # ストリームサイズ
+        if ($script:showAudioStreamSize -and $a["stream_size"]) {
+            $parts += $a["stream_size"]
+        }
+        
+        if ($parts.Count -gt 0) {
+            $audioLine = "音声${audioIndex}: " + ($parts -join " | ")
+            Write-OutputBox($audioLine)
+            $resultContentRef.Value += $audioLine + "`r`n"
+        }
+        
+        $audioIndex++
+    }
+    
+    # 画像ストリーム情報（番号付き）
+    if ($script:showCoverImage) {
+        $imageIndex = 1
+        foreach ($img in $parsedInfo.ImageStreams) {
+            $format = if ($img["format"]) { $img["format"] } else { "不明" }
+            $res = if ($img["width"] -and $img["height"]) { "$($img['width'])x$($img['height'])" } else { "不明" }
+            $streamSize = if ($img["stream_size"]) { $img["stream_size"] } else { "" }
+            
+            $imageLine = "カバー画像${imageIndex}: $format $res"
+            if ($streamSize) { $imageLine += " | $streamSize" }
+            Write-OutputBox($imageLine)
+            $resultContentRef.Value += $imageLine + "`r`n"
+            $imageIndex++
+        }
+    }
+    
+    # テキストストリーム情報（番号付き）
+    if ($script:showTextStream) {
+        $textIndex = 1
+        foreach ($txt in $parsedInfo.TextStreams) {
+            $language = if ($txt["language"]) { $txt["language"] } else { "不明" }
+            $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
+            $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
+            
+            $textLine = "テキスト${textIndex}: $language | Default - $default | Forced - $forced"
+            Write-OutputBox($textLine)
+            $resultContentRef.Value += $textLine + "`r`n"
+            $textIndex++
+        }
+    }
+}
+
 # --- 解析処理 ---
 function Analyze-Video {
     $inputsRaw = $textBox.Text.Trim()
@@ -2155,17 +2553,21 @@ function Analyze-Video {
                         }
                     }
                     
-                    $durationText = Format-Time $infoJson.duration
-                    Write-OutputBox("再生時間: $durationText")
-                    $resultContent += "再生時間: $durationText`r`n"
+                    if ($script:showDuration) {
+                        $durationText = Format-Time $infoJson.duration
+                        Write-OutputBox("再生時間: $durationText")
+                        $resultContent += "再生時間: $durationText`r`n"
+                    }
                     
                     # チャプターの有無をチェック
-                    if ($infoJson.chapters -and $infoJson.chapters.Count -gt 0) {
-                        Write-OutputBox("✅ チャプターあり ($($infoJson.chapters.Count)個)")
-                        $resultContent += "✅ チャプターあり ($($infoJson.chapters.Count)個)`r`n"
-                    } else {
-                        Write-OutputBox("❌ チャプターなし")
-                        $resultContent += "❌ チャプターなし`r`n"
+                    if ($script:showChapters) {
+                        if ($infoJson.chapters -and $infoJson.chapters.Count -gt 0) {
+                            Write-OutputBox("✅ チャプターあり ($($infoJson.chapters.Count)個)")
+                            $resultContent += "✅ チャプターあり ($($infoJson.chapters.Count)個)`r`n"
+                        } else {
+                            Write-OutputBox("❌ チャプターなし")
+                            $resultContent += "❌ チャプターなし`r`n"
+                        }
                     }
                     
                     $subs = $infoJson.subtitles.PSObject.Properties.Name
@@ -2373,193 +2775,8 @@ function Analyze-Video {
                         $mediaInfoOutput = Invoke-MediaInfo "$target"
                         
                         if ($mediaInfoOutput) {
-                            # MediaInfo出力をパース（以下、既存のパース処理と同じ）
-                            $currentSection = ""
-                            $duration = ""
-                            $overallBitrate = ""
-                            $fileSize = ""
-                            $artist = ""
-                            $videoStreams = @()
-                            $audioStreams = @()
-                            $textStreams = @()
-                            $imageStreams = @()
-                            $hasChapters = $false
-                            $chapterCount = 0
-                            
-                            $videoInfo = @{}
-                            $audioInfo = @{}
-                            $textInfo = @{}
-                            $imageInfo = @{}
-                            
-                            # パース処理（既存のコードをそのままコピー）
-                            foreach ($line in $mediaInfoOutput) {
-                                $line = $line.Trim()
-                                if (-not $line) { continue }
-                                
-                                # セクションヘッダー検出
-                                if ($line -match '^(General|Video|Audio|Text|Menu|Image)') {
-                                    if ($currentSection -eq "Video" -and $videoInfo.Count -gt 0) {
-                                        $videoStreams += $videoInfo.Clone()
-                                        $videoInfo.Clear()
-                                    }
-                                    if ($currentSection -eq "Audio" -and $audioInfo.Count -gt 0) {
-                                        $audioStreams += $audioInfo.Clone()
-                                        $audioInfo.Clear()
-                                    }
-                                    if ($currentSection -eq "Text" -and $textInfo.Count -gt 0) {
-                                        $textStreams += $textInfo.Clone()
-                                        $textInfo.Clear()
-                                    }
-                                    if ($currentSection -eq "Image" -and $imageInfo.Count -gt 0) {
-                                        $imageStreams += $imageInfo.Clone()
-                                        $imageInfo.Clear()
-                                    }
-                                    
-                                    $currentSection = $matches[1]
-                                    
-                                    if ($currentSection -eq "Menu") {
-                                        $hasChapters = $true
-                                        $chapterCount++
-                                    }
-                                    continue
-                                }
-                                
-                                if ($currentSection -eq "Menu" -and $line -match '^Chapters') {
-                                    $hasChapters = $true
-                                }
-                                
-                                if ($line -match '^(.+?)\s*:\s*(.+)$') {
-                                    $key = $matches[1].Trim()
-                                    $value = $matches[2].Trim()
-                                    
-                                    switch ($currentSection) {
-                                        "General" {
-                                            if ($key -eq "Duration") { $duration = $value }
-                                            if ($key -eq "Overall bit rate") { $overallBitrate = $value }
-                                            if ($key -eq "File size") { $fileSize = $value }
-                                            if ($key -match "^(Performer|Artist)$") { $artist = $value }
-                                        }
-                                        "Video" {
-                                            if ($key -eq "Format") { $videoInfo["format"] = $value }
-                                            if ($key -eq "Width") { $videoInfo["width"] = $value -replace '\D', '' }
-                                            if ($key -eq "Height") { $videoInfo["height"] = $value -replace '\D', '' }
-                                            if ($key -eq "Frame rate") { $videoInfo["fps"] = $value }
-                                            if ($key -eq "Frame rate mode") { $videoInfo["fps_mode"] = $value }
-                                            if ($key -eq "Bit rate") { $videoInfo["bitrate"] = $value }
-                                            if ($key -eq "Bit rate mode") { $videoInfo["bitrate_mode"] = $value }
-                                            if ($key -eq "Stream size") { $videoInfo["stream_size"] = $value }
-                                            if ($key -eq "Color primaries") { $videoInfo["color_primaries"] = $value }
-                                            if ($key -eq "Transfer characteristics") { $videoInfo["transfer_characteristics"] = $value }
-                                            if ($key -eq "Matrix coefficients") { $videoInfo["matrix_coefficients"] = $value }
-                                        }
-                                        "Audio" {
-                                            if ($key -eq "Format") { $audioInfo["format"] = $value }
-                                            if ($key -match "Channel") { $audioInfo["channels"] = $value }
-                                            if ($key -eq "Sampling rate") { $audioInfo["samplerate"] = $value }
-                                            if ($key -eq "Bit rate") { $audioInfo["bitrate"] = $value }
-                                            if ($key -eq "Stream size") { $audioInfo["stream_size"] = $value }
-                                        }
-                                        "Text" {
-                                            if ($key -eq "Language") { $textInfo["language"] = $value }
-                                            if ($key -eq "Default") { $textInfo["default"] = $value }
-                                            if ($key -eq "Forced") { $textInfo["forced"] = $value }
-                                            if ($key -eq "Stream size") { $textInfo["stream_size"] = $value }
-                                        }
-                                        "Image" {
-                                            if ($key -eq "Format") { $imageInfo["format"] = $value }
-                                            if ($key -eq "Width") { $imageInfo["width"] = $value -replace '\D', '' }
-                                            if ($key -eq "Height") { $imageInfo["height"] = $value -replace '\D', '' }
-                                            if ($key -eq "Stream size") { $imageInfo["stream_size"] = $value }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            # 最後のストリームを追加
-                            if ($videoInfo.Count -gt 0) { $videoStreams += $videoInfo }
-                            if ($audioInfo.Count -gt 0) { $audioStreams += $audioInfo }
-                            if ($textInfo.Count -gt 0) { $textStreams += $textInfo }
-                            if ($imageInfo.Count -gt 0) { $imageStreams += $imageInfo }
-                            
-                            # 情報を表示（既存の表示処理をそのまま使用）
-                            $duration = Convert-DurationToJapanese $duration
-                            $overallBitrate = Format-Bitrate $overallBitrate
-                            
-                            Write-OutputBox("  再生時間: $duration")
-                            $resultContent += "  再生時間: $duration`r`n"
-                            Write-OutputBox("  ビットレート: $overallBitrate")
-                            $resultContent += "  ビットレート: $overallBitrate`r`n"
-                            
-                            if ($artist) {
-                                Write-OutputBox("  作成者: $artist")
-                                $resultContent += "  作成者: $artist`r`n"
-                            }
-                            
-                            if ($hasChapters) {
-                                Write-OutputBox("  ✅ チャプターあり")
-                                $resultContent += "  ✅ チャプターあり`r`n"
-                            } else {
-                                Write-OutputBox("  ❌ チャプターなし")
-                                $resultContent += "  ❌ チャプターなし`r`n"
-                            }
-                            
-                            # ストリーム情報表示
-                            $videoIndex = 1
-                            foreach ($v in $videoStreams) {
-                                $format = if ($v["format"]) { $v["format"] } else { "不明" }
-                                $res = if ($v["width"] -and $v["height"]) { "$($v['width'])x$($v['height'])" } else { "不明" }
-                                $fpsMode = if ($v["fps_mode"]) { "[$($v['fps_mode'])]" } else { "" }
-                                $fps = if ($v["fps"]) { ($v["fps"] -replace '\s*FPS', '') + " fps" } else { "不明" }
-                                $hdrInfo = Get-HDRInfo $v["color_primaries"] $v["transfer_characteristics"] $v["matrix_coefficients"]
-                                $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
-                                $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
-                                $streamSize = if ($v["stream_size"]) { $v["stream_size"] } else { "" }
-                                
-                                $videoLine = "  映像${videoIndex}: $format $res | $fpsMode $fps | $hdrInfo | $bitrateMode $bitrate"
-                                if ($streamSize) { $videoLine += " | $streamSize" }
-                                Write-OutputBox($videoLine)
-                                $resultContent += $videoLine + "`r`n"
-                                $videoIndex++
-                            }
-                            
-                            $audioIndex = 1
-                            foreach ($a in $audioStreams) {
-                                $format = if ($a["format"]) { $a["format"] } else { "不明" }
-                                $samplerate = if ($a["samplerate"]) { $a["samplerate"] } else { "不明" }
-                                $bitrate = if ($a["bitrate"]) { (Format-Bitrate $a["bitrate"]) } else { "不明" }
-                                $streamSize = if ($a["stream_size"]) { $a["stream_size"] } else { "" }
-                                
-                                $audioLine = "  音声${audioIndex}: $format | $samplerate | $bitrate"
-                                if ($streamSize) { $audioLine += " | $streamSize" }
-                                Write-OutputBox($audioLine)
-                                $resultContent += $audioLine + "`r`n"
-                                $audioIndex++
-                            }
-                            
-                            $imageIndex = 1
-                            foreach ($img in $imageStreams) {
-                                $format = if ($img["format"]) { $img["format"] } else { "不明" }
-                                $res = if ($img["width"] -and $img["height"]) { "$($img['width'])x$($img['height'])" } else { "不明" }
-                                $streamSize = if ($img["stream_size"]) { $img["stream_size"] } else { "" }
-                                
-                                $imageLine = "  カバー画像${imageIndex}: $format $res"
-                                if ($streamSize) { $imageLine += " | $streamSize" }
-                                Write-OutputBox($imageLine)
-                                $resultContent += $imageLine + "`r`n"
-                                $imageIndex++
-                            }
-                            
-                            $textIndex = 1
-                            foreach ($txt in $textStreams) {
-                                $language = if ($txt["language"]) { $txt["language"] } else { "不明" }
-                                $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
-                                $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
-                                
-                                $textLine = "  テキスト${textIndex}: $language | Default - $default | Forced - $forced"
-                                Write-OutputBox($textLine)
-                                $resultContent += $textLine + "`r`n"
-                                $textIndex++
-                            }
+                            $parsedInfo = Parse-MediaInfo $mediaInfoOutput
+                            Display-MediaInfo $parsedInfo ([ref]$resultContent)
                         } else {
                             Write-OutputBox("  ⚠ MediaInfo で情報を取得できませんでした。")
                             $resultContent += "  ⚠ MediaInfo で情報を取得できませんでした。`r`n"
@@ -2598,212 +2815,9 @@ function Analyze-Video {
                     Write-OutputBox("--- 詳細情報 ---")
                     $resultContent += "--- 詳細情報 ---`r`n"
                     
-                    # MediaInfo出力をパース
-                    $currentSection = ""
-                    $duration = ""
-                    $overallBitrate = ""
-                    $fileSize = ""
-                    $artist = ""
-                    $videoStreams = @()
-                    $audioStreams = @()
-                    $textStreams = @()
-                    $imageStreams = @()
-                    $hasChapters = $false
-                    $chapterCount = 0
+                    $parsedInfo = Parse-MediaInfo $mediaInfoOutput
+                    Display-MediaInfo $parsedInfo ([ref]$resultContent)
                     
-                    $videoInfo = @{}
-                    $audioInfo = @{}
-                    $textInfo = @{}
-                    $imageInfo = @{}
-                    
-                    foreach ($line in $mediaInfoOutput) {
-                        $line = $line.Trim()
-                        if (-not $line) { continue }
-                        
-                        # セクションヘッダー検出
-                        if ($line -match '^(General|Video|Audio|Text|Menu|Image)') {
-                            if ($currentSection -eq "Video" -and $videoInfo.Count -gt 0) {
-                                $videoStreams += $videoInfo.Clone()
-                                $videoInfo.Clear()
-                            }
-                            if ($currentSection -eq "Audio" -and $audioInfo.Count -gt 0) {
-                                $audioStreams += $audioInfo.Clone()
-                                $audioInfo.Clear()
-                            }
-                            if ($currentSection -eq "Text" -and $textInfo.Count -gt 0) {
-                                $textStreams += $textInfo.Clone()
-                                $textInfo.Clear()
-                            }
-                            if ($currentSection -eq "Image" -and $imageInfo.Count -gt 0) {
-                                $imageStreams += $imageInfo.Clone()
-                                $imageInfo.Clear()
-                            }
-                            
-                            $currentSection = $matches[1]
-                            
-                            # Menuセクションがある場合はチャプターありと判断
-                            if ($currentSection -eq "Menu") {
-                                $hasChapters = $true
-                                $chapterCount++
-                            }
-                            continue
-                        }
-                        
-                        # チャプター数をカウント（Menuセクション内のエントリ数）
-                        if ($currentSection -eq "Menu" -and $line -match '^Chapters') {
-                            $hasChapters = $true
-                        }
-                        
-                        # 情報抽出
-                        if ($line -match '^(.+?)\s*:\s*(.+)$') {
-                            $key = $matches[1].Trim()
-                            $value = $matches[2].Trim()
-                            
-                            switch ($currentSection) {
-                                "General" {
-                                    if ($key -eq "Duration") { $duration = $value }
-                                    if ($key -eq "Overall bit rate") { $overallBitrate = $value }
-                                    if ($key -eq "File size") { $fileSize = $value }
-                                    if ($key -match "^(Performer|Artist)$") { $artist = $value }
-                                }
-                                "Video" {
-                                    if ($key -eq "Format") { $videoInfo["format"] = $value }
-                                    if ($key -eq "Width") { $videoInfo["width"] = $value -replace '\D', '' }
-                                    if ($key -eq "Height") { $videoInfo["height"] = $value -replace '\D', '' }
-                                    if ($key -eq "Frame rate") { $videoInfo["fps"] = $value }
-                                    if ($key -eq "Frame rate mode") { $videoInfo["fps_mode"] = $value }
-                                    if ($key -eq "Bit rate") { $videoInfo["bitrate"] = $value }
-                                    if ($key -eq "Bit rate mode") { $videoInfo["bitrate_mode"] = $value }
-                                    if ($key -eq "Stream size") { $videoInfo["stream_size"] = $value }
-                                    if ($key -eq "Color primaries") { $videoInfo["color_primaries"] = $value }
-                                    if ($key -eq "Transfer characteristics") { $videoInfo["transfer_characteristics"] = $value }
-                                    if ($key -eq "Matrix coefficients") { $videoInfo["matrix_coefficients"] = $value }
-                                }
-                                "Audio" {
-                                    if ($key -eq "Format") { $audioInfo["format"] = $value }
-                                    if ($key -match "Channel") { $audioInfo["channels"] = $value }
-                                    if ($key -eq "Sampling rate") { $audioInfo["samplerate"] = $value }
-                                    if ($key -eq "Bit rate") { $audioInfo["bitrate"] = $value }
-                                    if ($key -eq "Stream size") { $audioInfo["stream_size"] = $value }
-                                }
-                                "Text" {
-                                    if ($key -eq "Language") { $textInfo["language"] = $value }
-                                    if ($key -eq "Default") { $textInfo["default"] = $value }
-                                    if ($key -eq "Forced") { $textInfo["forced"] = $value }
-                                    if ($key -eq "Stream size") { $textInfo["stream_size"] = $value }
-                                }
-                                "Image" {
-                                    if ($key -eq "Format") { $imageInfo["format"] = $value }
-                                    if ($key -eq "Width") { $imageInfo["width"] = $value -replace '\D', '' }
-                                    if ($key -eq "Height") { $imageInfo["height"] = $value -replace '\D', '' }
-                                    if ($key -eq "Stream size") { $imageInfo["stream_size"] = $value }
-                                }
-                            }
-                        }
-                    }
-                    
-                    # 最後のストリームを追加
-                    if ($videoInfo.Count -gt 0) { $videoStreams += $videoInfo }
-                    if ($audioInfo.Count -gt 0) { $audioStreams += $audioInfo }
-                    if ($textInfo.Count -gt 0) { $textStreams += $textInfo }
-                    if ($imageInfo.Count -gt 0) { $imageStreams += $imageInfo }
-                    
-                    # 再生時間の日本語表記に変換
-                    $duration = Convert-DurationToJapanese $duration
-                    
-                    # ビットレートのフォーマット（修正版）
-                    $overallBitrate = Format-Bitrate $overallBitrate
-                    
-                    # 基本情報を表示
-                    Write-OutputBox("再生時間: $duration")
-                    $resultContent += "再生時間: $duration`r`n"
-                    Write-OutputBox("ビットレート: $overallBitrate")
-                    $resultContent += "ビットレート: $overallBitrate`r`n"
-                    
-                    # 作成者情報を表示
-                    if ($artist) {
-                        Write-OutputBox("作成者: $artist")
-                        $resultContent += "作成者: $artist`r`n"
-                    }
-                    
-                    # チャプター情報を表示（ローカルファイル用）
-                    if ($hasChapters) {
-                        Write-OutputBox("✅ チャプターあり")
-                        $resultContent += "✅ チャプターあり`r`n"
-                    } else {
-                        Write-OutputBox("❌ チャプターなし")
-                        $resultContent += "❌ チャプターなし`r`n"
-                    }
-                    
-                    # 映像ストリーム情報（番号付き）
-                    $videoIndex = 1
-                    foreach ($v in $videoStreams) {
-                        $format = if ($v["format"]) { $v["format"] } else { "不明" }
-                        $res = if ($v["width"] -and $v["height"]) { "$($v['width'])x$($v['height'])" } else { "不明" }
-                        $fpsMode = if ($v["fps_mode"]) { "[$($v['fps_mode'])]" } else { "" }
-                        
-                        # FPSの二重表示を修正
-                        $fps = if ($v["fps"]) { 
-                            ($v["fps"] -replace '\s*FPS', '') + " fps"
-                        } else { 
-                            "不明" 
-                        }
-                        
-                        # HDR/SDR情報を取得
-                        $hdrInfo = Get-HDRInfo $v["color_primaries"] $v["transfer_characteristics"] $v["matrix_coefficients"]
-                        
-                        $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
-                        $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
-                        $streamSize = if ($v["stream_size"]) { $v["stream_size"] } else { "" }
-                        
-                        $videoLine = "映像${videoIndex}: $format $res | $fpsMode $fps | $hdrInfo | $bitrateMode $bitrate"
-                        if ($streamSize) { $videoLine += " | $streamSize" }
-                        Write-OutputBox($videoLine)
-                        $resultContent += $videoLine + "`r`n"
-                        $videoIndex++
-                    }
-                    
-                    # 音声ストリーム情報（番号付き）
-                    $audioIndex = 1
-                    foreach ($a in $audioStreams) {
-                        $format = if ($a["format"]) { $a["format"] } else { "不明" }
-                        $samplerate = if ($a["samplerate"]) { $a["samplerate"] } else { "不明" }
-                        $bitrate = if ($a["bitrate"]) { (Format-Bitrate $a["bitrate"]) } else { "不明" }
-                        $streamSize = if ($a["stream_size"]) { $a["stream_size"] } else { "" }
-                        
-                        $audioLine = "音声${audioIndex}: $format | $samplerate | $bitrate"
-                        if ($streamSize) { $audioLine += " | $streamSize" }
-                        Write-OutputBox($audioLine)
-                        $resultContent += $audioLine + "`r`n"
-                        $audioIndex++
-                    }
-                    
-                    # 画像ストリーム情報（番号付き）
-                    $imageIndex = 1
-                    foreach ($img in $imageStreams) {
-                        $format = if ($img["format"]) { $img["format"] } else { "不明" }
-                        $res = if ($img["width"] -and $img["height"]) { "$($img['width'])x$($img['height'])" } else { "不明" }
-                        $streamSize = if ($img["stream_size"]) { $img["stream_size"] } else { "" }
-                        
-                        $imageLine = "カバー画像${imageIndex}: $format $res"
-                        if ($streamSize) { $imageLine += " | $streamSize" }
-                        Write-OutputBox($imageLine)
-                        $resultContent += $imageLine + "`r`n"
-                        $imageIndex++
-                    }
-                    
-                    # テキストストリーム情報（番号付き）
-                    $textIndex = 1
-                    foreach ($txt in $textStreams) {
-                        $language = if ($txt["language"]) { $txt["language"] } else { "不明" }
-                        $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
-                        $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
-                        
-                        $textLine = "テキスト${textIndex}: $language | Default - $default | Forced - $forced"
-                        Write-OutputBox($textLine)
-                        $resultContent += $textLine + "`r`n"
-                        $textIndex++
-                    }
                 } elseif (-not $isUrl) {
                     # ローカルファイルでMediaInfoが失敗した場合のみエラー表示
                     Write-OutputBox("⚠ MediaInfo で情報を取得できませんでした。")
