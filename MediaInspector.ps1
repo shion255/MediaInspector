@@ -638,10 +638,12 @@ $optionsItem.Add_Click({
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
     
-    $analysisItemsPanel = New-Object System.Windows.Forms.Panel
+    $analysisItemsPanel = New-Object System.Windows.Forms.FlowLayoutPanel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
     $analysisItemsPanel.Size = New-Object System.Drawing.Size(440, 345)
     $analysisItemsPanel.AutoScroll = $true
+    $analysisItemsPanel.FlowDirection = [System.Windows.Forms.FlowDirection]::TopDown
+    $analysisItemsPanel.WrapContents = $false
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
     
     $analysisCheckBoxes = @{}
@@ -670,14 +672,13 @@ $optionsItem.Add_Click({
     foreach ($item in $analysisItems) {
         $checkBox = New-Object System.Windows.Forms.CheckBox
         $checkBox.Text = $item.Label
-        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-        $checkBox.Size = New-Object System.Drawing.Size(420, 25)
+        $checkBox.AutoSize = $true
+        $checkBox.Margin = New-Object System.Windows.Forms.Padding(5, 5, 5, 0)
         $varName = $item.Key.Substring(0,1).ToLower() + $item.Key.Substring(1)
         $checkBox.Checked = (Get-Variable -Name $varName -Scope Script).Value
         $checkBox.ForeColor = $script:fgColor
         $analysisItemsPanel.Controls.Add($checkBox)
         $analysisCheckBoxes[$item.Key] = $checkBox
-        $yPos += 30
     }
     
     $optionsForm.Size = New-Object System.Drawing.Size(550, 560)
