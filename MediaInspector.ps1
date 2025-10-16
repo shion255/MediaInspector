@@ -638,12 +638,10 @@ $optionsItem.Add_Click({
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
     
-    $analysisItemsPanel = New-Object System.Windows.Forms.FlowLayoutPanel
+    $analysisItemsPanel = New-Object System.Windows.Forms.Panel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
     $analysisItemsPanel.Size = New-Object System.Drawing.Size(440, 345)
     $analysisItemsPanel.AutoScroll = $true
-    $analysisItemsPanel.FlowDirection = [System.Windows.Forms.FlowDirection]::TopDown
-    $analysisItemsPanel.WrapContents = $false
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
     
     $analysisCheckBoxes = @{}
@@ -651,34 +649,47 @@ $optionsItem.Add_Click({
     
     $analysisItems = @(
         @{Key="ShowDuration"; Label="再生時間"},
-        @{Key="ShowBitrate"; Label="ビットレート（全体）"},
+        @{Key="ShowBitrate"; Label="ビットレート(全体)"},
         @{Key="ShowArtist"; Label="作成者"},
         @{Key="ShowComment"; Label="コメント"},
         @{Key="ShowChapters"; Label="チャプター"},
+        @{Key="Separator1"; Label=""},
         @{Key="ShowVideoCodec"; Label="映像: コーデック"},
         @{Key="ShowResolution"; Label="映像: 解像度"},
         @{Key="ShowFPS"; Label="映像: フレームレート"},
         @{Key="ShowHDR"; Label="映像: HDR/SDR"},
         @{Key="ShowVideoBitrate"; Label="映像: ビットレート"},
         @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"},
+        @{Key="Separator2"; Label=""},
         @{Key="ShowAudioCodec"; Label="音声: コーデック"},
         @{Key="ShowSampleRate"; Label="音声: サンプリングレート"},
         @{Key="ShowAudioBitrate"; Label="音声: ビットレート"},
         @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"},
+        @{Key="Separator3"; Label=""},
         @{Key="ShowCoverImage"; Label="カバー画像"},
-        @{Key="ShowTextStream"; Label="テキストストリーム（字幕）"}
+        @{Key="ShowTextStream"; Label="テキストストリーム(字幕)"}
     )
     
     foreach ($item in $analysisItems) {
-        $checkBox = New-Object System.Windows.Forms.CheckBox
-        $checkBox.Text = $item.Label
-        $checkBox.AutoSize = $true
-        $checkBox.Margin = New-Object System.Windows.Forms.Padding(5, 5, 5, 0)
-        $varName = $item.Key.Substring(0,1).ToLower() + $item.Key.Substring(1)
-        $checkBox.Checked = (Get-Variable -Name $varName -Scope Script).Value
-        $checkBox.ForeColor = $script:fgColor
-        $analysisItemsPanel.Controls.Add($checkBox)
-        $analysisCheckBoxes[$item.Key] = $checkBox
+        if ($item.Key -match '^Separator\d+$') {
+            $separator = New-Object System.Windows.Forms.Label
+            $separator.Location = New-Object System.Drawing.Point(5, $yPos)
+            $separator.Size = New-Object System.Drawing.Size(410, 2)
+            $separator.BorderStyle = [System.Windows.Forms.BorderStyle]::Fixed3D
+            $analysisItemsPanel.Controls.Add($separator)
+            $yPos += 12
+        } else {
+            $checkBox = New-Object System.Windows.Forms.CheckBox
+            $checkBox.Text = $item.Label
+            $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+            $checkBox.Size = New-Object System.Drawing.Size(400, 25)
+            $varName = $item.Key.Substring(0,1).ToLower() + $item.Key.Substring(1)
+            $checkBox.Checked = (Get-Variable -Name $varName -Scope Script).Value
+            $checkBox.ForeColor = $script:fgColor
+            $analysisItemsPanel.Controls.Add($checkBox)
+            $analysisCheckBoxes[$item.Key] = $checkBox
+            $yPos += 25
+        }
     }
     
     $optionsForm.Size = New-Object System.Drawing.Size(550, 560)
