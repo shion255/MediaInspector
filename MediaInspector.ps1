@@ -1981,10 +1981,156 @@ function Show-FilteredResults($videoCodecs, $audioCodecs, $hdrTypes) {
     
     $resultForm.Controls.Add($listView)
     
+    # 結果を別ウィンドウ表示ボタン
+    $showWindowButton = New-Object System.Windows.Forms.Button
+    $showWindowButton.Text = "結果を別ウィンドウ表示"
+    $showWindowButton.Location = New-Object System.Drawing.Point(50, 570)
+    $showWindowButton.Size = New-Object System.Drawing.Size(180, 30)
+    $showWindowButton.BackColor = [System.Drawing.Color]::FromArgb(90, 150, 90)
+    $showWindowButton.ForeColor = $script:fgColor
+    $showWindowButton.Anchor = "Bottom"
+    $showWindowButton.Add_Click({
+        # 絞り込み結果を一時的にグローバル変数に保存
+        $previousResults = $script:analysisResults
+        $script:analysisResults = @()
+        
+        foreach ($item in $listView.Items) {
+            $script:analysisResults += $item.Tag
+        }
+        
+        Show-ResultWindows
+        
+        # 元の結果に戻す
+        $script:analysisResults = $previousResults
+    })
+    $resultForm.Controls.Add($showWindowButton)
+    
+    # 全ウィンドウを閉じるボタン
+    $closeAllButton = New-Object System.Windows.Forms.Button
+    $closeAllButton.Text = "全ウィンドウを閉じる"
+    $closeAllButton.Location = New-Object System.Drawing.Point(240, 570)
+    $closeAllButton.Size = New-Object System.Drawing.Size(150, 30)
+    $closeAllButton.BackColor = [System.Drawing.Color]::FromArgb(180, 60, 60)
+    $closeAllButton.ForeColor = $script:fgColor
+    $closeAllButton.Anchor = "Bottom"
+    $closeAllButton.Add_Click({
+        Close-AllResultWindows
+    })
+    $resultForm.Controls.Add($closeAllButton)
+    
+    # 結果をコピーボタン
+    $copyButton = New-Object System.Windows.Forms.Button
+    $copyButton.Text = "結果をコピー"
+    $copyButton.Location = New-Object System.Drawing.Point(400, 570)
+    $copyButton.Size = New-Object System.Drawing.Size(120, 30)
+    $copyButton.BackColor = [System.Drawing.Color]::FromArgb(100, 120, 140)
+    $copyButton.ForeColor = $script:fgColor
+    $copyButton.Anchor = "Bottom"
+    $copyButton.Add_Click({
+        if ($listView.Items.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("コピーする内容がありません。", "情報")
+            return
+        }
+        
+        $copyText = ""
+        foreach ($item in $listView.Items) {
+            $result = $item.Tag
+            $copyText += $result.Content + "`r`n"
+        }
+        
+        # 不要なメッセージを削除
+        $removePatterns = @(
+            "解析開始\.\.\. 少々お待ちください。",
+            "ローカルファイルとして解析します。",
+            "解析完了。",
+            "=== 全ファイル解析完了 ==="
+        )
+        
+        $lines = $copyText -split "`r?`n"
+        $filteredLines = $lines | Where-Object {
+            $line = $_.Trim()
+            $shouldKeep = $true
+            foreach ($pattern in $removePatterns) {
+                if ($line -match "^$pattern`$") {
+                    $shouldKeep = $false
+                    break
+                }
+            }
+            $shouldKeep
+        }
+        
+        $cleanedText = $filteredLines -join "`r`n"
+        
+        # 「--- 利用可能なコーデック一覧 ---」の後に「⚠ フォーマット情報を解析できませんでした。」しかない場合は両方削除
+        $cleanedText = $cleanedText -replace "--- 利用可能なコーデック一覧 ---\s*`r?`n\s*⚠ フォーマット情報を解析できませんでした。\s*`r?`n", ""
+        
+        # 連続する空行を1つにまとめる
+        $cleanedText = $cleanedText -replace "(`r?`n){3,}", "`r`n`r`n"
+        
+        try {
+            [System.Windows.Forms.Clipboard]::SetText($cleanedText)
+            
+            # 自動的に閉じるダイアログを表示
+            $notifyForm = New-Object System.Windows.Forms.Form
+            $notifyForm.Text = "コピー完了"
+            $notifyForm.Size = New-Object System.Drawing.Size(300, 140)
+            $notifyForm.StartPosition = "CenterParent"
+            $notifyForm.FormBorderStyle = "FixedDialog"
+            $notifyForm.MaximizeBox = $false
+            $notifyForm.MinimizeBox = $false
+            $notifyForm.BackColor = $script:bgColor
+            $notifyForm.ForeColor = $script:fgColor
+            
+            $notifyLabel = New-Object System.Windows.Forms.Label
+            $notifyLabel.Text = "出力内容をクリップボードに`r`nコピーしました。"
+            $notifyLabel.Location = New-Object System.Drawing.Point(20, 15)
+            $notifyLabel.Size = New-Object System.Drawing.Size(260, 50)
+            $notifyLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+            $notifyLabel.ForeColor = $script:fgColor
+            $notifyForm.Controls.Add($notifyLabel)
+            
+            $okButton = New-Object System.Windows.Forms.Button
+            $okButton.Text = "OK"
+            $okButton.Location = New-Object System.Drawing.Point(110, 70)
+            $okButton.Size = New-Object System.Drawing.Size(80, 25)
+            $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+            $notifyForm.Controls.Add($okButton)
+            $notifyForm.AcceptButton = $okButton
+            
+            # 3秒後に自動的に閉じるタイマー
+            $autoCloseTimer = New-Object System.Windows.Forms.Timer
+            $autoCloseTimer.Interval = 3000
+            $autoCloseTimer.Add_Tick({
+                param($sender, $e)
+                if ($notifyForm -and -not $notifyForm.IsDisposed) {
+                    $notifyForm.Close()
+                }
+                $sender.Stop()
+                $sender.Dispose()
+            })
+            
+            # フォームが閉じられたときにタイマーを停止
+            $notifyForm.Add_FormClosed({
+                if ($autoCloseTimer) {
+                    $autoCloseTimer.Stop()
+                    $autoCloseTimer.Dispose()
+                }
+            })
+            
+            $autoCloseTimer.Start()
+            
+            [void]$notifyForm.ShowDialog($resultForm)
+            
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("クリップボードへのコピーに失敗しました。`n$($_.Exception.Message)", "エラー")
+        }
+    })
+    $resultForm.Controls.Add($copyButton)
+    
     # 閉じるボタン
     $closeButton = New-Object System.Windows.Forms.Button
     $closeButton.Text = "閉じる"
-    $closeButton.Location = New-Object System.Drawing.Point(340, 570)
+    $closeButton.Location = New-Object System.Drawing.Point(530, 570)
     $closeButton.Size = New-Object System.Drawing.Size(100, 30)
     $closeButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
     $closeButton.ForeColor = $script:fgColor
