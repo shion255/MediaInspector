@@ -2108,6 +2108,84 @@ function Show-FilteredResults($videoCodecs, $audioCodecs, $hdrTypes) {
     })
     $contextMenu.Items.Add($copyUrlMenuItem)
     
+    $copyPathMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $copyPathMenuItem.Text = "フルパスをコピー(&P)"
+    $copyPathMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $paths = @()
+        
+        foreach ($item in $listView.SelectedItems) {
+            $selectedResult = $item.Tag
+            if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
+                $paths += "`"$($selectedResult.FullPath)`""
+            } else {
+                $paths += "`"$($selectedResult.Title)`""
+            }
+        }
+        
+        $pathText = $paths -join "`r`n"
+        
+        try {
+            [System.Windows.Forms.Clipboard]::SetText($pathText)
+            
+            $notifyForm = New-Object System.Windows.Forms.Form
+            $notifyForm.Text = "コピー完了"
+            $notifyForm.Size = New-Object System.Drawing.Size(300, 140)
+            $notifyForm.StartPosition = "CenterParent"
+            $notifyForm.FormBorderStyle = "FixedDialog"
+            $notifyForm.MaximizeBox = $false
+            $notifyForm.MinimizeBox = $false
+            $notifyForm.BackColor = $script:bgColor
+            $notifyForm.ForeColor = $script:fgColor
+            
+            $notifyLabel = New-Object System.Windows.Forms.Label
+            $notifyLabel.Text = "$($paths.Count)件のパスを`r`nクリップボードにコピーしました。"
+            $notifyLabel.Location = New-Object System.Drawing.Point(20, 15)
+            $notifyLabel.Size = New-Object System.Drawing.Size(260, 50)
+            $notifyLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+            $notifyLabel.ForeColor = $script:fgColor
+            $notifyForm.Controls.Add($notifyLabel)
+            
+            $okButton = New-Object System.Windows.Forms.Button
+            $okButton.Text = "OK"
+            $okButton.Location = New-Object System.Drawing.Point(110, 70)
+            $okButton.Size = New-Object System.Drawing.Size(80, 25)
+            $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+            $notifyForm.Controls.Add($okButton)
+            $notifyForm.AcceptButton = $okButton
+            
+            $autoCloseTimer = New-Object System.Windows.Forms.Timer
+            $autoCloseTimer.Interval = 3000
+            $autoCloseTimer.Add_Tick({
+                param($sender, $e)
+                if ($notifyForm -and -not $notifyForm.IsDisposed) {
+                    $notifyForm.Close()
+                }
+                $sender.Stop()
+                $sender.Dispose()
+            })
+            
+            $notifyForm.Add_FormClosed({
+                if ($autoCloseTimer) {
+                    $autoCloseTimer.Stop()
+                    $autoCloseTimer.Dispose()
+                }
+            })
+            
+            $autoCloseTimer.Start()
+            
+            [void]$notifyForm.ShowDialog($resultForm)
+            
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("クリップボードへのコピーに失敗しました。`n$($_.Exception.Message)", "エラー")
+        }
+    })
+    $contextMenu.Items.Add($copyPathMenuItem)
+    
     $listView.ContextMenuStrip = $contextMenu
     
     $resultForm.Controls.Add($listView)
