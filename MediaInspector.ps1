@@ -421,7 +421,7 @@ $optionsItem.Add_Click({
     # オプションダイアログを作成
     $optionsForm = New-Object System.Windows.Forms.Form
     $optionsForm.Text = "オプション"
-    $optionsForm.Size = New-Object System.Drawing.Size(450, 460)
+    $optionsForm.Size = New-Object System.Drawing.Size(550, 460)
     $optionsForm.StartPosition = "CenterParent"
     $optionsForm.FormBorderStyle = "FixedDialog"
     $optionsForm.MaximizeBox = $false
@@ -429,13 +429,32 @@ $optionsItem.Add_Click({
     $optionsForm.BackColor = $script:bgColor
     $optionsForm.ForeColor = $script:fgColor
     
+    # タブコントロールを作成
+    $tabControl = New-Object System.Windows.Forms.TabControl
+    $tabControl.Location = New-Object System.Drawing.Point(10, 10)
+    $tabControl.Size = New-Object System.Drawing.Size(510, 460)
+    $tabControl.Anchor = "Top,Left,Right"
+    $optionsForm.Controls.Add($tabControl)
+    
+    # 全般タブ
+    $generalTab = New-Object System.Windows.Forms.TabPage
+    $generalTab.Text = "全般"
+    $generalTab.BackColor = $script:bgColor
+    $tabControl.TabPages.Add($generalTab)
+    
+    # 解析タブ
+    $analysisTab = New-Object System.Windows.Forms.TabPage
+    $analysisTab.Text = "解析"
+    $analysisTab.BackColor = $script:bgColor
+    $tabControl.TabPages.Add($analysisTab)
+    
     # テーマ設定
     $themeLabel = New-Object System.Windows.Forms.Label
-    $themeLabel.Text = "テーマ："
+    $themeLabel.Text = "テーマ:"
     $themeLabel.Location = New-Object System.Drawing.Point(20, 20)
     $themeLabel.Size = New-Object System.Drawing.Size(100, 20)
     $themeLabel.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($themeLabel)
+    $generalTab.Controls.Add($themeLabel)
     
     $themeCombo = New-Object System.Windows.Forms.ComboBox
     $themeCombo.Location = New-Object System.Drawing.Point(130, 18)
@@ -443,15 +462,15 @@ $optionsItem.Add_Click({
     $themeCombo.DropDownStyle = "DropDownList"
     $themeCombo.Items.AddRange(@("ダークテーマ", "ライトテーマ"))
     $themeCombo.SelectedIndex = if ($script:currentTheme -eq "Dark") { 0 } else { 1 }
-    $optionsForm.Controls.Add($themeCombo)
+    $generalTab.Controls.Add($themeCombo)
     
     # フォント名設定
     $fontNameLabel = New-Object System.Windows.Forms.Label
-    $fontNameLabel.Text = "フォント名："
+    $fontNameLabel.Text = "フォント名:"
     $fontNameLabel.Location = New-Object System.Drawing.Point(20, 60)
     $fontNameLabel.Size = New-Object System.Drawing.Size(100, 20)
     $fontNameLabel.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($fontNameLabel)
+    $generalTab.Controls.Add($fontNameLabel)
 
     # インストール済みフォントを取得
     $installedFonts = New-Object System.Drawing.Text.InstalledFontCollection
@@ -494,15 +513,15 @@ $optionsItem.Add_Click({
         $fontNameCombo.SelectedItem = "Consolas"
     }
 
-    $optionsForm.Controls.Add($fontNameCombo)
+    $generalTab.Controls.Add($fontNameCombo)
     
     # フォントサイズ設定
     $fontSizeLabel = New-Object System.Windows.Forms.Label
-    $fontSizeLabel.Text = "フォントサイズ："
+    $fontSizeLabel.Text = "フォントサイズ:"
     $fontSizeLabel.Location = New-Object System.Drawing.Point(20, 100)
     $fontSizeLabel.Size = New-Object System.Drawing.Size(100, 20)
     $fontSizeLabel.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($fontSizeLabel)
+    $generalTab.Controls.Add($fontSizeLabel)
     
     $fontSizeCombo = New-Object System.Windows.Forms.ComboBox
     $fontSizeCombo.Location = New-Object System.Drawing.Point(130, 98)
@@ -510,15 +529,15 @@ $optionsItem.Add_Click({
     $fontSizeCombo.DropDownStyle = "DropDownList"
     $fontSizeCombo.Items.AddRange(@("8", "9", "10", "11", "12", "14", "16"))
     $fontSizeCombo.SelectedItem = $script:currentFontSize.ToString()
-    $optionsForm.Controls.Add($fontSizeCombo)
+    $generalTab.Controls.Add($fontSizeCombo)
     
     # yt-dlpパス設定
     $ytDlpLabel = New-Object System.Windows.Forms.Label
-    $ytDlpLabel.Text = "yt-dlp パス："
+    $ytDlpLabel.Text = "yt-dlp パス:"
     $ytDlpLabel.Location = New-Object System.Drawing.Point(20, 140)
     $ytDlpLabel.Size = New-Object System.Drawing.Size(100, 20)
     $ytDlpLabel.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($ytDlpLabel)
+    $generalTab.Controls.Add($ytDlpLabel)
     
     $ytDlpTextBox = New-Object System.Windows.Forms.TextBox
     $ytDlpTextBox.Location = New-Object System.Drawing.Point(130, 138)
@@ -526,7 +545,7 @@ $optionsItem.Add_Click({
     $ytDlpTextBox.Text = $script:ytDlpPath
     $ytDlpTextBox.BackColor = $script:inputBgColor
     $ytDlpTextBox.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($ytDlpTextBox)
+    $generalTab.Controls.Add($ytDlpTextBox)
     
     $ytDlpBrowseButton = New-Object System.Windows.Forms.Button
     $ytDlpBrowseButton.Text = "参照"
@@ -541,15 +560,15 @@ $optionsItem.Add_Click({
             $ytDlpTextBox.Text = $openFileDialog.FileName
         }
     })
-    $optionsForm.Controls.Add($ytDlpBrowseButton)
+    $generalTab.Controls.Add($ytDlpBrowseButton)
     
     # MediaInfoパス設定
     $mediaInfoLabel = New-Object System.Windows.Forms.Label
-    $mediaInfoLabel.Text = "MediaInfo パス："
+    $mediaInfoLabel.Text = "MediaInfo パス:"
     $mediaInfoLabel.Location = New-Object System.Drawing.Point(20, 180)
     $mediaInfoLabel.Size = New-Object System.Drawing.Size(100, 20)
     $mediaInfoLabel.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($mediaInfoLabel)
+    $generalTab.Controls.Add($mediaInfoLabel)
     
     $mediaInfoTextBox = New-Object System.Windows.Forms.TextBox
     $mediaInfoTextBox.Location = New-Object System.Drawing.Point(130, 178)
@@ -557,7 +576,7 @@ $optionsItem.Add_Click({
     $mediaInfoTextBox.Text = $script:mediaInfoPath
     $mediaInfoTextBox.BackColor = $script:inputBgColor
     $mediaInfoTextBox.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($mediaInfoTextBox)
+    $generalTab.Controls.Add($mediaInfoTextBox)
     
     $mediaInfoBrowseButton = New-Object System.Windows.Forms.Button
     $mediaInfoBrowseButton.Text = "参照"
@@ -572,15 +591,15 @@ $optionsItem.Add_Click({
             $mediaInfoTextBox.Text = $openFileDialog.FileName
         }
     })
-    $optionsForm.Controls.Add($mediaInfoBrowseButton)
+    $generalTab.Controls.Add($mediaInfoBrowseButton)
     
     # 透明度設定
     $opacityLabel = New-Object System.Windows.Forms.Label
-    $opacityLabel.Text = "ウィンドウの透明度："
+    $opacityLabel.Text = "ウィンドウの透明度:"
     $opacityLabel.Location = New-Object System.Drawing.Point(20, 220)
     $opacityLabel.Size = New-Object System.Drawing.Size(150, 20)
     $opacityLabel.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($opacityLabel)
+    $generalTab.Controls.Add($opacityLabel)
     
     $opacityTrackBar = New-Object System.Windows.Forms.TrackBar
     $opacityTrackBar.Location = New-Object System.Drawing.Point(20, 245)
@@ -589,14 +608,14 @@ $optionsItem.Add_Click({
     $opacityTrackBar.Maximum = 100
     $opacityTrackBar.TickFrequency = 10
     $opacityTrackBar.Value = [int]($script:windowOpacity * 100)
-    $optionsForm.Controls.Add($opacityTrackBar)
+    $generalTab.Controls.Add($opacityTrackBar)
     
     $opacityValueLabel = New-Object System.Windows.Forms.Label
     $opacityValueLabel.Location = New-Object System.Drawing.Point(330, 250)
     $opacityValueLabel.Size = New-Object System.Drawing.Size(80, 20)
     $opacityValueLabel.Text = "$([int]($script:windowOpacity * 100))%"
     $opacityValueLabel.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($opacityValueLabel)
+    $generalTab.Controls.Add($opacityValueLabel)
     
     $opacityTrackBar.Add_ValueChanged({
         $opacityValueLabel.Text = "$($opacityTrackBar.Value)%"
@@ -606,22 +625,22 @@ $optionsItem.Add_Click({
     # サブフォルダを含めるオプション
     $includeSubfoldersCheckBox = New-Object System.Windows.Forms.CheckBox
     $includeSubfoldersCheckBox.Text = "フォルダ解析時にサブフォルダを含める"
-    $includeSubfoldersCheckBox.Location = New-Object System.Drawing.Point(20, 290)
+    $includeSubfoldersCheckBox.Location = New-Object System.Drawing.Point(20, 20)
     $includeSubfoldersCheckBox.Size = New-Object System.Drawing.Size(400, 25)
     $includeSubfoldersCheckBox.Checked = $script:includeSubfolders
     $includeSubfoldersCheckBox.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($includeSubfoldersCheckBox)
+    $analysisTab.Controls.Add($includeSubfoldersCheckBox)
     
     $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
     $analysisItemsGroupBox.Text = "表示する解析項目"
-    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 325)
-    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(400, 300)
+    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 55)
+    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(460, 380)
     $analysisItemsGroupBox.ForeColor = $script:fgColor
-    $optionsForm.Controls.Add($analysisItemsGroupBox)
+    $analysisTab.Controls.Add($analysisItemsGroupBox)
     
     $analysisItemsPanel = New-Object System.Windows.Forms.Panel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $analysisItemsPanel.Size = New-Object System.Drawing.Size(380, 265)
+    $analysisItemsPanel.Size = New-Object System.Drawing.Size(440, 345)
     $analysisItemsPanel.AutoScroll = $true
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
     
@@ -652,7 +671,7 @@ $optionsItem.Add_Click({
         $checkBox = New-Object System.Windows.Forms.CheckBox
         $checkBox.Text = $item.Label
         $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-        $checkBox.Size = New-Object System.Drawing.Size(360, 25)
+        $checkBox.Size = New-Object System.Drawing.Size(420, 25)
         $varName = $item.Key.Substring(0,1).ToLower() + $item.Key.Substring(1)
         $checkBox.Checked = (Get-Variable -Name $varName -Scope Script).Value
         $checkBox.ForeColor = $script:fgColor
@@ -661,11 +680,11 @@ $optionsItem.Add_Click({
         $yPos += 30
     }
     
-    $optionsForm.Size = New-Object System.Drawing.Size(450, 710)
+    $optionsForm.Size = New-Object System.Drawing.Size(550, 560)
     
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(240, 635)
+    $okButton.Location = New-Object System.Drawing.Point(300, 480)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $okButton.Add_Click({
@@ -716,7 +735,7 @@ $optionsItem.Add_Click({
     # キャンセルボタン
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(330, 635)
+    $cancelButton.Location = New-Object System.Drawing.Point(390, 480)
     $cancelButton.Size = New-Object System.Drawing.Size(80, 30)
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $cancelButton.Add_Click({
