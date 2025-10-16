@@ -1517,7 +1517,7 @@ function Show-FilterDialog {
     
     $videoPanel = New-Object System.Windows.Forms.Panel
     $videoPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $videoPanel.Size = New-Object System.Drawing.Size(220, 315)
+    $videoPanel.Size = New-Object System.Drawing.Size(205, 310)
     $videoPanel.AutoScroll = $true
     $videoGroupBox.Controls.Add($videoPanel)
     
@@ -1527,7 +1527,7 @@ function Show-FilterDialog {
         $checkBox = New-Object System.Windows.Forms.CheckBox
         $checkBox.Text = "$codec ($($videoCodecs[$codec]))"
         $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-        $checkBox.Size = New-Object System.Drawing.Size(220, 25)
+        $checkBox.Size = New-Object System.Drawing.Size(195, 25)
         $checkBox.ForeColor = $script:fgColor
         $videoPanel.Controls.Add($checkBox)
         $videoCheckBoxes[$codec] = $checkBox
@@ -1544,7 +1544,7 @@ function Show-FilterDialog {
     
     $audioPanel = New-Object System.Windows.Forms.Panel
     $audioPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $audioPanel.Size = New-Object System.Drawing.Size(220, 315)
+    $audioPanel.Size = New-Object System.Drawing.Size(205, 310)
     $audioPanel.AutoScroll = $true
     $audioGroupBox.Controls.Add($audioPanel)
     
@@ -1554,7 +1554,7 @@ function Show-FilterDialog {
         $checkBox = New-Object System.Windows.Forms.CheckBox
         $checkBox.Text = "$codec ($($audioCodecs[$codec]))"
         $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-        $checkBox.Size = New-Object System.Drawing.Size(220, 25)
+        $checkBox.Size = New-Object System.Drawing.Size(195, 25)
         $checkBox.ForeColor = $script:fgColor
         $audioPanel.Controls.Add($checkBox)
         $audioCheckBoxes[$codec] = $checkBox
@@ -1571,7 +1571,7 @@ function Show-FilterDialog {
     
     $hdrPanel = New-Object System.Windows.Forms.Panel
     $hdrPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $hdrPanel.Size = New-Object System.Drawing.Size(260, 315)
+    $hdrPanel.Size = New-Object System.Drawing.Size(260, 310)
     $hdrPanel.AutoScroll = $true
     $hdrGroupBox.Controls.Add($hdrPanel)
     
