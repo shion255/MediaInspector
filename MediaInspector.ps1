@@ -766,8 +766,8 @@ $optionsItem.Add_Click({
         @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"},
         @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"},
         @{Key="Separator3"; Label=""},
-        @{Key="ShowCoverImage"; Label="カバー画像"},
-        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"}
+        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"},
+        @{Key="ShowCoverImage"; Label="カバー画像"}
     )
     
     foreach ($item in $analysisItems) {
@@ -3155,6 +3155,21 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         $audioIndex++
     }
     
+    # テキストストリーム情報（番号付き）
+    if ($script:showTextStream) {
+        $textIndex = 1
+        foreach ($txt in $parsedInfo.TextStreams) {
+            $language = if ($txt["language"]) { $txt["language"] } else { "不明" }
+            $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
+            $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
+            
+            $textLine = "テキスト${textIndex}: $language | Default - $default | Forced - $forced"
+            Write-OutputBox($textLine)
+            $resultContentRef.Value += $textLine + "`r`n"
+            $textIndex++
+        }
+    }
+    
     # 画像ストリーム情報（番号付き）
     if ($script:showCoverImage) {
         $imageIndex = 1
@@ -3168,21 +3183,6 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
             Write-OutputBox($imageLine)
             $resultContentRef.Value += $imageLine + "`r`n"
             $imageIndex++
-        }
-    }
-    
-    # テキストストリーム情報（番号付き）
-    if ($script:showTextStream) {
-        $textIndex = 1
-        foreach ($txt in $parsedInfo.TextStreams) {
-            $language = if ($txt["language"]) { $txt["language"] } else { "不明" }
-            $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
-            $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
-            
-            $textLine = "テキスト${textIndex}: $language | Default - $default | Forced - $forced"
-            Write-OutputBox($textLine)
-            $resultContentRef.Value += $textLine + "`r`n"
-            $textIndex++
         }
     }
 }
