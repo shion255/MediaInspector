@@ -37,6 +37,7 @@ function Load-Config {
         YtDlpPath = "C:\encode\tools\yt-dlp.exe"
         MediaInfoPath = "C:\DTV\tools\MediaInfo_CLI\MediaInfo.exe"
         IncludeSubfolders = $false
+        MaxHistoryCount = 20
         ShowDuration = $true
         ShowBitrate = $true
         ShowArtist = $true
@@ -80,6 +81,7 @@ WindowOpacity=$($script:windowOpacity)
 YtDlpPath=$($script:ytDlpPath)
 MediaInfoPath=$($script:mediaInfoPath)
 IncludeSubfolders=$($script:includeSubfolders)
+MaxHistoryCount=$($script:maxHistoryCount)
 ShowDuration=$($script:showDuration)
 ShowBitrate=$($script:showBitrate)
 ShowArtist=$($script:showArtist)
@@ -113,9 +115,8 @@ function Load-History {
 
 # --- 履歴を保存する関数 ---
 function Save-History($items) {
-    # 最新20件まで保存
-    $maxHistory = 20
-    $uniqueItems = $items | Select-Object -Unique | Select-Object -First $maxHistory
+    # 最新N件まで保存
+    $uniqueItems = $items | Select-Object -Unique | Select-Object -First $script:maxHistoryCount
     Set-Content -Path $historyFile -Value $uniqueItems -Encoding UTF8
 }
 
@@ -128,6 +129,7 @@ $script:windowOpacity = [double]$config.WindowOpacity
 $script:ytDlpPath = $config.YtDlpPath
 $script:mediaInfoPath = $config.MediaInfoPath
 $script:includeSubfolders = [bool]::Parse($config.IncludeSubfolders)
+$script:maxHistoryCount = [int]$config.MaxHistoryCount
 $script:showDuration = [bool]::Parse($config.ShowDuration)
 $script:showBitrate = [bool]::Parse($config.ShowBitrate)
 $script:showArtist = [bool]::Parse($config.ShowArtist)
@@ -634,16 +636,34 @@ $optionsItem.Add_Click({
     $includeSubfoldersCheckBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($includeSubfoldersCheckBox)
     
+    # 履歴の最大保存数設定
+    $maxHistoryLabel = New-Object System.Windows.Forms.Label
+    $maxHistoryLabel.Text = "履歴の最大保存数:"
+    $maxHistoryLabel.Location = New-Object System.Drawing.Point(20, 55)
+    $maxHistoryLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $maxHistoryLabel.ForeColor = $script:fgColor
+    $analysisTab.Controls.Add($maxHistoryLabel)
+    
+    $maxHistoryNumeric = New-Object System.Windows.Forms.NumericUpDown
+    $maxHistoryNumeric.Location = New-Object System.Drawing.Point(180, 53)
+    $maxHistoryNumeric.Size = New-Object System.Drawing.Size(80, 25)
+    $maxHistoryNumeric.Minimum = 1
+    $maxHistoryNumeric.Maximum = 100
+    $maxHistoryNumeric.Value = $script:maxHistoryCount
+    $maxHistoryNumeric.BackColor = $script:inputBgColor
+    $maxHistoryNumeric.ForeColor = $script:fgColor
+    $analysisTab.Controls.Add($maxHistoryNumeric)
+    
     $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
     $analysisItemsGroupBox.Text = "表示する解析項目"
-    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 55)
-    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(460, 380)
+    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 90)
+    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(460, 345)
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
     
     $analysisItemsPanel = New-Object System.Windows.Forms.Panel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $analysisItemsPanel.Size = New-Object System.Drawing.Size(440, 345)
+    $analysisItemsPanel.Size = New-Object System.Drawing.Size(440, 310)
     $analysisItemsPanel.AutoScroll = $true
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
     
@@ -731,6 +751,9 @@ $optionsItem.Add_Click({
         
         # サブフォルダオプション適用
         $script:includeSubfolders = $includeSubfoldersCheckBox.Checked
+        
+        # 履歴の最大保存数適用
+        $script:maxHistoryCount = [int]$maxHistoryNumeric.Value
         
         foreach ($key in $analysisCheckBoxes.Keys) {
             $varName = $key.Substring(0,1).ToLower() + $key.Substring(1)
