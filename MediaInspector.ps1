@@ -18,9 +18,9 @@ $droppedFiles = $args
 
 # 設定ファイルのパス
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$configDir = Join-Path $scriptDir "ini"
+$configDir = Join-Path $scriptDir "Profile"
 $configFile = Join-Path $configDir "MediaInspector.ini"
-$historyFile = Join-Path $configDir "MediaInspector_history.txt"
+$historyFile = Join-Path $configDir "history.txt"
 
 # 設定フォルダがなければ作成
 if (-not (Test-Path $configDir)) {
