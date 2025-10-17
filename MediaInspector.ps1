@@ -34,8 +34,8 @@ function Load-Config {
         FontName = "Consolas"
         FontSize = 10
         WindowOpacity = 1.0
-        YtDlpPath = "C:\encode\tools\yt-dlp.exe"
-        MediaInfoPath = "C:\DTV\tools\MediaInfo_CLI\MediaInfo.exe"
+        YtDlpPath = ""
+        MediaInfoPath = ""
         IncludeSubfolders = $false
         MaxHistoryCount = 20
         ShowDuration = $true
@@ -151,9 +151,9 @@ $script:showReplayGain = [bool]::Parse($config.ShowReplayGain)
 
 # --- ツールパスチェック ---
 foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
-    if (-not (Test-Path $tool)) {
+    if ($tool -and -not (Test-Path $tool)) {
         [System.Windows.Forms.MessageBox]::Show("$tool が見つかりません。設定でパスを確認してください。")
-        # ここでは終了せずに続行（設定で修正可能なため）
+        # ここでは終了せずに続行(設定で修正可能なため)
     }
 }
 
@@ -560,7 +560,9 @@ $optionsItem.Add_Click({
         $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
         $openFileDialog.Filter = "実行ファイル (*.exe)|*.exe|すべてのファイル (*.*)|*.*"
         $openFileDialog.Title = "yt-dlp のパスを選択"
-        $openFileDialog.InitialDirectory = Split-Path -Parent $script:ytDlpPath
+        if ($script:ytDlpPath -and (Test-Path $script:ytDlpPath)) {
+            $openFileDialog.InitialDirectory = Split-Path -Parent $script:ytDlpPath
+        }
         if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $ytDlpTextBox.Text = $openFileDialog.FileName
         }
@@ -591,7 +593,9 @@ $optionsItem.Add_Click({
         $openFileDialog = New-Object System.Windows.Forms.OpenFileDialog
         $openFileDialog.Filter = "実行ファイル (*.exe)|*.exe|すべてのファイル (*.*)|*.*"
         $openFileDialog.Title = "MediaInfo のパスを選択"
-        $openFileDialog.InitialDirectory = Split-Path -Parent $script:mediaInfoPath
+        if ($script:mediaInfoPath -and (Test-Path $script:mediaInfoPath)) {
+            $openFileDialog.InitialDirectory = Split-Path -Parent $script:mediaInfoPath
+        }
         if ($openFileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $mediaInfoTextBox.Text = $openFileDialog.FileName
         }
@@ -742,8 +746,11 @@ $optionsItem.Add_Click({
         }
         
         # ツールパス適用
-        $script:ytDlpPath = $ytDlpTextBox.Text.Trim()
-        $script:mediaInfoPath = $mediaInfoTextBox.Text.Trim()
+        $newYtDlpPath = $ytDlpTextBox.Text.Trim()
+        $newMediaInfoPath = $mediaInfoTextBox.Text.Trim()
+        
+        if ($newYtDlpPath) { $script:ytDlpPath = $newYtDlpPath }
+        if ($newMediaInfoPath) { $script:mediaInfoPath = $newMediaInfoPath }
         
         # 透明度適用
         $script:windowOpacity = $opacityTrackBar.Value / 100.0
@@ -764,7 +771,7 @@ $optionsItem.Add_Click({
         
         # ツールの存在確認
         foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
-            if (-not (Test-Path $tool)) {
+            if ($tool -and -not (Test-Path $tool)) {
                 [System.Windows.Forms.MessageBox]::Show("$tool が見つかりません。パスを確認してください。")
             }
         }
