@@ -54,6 +54,7 @@ function Load-Config {
         ShowCoverImage = $true
         ShowTextStream = $true
         ShowComment = $true
+        ShowReplayGain = $true
     }
     
     if (Test-Path $configFile) {
@@ -96,6 +97,7 @@ ShowAudioStreamSize=$($script:showAudioStreamSize)
 ShowCoverImage=$($script:showCoverImage)
 ShowTextStream=$($script:showTextStream)
 ShowComment=$($script:showComment)
+ShowReplayGain=$($script:showReplayGain)
 "@
     Set-Content -Path $configFile -Value $content -Encoding UTF8
 }
@@ -143,6 +145,7 @@ $script:showAudioStreamSize = [bool]::Parse($config.ShowAudioStreamSize)
 $script:showCoverImage = [bool]::Parse($config.ShowCoverImage)
 $script:showTextStream = [bool]::Parse($config.ShowTextStream)
 $script:showComment = [bool]::Parse($config.ShowComment)
+$script:showReplayGain = [bool]::Parse($config.ShowReplayGain)
 
 # --- ツールパスチェック ---
 foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
@@ -649,7 +652,7 @@ $optionsItem.Add_Click({
     
     $analysisItems = @(
         @{Key="ShowDuration"; Label="再生時間"},
-        @{Key="ShowBitrate"; Label="ビットレート(全体)"},
+        @{Key="ShowBitrate"; Label="ビットレート (全体)"},
         @{Key="ShowArtist"; Label="作成者"},
         @{Key="ShowComment"; Label="コメント"},
         @{Key="ShowChapters"; Label="チャプター"},
@@ -664,10 +667,11 @@ $optionsItem.Add_Click({
         @{Key="ShowAudioCodec"; Label="音声: コーデック"},
         @{Key="ShowSampleRate"; Label="音声: サンプリングレート"},
         @{Key="ShowAudioBitrate"; Label="音声: ビットレート"},
+        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"},
         @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"},
         @{Key="Separator3"; Label=""},
         @{Key="ShowCoverImage"; Label="カバー画像"},
-        @{Key="ShowTextStream"; Label="テキストストリーム(字幕)"}
+        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"}
     )
     
     foreach ($item in $analysisItems) {
@@ -2776,6 +2780,8 @@ function Parse-MediaInfo($mediaInfoOutput) {
     $fileSize = ""
     $artist = ""
     $comment = ""
+    $replayGain = ""
+    $replayGainPeak = ""
     $videoStreams = @()
     $audioStreams = @()
     $textStreams = @()
@@ -2855,6 +2861,12 @@ function Parse-MediaInfo($mediaInfoOutput) {
                     if ($key -eq "Sampling rate") { $audioInfo["samplerate"] = $value }
                     if ($key -eq "Bit rate") { $audioInfo["bitrate"] = $value }
                     if ($key -eq "Stream size") { $audioInfo["stream_size"] = $value }
+                    if ($key -eq "Replay gain") { 
+                        if (-not $replayGain) { $replayGain = $value }
+                    }
+                    if ($key -eq "Replay gain peak") { 
+                        if (-not $replayGainPeak) { $replayGainPeak = $value }
+                    }
                 }
                 "Text" {
                     if ($key -eq "Language") { $textInfo["language"] = $value }
@@ -2884,6 +2896,8 @@ function Parse-MediaInfo($mediaInfoOutput) {
         FileSize = $fileSize
         Artist = $artist
         Comment = $comment
+        ReplayGain = $replayGain
+        ReplayGainPeak = $replayGainPeak
         VideoStreams = $videoStreams
         AudioStreams = $audioStreams
         TextStreams = $textStreams
@@ -3013,6 +3027,16 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         if ($script:showAudioBitrate) {
             $bitrate = if ($a["bitrate"]) { (Format-Bitrate $a["bitrate"]) } else { "不明" }
             $parts += $bitrate
+        }
+        
+        # リプレイゲイン
+        if ($script:showReplayGain) {
+            if ($parsedInfo.ReplayGain) {
+                $parts += "RG: $($parsedInfo.ReplayGain)"
+            }
+            if ($parsedInfo.ReplayGainPeak) {
+                $parts += "Peak: $($parsedInfo.ReplayGainPeak)"
+            }
         }
         
         # ストリームサイズ
