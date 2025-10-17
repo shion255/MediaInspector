@@ -263,6 +263,14 @@ function Apply-Theme {
     $menuStrip.ForeColor = $script:fgColor
     $label.ForeColor = $script:fgColor
     $progressLabel.ForeColor = $script:fgColor
+    
+    if ($script:currentTheme -eq "Dark") {
+        $menuHoverColor = [System.Drawing.Color]::FromArgb(25, 25, 25)
+    } else {
+        $menuHoverColor = [System.Drawing.Color]::FromArgb(200, 220, 240)
+    }
+    $colorTable = New-Object CustomColorTable($menuHoverColor, $menuHoverColor, $menuHoverColor)
+    $menuStrip.Renderer = New-Object System.Windows.Forms.ToolStripProfessionalRenderer($colorTable)
 }
 
 # 初期テーマを適用
@@ -291,10 +299,74 @@ $form.ForeColor = $script:fgColor
 $form.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
 $form.Opacity = $script:windowOpacity
 
+# カスタム ColorTable クラスを定義
+Add-Type -TypeDefinition @'
+using System;
+using System.Drawing;
+using System.Windows.Forms;
+
+public class CustomColorTable : ProfessionalColorTable
+{
+    private Color menuItemSelectedColor;
+    private Color menuItemPressedColor;
+    private Color menuItemBorderColor;
+    
+    public CustomColorTable(Color selectedColor, Color pressedColor, Color borderColor)
+    {
+        this.menuItemSelectedColor = selectedColor;
+        this.menuItemPressedColor = pressedColor;
+        this.menuItemBorderColor = borderColor;
+    }
+    
+    public override Color MenuItemSelected
+    {
+        get { return menuItemSelectedColor; }
+    }
+    
+    public override Color MenuItemSelectedGradientBegin
+    {
+        get { return menuItemSelectedColor; }
+    }
+    
+    public override Color MenuItemSelectedGradientEnd
+    {
+        get { return menuItemSelectedColor; }
+    }
+    
+    public override Color MenuItemPressedGradientBegin
+    {
+        get { return menuItemPressedColor; }
+    }
+    
+    public override Color MenuItemPressedGradientMiddle
+    {
+        get { return menuItemPressedColor; }
+    }
+    
+    public override Color MenuItemPressedGradientEnd
+    {
+        get { return menuItemPressedColor; }
+    }
+    
+    public override Color MenuItemBorder
+    {
+        get { return menuItemBorderColor; }
+    }
+}
+'@ -ReferencedAssemblies System.Windows.Forms, System.Drawing, System.Drawing.Primitives
+
 # メニューストリップを作成
 $menuStrip = New-Object System.Windows.Forms.MenuStrip
 $menuStrip.BackColor = $script:menuBgColor
 $menuStrip.ForeColor = $script:fgColor
+
+if ($script:currentTheme -eq "Dark") {
+    $menuHoverColor = [System.Drawing.Color]::FromArgb(25, 25, 25)
+} else {
+    $menuHoverColor = [System.Drawing.Color]::FromArgb(200, 220, 240)
+}
+$colorTable = New-Object CustomColorTable($menuHoverColor, $menuHoverColor, $menuHoverColor)
+$menuStrip.Renderer = New-Object System.Windows.Forms.ToolStripProfessionalRenderer($colorTable)
 
 # 「ファイル」メニュー
 $fileMenu = New-Object System.Windows.Forms.ToolStripMenuItem
