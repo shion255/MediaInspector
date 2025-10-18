@@ -104,7 +104,7 @@ git clone https://github.com/shion255/MediaInspector.git
 - フォント名とサイズ
 - ウィンドウの透明度
 - yt-dlp のパス
-- MediaInfo のパス
+- MediaInfo CLI のパス
 
 ### 解析タブ
 - サブフォルダを含めるか
