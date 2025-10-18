@@ -957,6 +957,17 @@ $mediaInfoInfoItem.Add_Click({
 })
 $helpMenu.DropDownItems.Add($mediaInfoInfoItem)
 
+# セパレーター
+$helpMenu.DropDownItems.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+# MediaInspector について
+$aboutItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$aboutItem.Text = "MediaInspector について(&A)..."
+$aboutItem.Add_Click({
+    Show-AboutMediaInspector
+})
+$helpMenu.DropDownItems.Add($aboutItem)
+
 $menuStrip.Items.Add($helpMenu)
 
 $form.MainMenuStrip = $menuStrip
@@ -1652,6 +1663,55 @@ function Show-MediaInfoInfo {
     $infoForm.AcceptButton = $okButton
     
     [void]$infoForm.ShowDialog($form)
+}
+
+function Show-AboutMediaInspector {
+    $url = "https://github.com/shion255/MediaInspector"
+    
+    $aboutForm = New-Object System.Windows.Forms.Form
+    $aboutForm.Text = "MediaInspector について"
+    $aboutForm.Size = New-Object System.Drawing.Size(450, 200)
+    $aboutForm.StartPosition = "CenterParent"
+    $aboutForm.FormBorderStyle = "FixedDialog"
+    $aboutForm.MaximizeBox = $false
+    $aboutForm.MinimizeBox = $false
+    $aboutForm.BackColor = $script:bgColor
+    $aboutForm.ForeColor = $script:fgColor
+    
+    $titleLabel = New-Object System.Windows.Forms.Label
+    $titleLabel.Text = "MediaInspector"
+    $titleLabel.Location = New-Object System.Drawing.Point(20, 20)
+    $titleLabel.Size = New-Object System.Drawing.Size(400, 25)
+    $titleLabel.Font = New-Object System.Drawing.Font("Meiryo UI", 12, [System.Drawing.FontStyle]::Bold)
+    $titleLabel.ForeColor = $script:fgColor
+    $aboutForm.Controls.Add($titleLabel)
+    
+    $urlLabel = New-Object System.Windows.Forms.Label
+    $urlLabel.Text = "URL:"
+    $urlLabel.Location = New-Object System.Drawing.Point(20, 65)
+    $urlLabel.Size = New-Object System.Drawing.Size(400, 20)
+    $urlLabel.ForeColor = $script:fgColor
+    $aboutForm.Controls.Add($urlLabel)
+    
+    $urlLink = New-Object System.Windows.Forms.LinkLabel
+    $urlLink.Text = $url
+    $urlLink.Location = New-Object System.Drawing.Point(20, 85)
+    $urlLink.Size = New-Object System.Drawing.Size(400, 20)
+    $urlLink.LinkColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $urlLink.Add_LinkClicked({
+        Start-Process $url
+    })
+    $aboutForm.Controls.Add($urlLink)
+    
+    $okButton = New-Object System.Windows.Forms.Button
+    $okButton.Text = "OK"
+    $okButton.Location = New-Object System.Drawing.Point(175, 120)
+    $okButton.Size = New-Object System.Drawing.Size(80, 30)
+    $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $aboutForm.Controls.Add($okButton)
+    $aboutForm.AcceptButton = $okButton
+    
+    [void]$aboutForm.ShowDialog($form)
 }
 
 # --- 解析結果絞り込み機能 ---
