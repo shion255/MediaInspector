@@ -35,17 +35,18 @@ MediaInspector は、yt-dlp と MediaInfo CLI を活用して、動画ファイ�
 - **別ウィンドウ表示**: 複数ファイルの比較が容易
 - **コピー機能**: 結果をクリップボードにコピー
 
-## 必要なツール
+## 必要な環境
 
-以下のツールを事前にダウンロードし、設定でパスを指定してください。
+### 1. PowerShell
+- **推奨**: PowerShell 5.1 以降
 
-### 1. yt-dlp
+### 2. yt-dlp
 オンライン動画の情報取得に使用
 
 - **ダウンロード**: https://github.com/yt-dlp/yt-dlp/releases
 - **推奨**: `yt-dlp.exe`をダウンロード
 
-### 2. MediaInfo CLI
+### 3. MediaInfo CLI
 動画ファイルの詳細情報取得に使用
 
 - **ダウンロード**: https://mediaarea.net/en/MediaInfo/Download/Windows
