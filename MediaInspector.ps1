@@ -974,7 +974,7 @@ $form.MainMenuStrip = $menuStrip
 $form.Controls.Add($menuStrip)
 
 $label = New-Object System.Windows.Forms.Label
-$label.Text = "URL または ローカルファイル（複数可、改行で区切る / ドラッグ&ドロップ可）："
+$label.Text = "URL または ローカルファイル (複数入力する場合、改行またはスペースで区切る / ドラッグ && ドロップ 対応)"
 $label.Location = New-Object System.Drawing.Point(10, 35)
 $label.AutoSize = $true
 $label.Anchor = "Top,Left"
