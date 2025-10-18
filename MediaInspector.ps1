@@ -38,6 +38,13 @@ function Load-Config {
         MediaInfoPath = ""
         IncludeSubfolders = $false
         MaxHistoryCount = 20
+        ShowYtDlpTitle = $true
+        ShowYtDlpUploader = $true
+        ShowYtDlpUploadDate = $true
+        ShowYtDlpDuration = $true
+        ShowYtDlpChapters = $true
+        ShowYtDlpSubtitles = $true
+        ShowYtDlpFormats = $true
         ShowDuration = $true
         ShowBitrate = $true
         ShowArtist = $true
@@ -82,6 +89,13 @@ YtDlpPath=$($script:ytDlpPath)
 MediaInfoPath=$($script:mediaInfoPath)
 IncludeSubfolders=$($script:includeSubfolders)
 MaxHistoryCount=$($script:maxHistoryCount)
+ShowYtDlpTitle=$($script:showYtDlpTitle)
+ShowYtDlpUploader=$($script:showYtDlpUploader)
+ShowYtDlpUploadDate=$($script:showYtDlpUploadDate)
+ShowYtDlpDuration=$($script:showYtDlpDuration)
+ShowYtDlpChapters=$($script:showYtDlpChapters)
+ShowYtDlpSubtitles=$($script:showYtDlpSubtitles)
+ShowYtDlpFormats=$($script:showYtDlpFormats)
 ShowDuration=$($script:showDuration)
 ShowBitrate=$($script:showBitrate)
 ShowArtist=$($script:showArtist)
@@ -130,6 +144,13 @@ $script:ytDlpPath = $config.YtDlpPath
 $script:mediaInfoPath = $config.MediaInfoPath
 $script:includeSubfolders = [bool]::Parse($config.IncludeSubfolders)
 $script:maxHistoryCount = [int]$config.MaxHistoryCount
+$script:showYtDlpTitle = [bool]::Parse($config.ShowYtDlpTitle)
+$script:showYtDlpUploader = [bool]::Parse($config.ShowYtDlpUploader)
+$script:showYtDlpUploadDate = [bool]::Parse($config.ShowYtDlpUploadDate)
+$script:showYtDlpDuration = [bool]::Parse($config.ShowYtDlpDuration)
+$script:showYtDlpChapters = [bool]::Parse($config.ShowYtDlpChapters)
+$script:showYtDlpSubtitles = [bool]::Parse($config.ShowYtDlpSubtitles)
+$script:showYtDlpFormats = [bool]::Parse($config.ShowYtDlpFormats)
 $script:showDuration = [bool]::Parse($config.ShowDuration)
 $script:showBitrate = [bool]::Parse($config.ShowBitrate)
 $script:showArtist = [bool]::Parse($config.ShowArtist)
@@ -510,7 +531,7 @@ $optionsItem.Add_Click({
     # タブコントロールを作成
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Location = New-Object System.Drawing.Point(10, 10)
-    $tabControl.Size = New-Object System.Drawing.Size(510, 460)
+    $tabControl.Size = New-Object System.Drawing.Size(510, 620)
     $tabControl.Anchor = "Top,Left,Right"
     $optionsForm.Controls.Add($tabControl)
     
@@ -731,9 +752,48 @@ $optionsItem.Add_Click({
     $maxHistoryNumeric.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($maxHistoryNumeric)
     
+    $ytDlpItemsGroupBox = New-Object System.Windows.Forms.GroupBox
+    $ytDlpItemsGroupBox.Text = "yt-dlp 解析表示"
+    $ytDlpItemsGroupBox.Location = New-Object System.Drawing.Point(20, 90)
+    $ytDlpItemsGroupBox.Size = New-Object System.Drawing.Size(460, 150)
+    $ytDlpItemsGroupBox.ForeColor = $script:fgColor
+    $analysisTab.Controls.Add($ytDlpItemsGroupBox)
+    
+    $ytDlpItemsPanel = New-Object System.Windows.Forms.Panel
+    $ytDlpItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
+    $ytDlpItemsPanel.Size = New-Object System.Drawing.Size(440, 115)
+    $ytDlpItemsPanel.AutoScroll = $true
+    $ytDlpItemsGroupBox.Controls.Add($ytDlpItemsPanel)
+    
+    $ytDlpCheckBoxes = @{}
+    $yPos = 5
+    
+    $ytDlpItems = @(
+        @{Key="ShowYtDlpTitle"; Label="タイトル"},
+        @{Key="ShowYtDlpUploader"; Label="アップローダー"},
+        @{Key="ShowYtDlpUploadDate"; Label="投稿日時"},
+        @{Key="ShowYtDlpDuration"; Label="再生時間"},
+        @{Key="ShowYtDlpChapters"; Label="チャプター"},
+        @{Key="ShowYtDlpSubtitles"; Label="字幕情報"},
+        @{Key="ShowYtDlpFormats"; Label="フォーマット一覧"}
+    )
+    
+    foreach ($item in $ytDlpItems) {
+        $checkBox = New-Object System.Windows.Forms.CheckBox
+        $checkBox.Text = $item.Label
+        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+        $checkBox.Size = New-Object System.Drawing.Size(200, 25)
+        $varName = $item.Key.Substring(0,1).ToLower() + $item.Key.Substring(1)
+        $checkBox.Checked = (Get-Variable -Name $varName -Scope Script).Value
+        $checkBox.ForeColor = $script:fgColor
+        $ytDlpItemsPanel.Controls.Add($checkBox)
+        $ytDlpCheckBoxes[$item.Key] = $checkBox
+        $yPos += 25
+    }
+    
     $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
-    $analysisItemsGroupBox.Text = "表示する解析項目"
-    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 90)
+    $analysisItemsGroupBox.Text = "MediaInfo 解析表示"
+    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 250)
     $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(460, 345)
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
@@ -793,11 +853,11 @@ $optionsItem.Add_Click({
         }
     }
     
-    $optionsForm.Size = New-Object System.Drawing.Size(550, 560)
+    $optionsForm.Size = New-Object System.Drawing.Size(550, 720)
     
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(300, 480)
+    $okButton.Location = New-Object System.Drawing.Point(300, 640)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $okButton.Add_Click({
@@ -835,6 +895,11 @@ $optionsItem.Add_Click({
         # 履歴の最大保存数適用
         $script:maxHistoryCount = [int]$maxHistoryNumeric.Value
         
+        foreach ($key in $ytDlpCheckBoxes.Keys) {
+            $varName = $key.Substring(0,1).ToLower() + $key.Substring(1)
+            Set-Variable -Name $varName -Value $ytDlpCheckBoxes[$key].Checked -Scope Script
+        }
+        
         foreach ($key in $analysisCheckBoxes.Keys) {
             $varName = $key.Substring(0,1).ToLower() + $key.Substring(1)
             Set-Variable -Name $varName -Value $analysisCheckBoxes[$key].Checked -Scope Script
@@ -854,7 +919,7 @@ $optionsItem.Add_Click({
     # キャンセルボタン
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(390, 480)
+    $cancelButton.Location = New-Object System.Drawing.Point(390, 640)
     $cancelButton.Size = New-Object System.Drawing.Size(80, 30)
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $cancelButton.Add_Click({
@@ -3287,15 +3352,18 @@ function Analyze-Video {
                 if ($infoJson) {
                     $resultTitle = $infoJson.title
                     
-                    Write-OutputBox("タイトル: $($infoJson.title)")
-                    $resultContent += "タイトル: $($infoJson.title)`r`n"
-                    Write-OutputBox("アップローダー: $($infoJson.uploader)")
-                    $resultContent += "アップローダー: $($infoJson.uploader)`r`n"
+                    if ($script:showYtDlpTitle) {
+                        Write-OutputBox("タイトル: $($infoJson.title)")
+                        $resultContent += "タイトル: $($infoJson.title)`r`n"
+                    }
                     
-                    # 投稿日時を追加
-                    if ($infoJson.upload_date) {
+                    if ($script:showYtDlpUploader) {
+                        Write-OutputBox("アップローダー: $($infoJson.uploader)")
+                        $resultContent += "アップローダー: $($infoJson.uploader)`r`n"
+                    }
+                    
+                    if ($script:showYtDlpUploadDate -and $infoJson.upload_date) {
                         $dateStr = $infoJson.upload_date
-                        # YYYYMMDD形式をYYYY年MM月DD日に変換
                         if ($dateStr -match '^(\d{4})(\d{2})(\d{2})$') {
                             $formattedDate = "$($matches[1])年$($matches[2])月$($matches[3])日"
                             Write-OutputBox("投稿日時: $formattedDate")
@@ -3306,14 +3374,13 @@ function Analyze-Video {
                         }
                     }
                     
-                    if ($script:showDuration) {
+                    if ($script:showYtDlpDuration) {
                         $durationText = Format-Time $infoJson.duration
                         Write-OutputBox("再生時間: $durationText")
                         $resultContent += "再生時間: $durationText`r`n"
                     }
                     
-                    # チャプターの有無をチェック
-                    if ($script:showChapters) {
+                    if ($script:showYtDlpChapters) {
                         if ($infoJson.chapters -and $infoJson.chapters.Count -gt 0) {
                             Write-OutputBox("✅ チャプターあり ($($infoJson.chapters.Count)個)")
                             $resultContent += "✅ チャプターあり ($($infoJson.chapters.Count)個)`r`n"
@@ -3323,19 +3390,22 @@ function Analyze-Video {
                         }
                     }
                     
-                    $subs = $infoJson.subtitles.PSObject.Properties.Name
-                    if ($subs -match "ja|jpn|Japanese") { 
-                        Write-OutputBox("✅ 日本語字幕あり")
-                        $resultContent += "✅ 日本語字幕あり`r`n"
-                    } else { 
-                        Write-OutputBox("❌ 日本語字幕なし")
-                        $resultContent += "❌ 日本語字幕なし`r`n"
+                    if ($script:showYtDlpSubtitles) {
+                        $subs = $infoJson.subtitles.PSObject.Properties.Name
+                        if ($subs -match "ja|jpn|Japanese") { 
+                            Write-OutputBox("✅ 日本語字幕あり")
+                            $resultContent += "✅ 日本語字幕あり`r`n"
+                        } else { 
+                            Write-OutputBox("❌ 日本語字幕なし")
+                            $resultContent += "❌ 日本語字幕なし`r`n"
+                        }
                     }
                     
-                    Write-OutputBox("")
-                    $resultContent += "`r`n"
-                    Write-OutputBox("--- 利用可能なコーデック一覧 ---")
-                    $resultContent += "--- 利用可能なコーデック一覧 ---`r`n"
+                    if ($script:showYtDlpFormats) {
+                        Write-OutputBox("")
+                        $resultContent += "`r`n"
+                        Write-OutputBox("--- 利用可能なコーデック一覧 ---")
+                        $resultContent += "--- 利用可能なコーデック一覧 ---`r`n"
                     
                     # フォーマット一覧を取得（エラー出力も含める）
                     $formatOutput = & $script:ytDlpPath -F "$input" 2>&1
@@ -3453,6 +3523,7 @@ function Analyze-Video {
                     } else {
                         Write-OutputBox("⚠ フォーマット一覧の取得に失敗しました。")
                         $resultContent += "⚠ フォーマット一覧の取得に失敗しました。`r`n"
+                    }
                     }
 
                     # yt-dlpの出力を適切に処理
