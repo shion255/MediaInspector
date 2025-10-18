@@ -1,2 +1,5 @@
-# 設定ファイルを除外
+# Exclude configuration files
 Profile/
+
+# Exclude package output directory
+package/

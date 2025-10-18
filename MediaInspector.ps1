@@ -310,9 +310,12 @@ if ($script:currentTheme -eq "Light") {
     $script:menuBgColor = [System.Drawing.Color]::FromArgb(240, 240, 240)
 }
 
+# バージョン情報
+$script:version = "1.0"
+
 # --- GUI ---
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "MediaInspector"
+$form.Text = "MediaInspector v$script:version"
 $form.Size = New-Object System.Drawing.Size(850, 600)
 $form.StartPosition = "CenterScreen"
 $form.BackColor = $script:bgColor
@@ -1670,7 +1673,7 @@ function Show-AboutMediaInspector {
     
     $aboutForm = New-Object System.Windows.Forms.Form
     $aboutForm.Text = "MediaInspector について"
-    $aboutForm.Size = New-Object System.Drawing.Size(450, 200)
+    $aboutForm.Size = New-Object System.Drawing.Size(450, 220)
     $aboutForm.StartPosition = "CenterParent"
     $aboutForm.FormBorderStyle = "FixedDialog"
     $aboutForm.MaximizeBox = $false
@@ -1686,16 +1689,23 @@ function Show-AboutMediaInspector {
     $titleLabel.ForeColor = $script:fgColor
     $aboutForm.Controls.Add($titleLabel)
     
+    $versionLabel = New-Object System.Windows.Forms.Label
+    $versionLabel.Text = "バージョン: $script:version"
+    $versionLabel.Location = New-Object System.Drawing.Point(20, 55)
+    $versionLabel.Size = New-Object System.Drawing.Size(400, 20)
+    $versionLabel.ForeColor = $script:fgColor
+    $aboutForm.Controls.Add($versionLabel)
+    
     $urlLabel = New-Object System.Windows.Forms.Label
     $urlLabel.Text = "URL:"
-    $urlLabel.Location = New-Object System.Drawing.Point(20, 65)
+    $urlLabel.Location = New-Object System.Drawing.Point(20, 85)
     $urlLabel.Size = New-Object System.Drawing.Size(400, 20)
     $urlLabel.ForeColor = $script:fgColor
     $aboutForm.Controls.Add($urlLabel)
     
     $urlLink = New-Object System.Windows.Forms.LinkLabel
     $urlLink.Text = $url
-    $urlLink.Location = New-Object System.Drawing.Point(20, 85)
+    $urlLink.Location = New-Object System.Drawing.Point(20, 105)
     $urlLink.Size = New-Object System.Drawing.Size(400, 20)
     $urlLink.LinkColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
     $urlLink.Add_LinkClicked({
@@ -1705,7 +1715,7 @@ function Show-AboutMediaInspector {
     
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(175, 120)
+    $okButton.Location = New-Object System.Drawing.Point(175, 140)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $aboutForm.Controls.Add($okButton)
