@@ -54,10 +54,10 @@ MediaInspector は、yt-dlp と MediaInfo CLI を活用して、動画ファイ�
 
 ## インストール
 
-1. このリポジトリをクローンまたはダウンロード
-```bash
-git clone https://github.com/shion255/MediaInspector.git
-```
+### ダウンロードと初期設定
+
+1. リリースページから MediaInspector をダウンロード
+   - **ダウンロード**: https://github.com/shion255/MediaInspector/releases
 
 2. 初回起動時にメニュー「ツール」→「オプション」から、yt-dlp と MediaInfo CLI のパスを設定
 
@@ -111,16 +111,6 @@ git clone https://github.com/shion255/MediaInspector.git
 - サブフォルダを含めるか
 - 履歴の最大保存数
 - 表示する解析項目の選択
-
-## トラブルシューティング
-
-### 「ツールが見つかりません」エラー
-- オプションで yt-dlp と MediaInfo のパスが正しく設定されているか確認
-- ファイルが実際に存在するか確認
-
-### 文字化けが発生する
-- PowerShell の文字コードを UTF-8 に設定 （スクリプト内で自動設定）
-- フォント設定で日本語対応フォントを選択
 
 ## ライセンス
 
