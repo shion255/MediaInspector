@@ -581,7 +581,7 @@ $optionsItem.Add_Click({
     $fontNameCombo = New-Object System.Windows.Forms.ComboBox
     $fontNameCombo.Location = New-Object System.Drawing.Point(130, 58)
     $fontNameCombo.Size = New-Object System.Drawing.Size(280, 25)
-    $fontNameCombo.DropDownStyle = "DropDown"  # 編集可能に変更
+    $fontNameCombo.DropDownStyle = "DropDown"
     $fontNameCombo.AutoCompleteSource = "ListItems"
     $fontNameCombo.AutoCompleteMode = "SuggestAppend"
 
@@ -1738,6 +1738,9 @@ function Show-FilterDialog {
     $hasChapterCount = 0
     $hasSubtitleCount = 0
     $hasCoverImageCount = 0
+    $noChapterCount = 0
+    $noSubtitleCount = 0
+    $noCoverImageCount = 0
     
     foreach ($result in $script:analysisResults) {
         $content = $result.Content
@@ -1772,16 +1775,22 @@ function Show-FilterDialog {
         # チャプターの有無をチェック
         if ($content -match '✅ チャプターあり') {
             $hasChapterCount++
+        } elseif ($content -match '❌ チャプターなし') {
+            $noChapterCount++
         }
         
         # 字幕の有無をチェック
         if ($content -match 'テキスト\d+:') {
             $hasSubtitleCount++
+        } else {
+            $noSubtitleCount++
         }
         
         # カバー画像の有無をチェック
         if ($content -match 'カバー画像\d+:') {
             $hasCoverImageCount++
+        } else {
+            $noCoverImageCount++
         }
     }
     
@@ -1885,39 +1894,79 @@ function Show-FilterDialog {
     }
     
     # チャプターの有無
-    if ($hasChapterCount -gt 0) {
+    if ($hasChapterCount -gt 0 -or $noChapterCount -gt 0) {
         $yPos += 10
-        $checkBox = New-Object System.Windows.Forms.CheckBox
-        $checkBox.Text = "チャプターあり ($hasChapterCount)"
-        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-        $checkBox.Size = New-Object System.Drawing.Size(250, 25)
-        $checkBox.ForeColor = $script:fgColor
-        $otherPanel.Controls.Add($checkBox)
-        $otherCheckBoxes["HasChapter"] = $checkBox
+        
+        if ($hasChapterCount -gt 0) {
+            $checkBox = New-Object System.Windows.Forms.CheckBox
+            $checkBox.Text = "チャプターあり ($hasChapterCount)"
+            $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+            $checkBox.Size = New-Object System.Drawing.Size(120, 25)
+            $checkBox.ForeColor = $script:fgColor
+            $otherPanel.Controls.Add($checkBox)
+            $otherCheckBoxes["HasChapter"] = $checkBox
+        }
+        
+        if ($noChapterCount -gt 0) {
+            $checkBox = New-Object System.Windows.Forms.CheckBox
+            $checkBox.Text = "チャプターなし ($noChapterCount)"
+            $checkBox.Location = New-Object System.Drawing.Point(130, $yPos)
+            $checkBox.Size = New-Object System.Drawing.Size(120, 25)
+            $checkBox.ForeColor = $script:fgColor
+            $otherPanel.Controls.Add($checkBox)
+            $otherCheckBoxes["NoChapter"] = $checkBox
+        }
+        
         $yPos += 30
     }
     
     # 字幕の有無
-    if ($hasSubtitleCount -gt 0) {
-        $checkBox = New-Object System.Windows.Forms.CheckBox
-        $checkBox.Text = "字幕あり ($hasSubtitleCount)"
-        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-        $checkBox.Size = New-Object System.Drawing.Size(250, 25)
-        $checkBox.ForeColor = $script:fgColor
-        $otherPanel.Controls.Add($checkBox)
-        $otherCheckBoxes["HasSubtitle"] = $checkBox
+    if ($hasSubtitleCount -gt 0 -or $noSubtitleCount -gt 0) {
+        if ($hasSubtitleCount -gt 0) {
+            $checkBox = New-Object System.Windows.Forms.CheckBox
+            $checkBox.Text = "字幕あり ($hasSubtitleCount)"
+            $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+            $checkBox.Size = New-Object System.Drawing.Size(120, 25)
+            $checkBox.ForeColor = $script:fgColor
+            $otherPanel.Controls.Add($checkBox)
+            $otherCheckBoxes["HasSubtitle"] = $checkBox
+        }
+        
+        if ($noSubtitleCount -gt 0) {
+            $checkBox = New-Object System.Windows.Forms.CheckBox
+            $checkBox.Text = "字幕なし ($noSubtitleCount)"
+            $checkBox.Location = New-Object System.Drawing.Point(130, $yPos)
+            $checkBox.Size = New-Object System.Drawing.Size(120, 25)
+            $checkBox.ForeColor = $script:fgColor
+            $otherPanel.Controls.Add($checkBox)
+            $otherCheckBoxes["NoSubtitle"] = $checkBox
+        }
+        
         $yPos += 30
     }
     
     # カバー画像の有無
-    if ($hasCoverImageCount -gt 0) {
-        $checkBox = New-Object System.Windows.Forms.CheckBox
-        $checkBox.Text = "カバー画像あり ($hasCoverImageCount)"
-        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-        $checkBox.Size = New-Object System.Drawing.Size(250, 25)
-        $checkBox.ForeColor = $script:fgColor
-        $otherPanel.Controls.Add($checkBox)
-        $otherCheckBoxes["HasCoverImage"] = $checkBox
+    if ($hasCoverImageCount -gt 0 -or $noCoverImageCount -gt 0) {
+        if ($hasCoverImageCount -gt 0) {
+            $checkBox = New-Object System.Windows.Forms.CheckBox
+            $checkBox.Text = "カバー画像あり ($hasCoverImageCount)"
+            $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+            $checkBox.Size = New-Object System.Drawing.Size(120, 25)
+            $checkBox.ForeColor = $script:fgColor
+            $otherPanel.Controls.Add($checkBox)
+            $otherCheckBoxes["HasCoverImage"] = $checkBox
+        }
+        
+        if ($noCoverImageCount -gt 0) {
+            $checkBox = New-Object System.Windows.Forms.CheckBox
+            $checkBox.Text = "カバー画像なし ($noCoverImageCount)"
+            $checkBox.Location = New-Object System.Drawing.Point(130, $yPos)
+            $checkBox.Size = New-Object System.Drawing.Size(120, 25)
+            $checkBox.ForeColor = $script:fgColor
+            $otherPanel.Controls.Add($checkBox)
+            $otherCheckBoxes["NoCoverImage"] = $checkBox
+        }
+        
         $yPos += 30
     }
     
@@ -2019,8 +2068,11 @@ function Show-FilteredResults($videoCodecs, $audioCodecs, $otherFilters) {
                     "HLG" { if ($content -match "\[HLG\]") { $match = $true } }
                     "SDR" { if ($content -match "\[SDR\]") { $match = $true } }
                     "HasChapter" { if ($content -match "✅ チャプターあり") { $match = $true } }
+                    "NoChapter" { if ($content -match "❌ チャプターなし") { $match = $true } }
                     "HasSubtitle" { if ($content -match "テキスト\d+:") { $match = $true } }
+                    "NoSubtitle" { if ($content -notmatch "テキスト\d+:" -and $content -match "(再生時間|ビットレート)") { $match = $true } }
                     "HasCoverImage" { if ($content -match "カバー画像\d+:") { $match = $true } }
+                    "NoCoverImage" { if ($content -notmatch "カバー画像\d+:" -and $content -match "(再生時間|ビットレート)") { $match = $true } }
                 }
                 if (-not $match) {
                     $allOtherMatch = $false
