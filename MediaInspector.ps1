@@ -3528,11 +3528,6 @@ function Analyze-Video {
                     }
                     
                     if ($script:showYtDlpFormats) {
-                        Write-OutputBox("")
-                        $resultContent += "`r`n"
-                        Write-OutputBox("--- 利用可能なコーデック一覧 ---")
-                        $resultContent += "--- 利用可能なコーデック一覧 ---`r`n"
-                    
                     # フォーマット一覧を取得（エラー出力も含める）
                     $formatOutput = & $script:ytDlpPath -F "$input" 2>&1
                     
@@ -3608,47 +3603,47 @@ function Analyze-Video {
                             }
                         }
                         
-                        # 映像フォーマットを表示
-                        if ($videoFormats.Count -gt 0) {
+                        # フォーマット情報が取得できた場合のみヘッダーと内容を表示
+                        if ($videoFormats.Count -gt 0 -or $audioFormats.Count -gt 0) {
                             Write-OutputBox("")
                             $resultContent += "`r`n"
-                            Write-OutputBox("【映像フォーマット】")
-                            $resultContent += "【映像フォーマット】`r`n"
-                            $videoFormats | ForEach-Object {
-                                $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
-                                if ($_.Resolution) { $line += " | 解像度: $($_.Resolution)" }
-                                if ($_.VCodec -and $_.VCodec -ne "none") { $line += " | Vコーデック: $($_.VCodec)" }
-                                if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | Aコーデック: $($_.ACodec)" }
-                                if ($_.TBR) { $line += " | $($_.TBR)bps" }
-                                if ($_.FileSize) { $line += " | $($_.FileSize)" }
-                                Write-OutputBox($line)
-                                $resultContent += $line + "`r`n"
+                            Write-OutputBox("--- 利用可能なコーデック一覧 ---")
+                            $resultContent += "--- 利用可能なコーデック一覧 ---`r`n"
+                        
+                            # 映像フォーマットを表示
+                            if ($videoFormats.Count -gt 0) {
+                                Write-OutputBox("")
+                                $resultContent += "`r`n"
+                                Write-OutputBox("【映像フォーマット】")
+                                $resultContent += "【映像フォーマット】`r`n"
+                                $videoFormats | ForEach-Object {
+                                    $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
+                                    if ($_.Resolution) { $line += " | 解像度: $($_.Resolution)" }
+                                    if ($_.VCodec -and $_.VCodec -ne "none") { $line += " | Vコーデック: $($_.VCodec)" }
+                                    if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | Aコーデック: $($_.ACodec)" }
+                                    if ($_.TBR) { $line += " | $($_.TBR)bps" }
+                                    if ($_.FileSize) { $line += " | $($_.FileSize)" }
+                                    Write-OutputBox($line)
+                                    $resultContent += $line + "`r`n"
+                                }
+                            }
+                            
+                            # 音声フォーマットを表示
+                            if ($audioFormats.Count -gt 0) {
+                                Write-OutputBox("")
+                                $resultContent += "`r`n"
+                                Write-OutputBox("【音声フォーマット】")
+                                $resultContent += "【音声フォーマット】`r`n"
+                                $audioFormats | ForEach-Object {
+                                    $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
+                                    if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | コーデック: $($_.ACodec)" }
+                                    if ($_.TBR) { $line += " | $($_.TBR)bps" }
+                                    if ($_.FileSize) { $line += " | $($_.FileSize)" }
+                                    Write-OutputBox($line)
+                                    $resultContent += $line + "`r`n"
+                                }
                             }
                         }
-                        
-                        # 音声フォーマットを表示
-                        if ($audioFormats.Count -gt 0) {
-                            Write-OutputBox("")
-                            $resultContent += "`r`n"
-                            Write-OutputBox("【音声フォーマット】")
-                            $resultContent += "【音声フォーマット】`r`n"
-                            $audioFormats | ForEach-Object {
-                                $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
-                                if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | コーデック: $($_.ACodec)" }
-                                if ($_.TBR) { $line += " | $($_.TBR)bps" }
-                                if ($_.FileSize) { $line += " | $($_.FileSize)" }
-                                Write-OutputBox($line)
-                                $resultContent += $line + "`r`n"
-                            }
-                        }
-                        
-                        if ($videoFormats.Count -eq 0 -and $audioFormats.Count -eq 0) {
-                            Write-OutputBox("⚠ フォーマット情報を解析できませんでした。")
-                            $resultContent += "⚠ フォーマット情報を解析できませんでした。`r`n"
-                        }
-                    } else {
-                        Write-OutputBox("⚠ フォーマット一覧の取得に失敗しました。")
-                        $resultContent += "⚠ フォーマット一覧の取得に失敗しました。`r`n"
                     }
                     }
 
