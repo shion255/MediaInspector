@@ -1721,10 +1721,13 @@ function Show-FilterDialog {
         return
     }
     
-    # 利用可能なコーデックとHDR/SDR情報を収集
+    # 利用可能なコーデックとその他情報を収集
     $videoCodecs = @{}
     $audioCodecs = @{}
     $hdrTypes = @{}
+    $hasChapterCount = 0
+    $hasSubtitleCount = 0
+    $hasCoverImageCount = 0
     
     foreach ($result in $script:analysisResults) {
         $content = $result.Content
@@ -1754,6 +1757,21 @@ function Show-FilterDialog {
                 $hdrTypes[$hdrType] = 0
             }
             $hdrTypes[$hdrType]++
+        }
+        
+        # チャプターの有無をチェック
+        if ($content -match '✅ チャプターあり') {
+            $hasChapterCount++
+        }
+        
+        # 字幕の有無をチェック
+        if ($content -match 'テキスト\d+:') {
+            $hasSubtitleCount++
+        }
+        
+        # カバー画像の有無をチェック
+        if ($content -match 'カバー画像\d+:') {
+            $hasCoverImageCount++
         }
     }
     
@@ -1824,24 +1842,24 @@ function Show-FilterDialog {
         $yPos += 30
     }
     
-    # HDR/SDRグループ
-    $hdrGroupBox = New-Object System.Windows.Forms.GroupBox
-    $hdrGroupBox.Text = "HDR/SDR"
-    $hdrGroupBox.Location = New-Object System.Drawing.Point(540, 20)
-    $hdrGroupBox.Size = New-Object System.Drawing.Size(280, 350)
-    $hdrGroupBox.ForeColor = $script:fgColor
-    $filterForm.Controls.Add($hdrGroupBox)
+    # その他グループ
+    $otherGroupBox = New-Object System.Windows.Forms.GroupBox
+    $otherGroupBox.Text = "その他"
+    $otherGroupBox.Location = New-Object System.Drawing.Point(540, 20)
+    $otherGroupBox.Size = New-Object System.Drawing.Size(280, 350)
+    $otherGroupBox.ForeColor = $script:fgColor
+    $filterForm.Controls.Add($otherGroupBox)
     
-    $hdrPanel = New-Object System.Windows.Forms.Panel
-    $hdrPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $hdrPanel.Size = New-Object System.Drawing.Size(260, 310)
-    $hdrPanel.AutoScroll = $true
-    $hdrGroupBox.Controls.Add($hdrPanel)
+    $otherPanel = New-Object System.Windows.Forms.Panel
+    $otherPanel.Location = New-Object System.Drawing.Point(10, 25)
+    $otherPanel.Size = New-Object System.Drawing.Size(260, 310)
+    $otherPanel.AutoScroll = $true
+    $otherGroupBox.Controls.Add($otherPanel)
     
-    $hdrCheckBoxes = @{}
+    $otherCheckBoxes = @{}
     $yPos = 5
     
-    # HDR/SDRの順序を定義（HDR10 -> HLG -> SDR）
+    # HDR/SDRの順序を定義(HDR10 -> HLG -> SDR)
     $hdrOrder = @("HDR10", "HLG", "SDR")
     foreach ($hdrType in $hdrOrder) {
         if ($hdrTypes.ContainsKey($hdrType)) {
@@ -1850,10 +1868,47 @@ function Show-FilterDialog {
             $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
             $checkBox.Size = New-Object System.Drawing.Size(250, 25)
             $checkBox.ForeColor = $script:fgColor
-            $hdrPanel.Controls.Add($checkBox)
-            $hdrCheckBoxes[$hdrType] = $checkBox
+            $otherPanel.Controls.Add($checkBox)
+            $otherCheckBoxes[$hdrType] = $checkBox
             $yPos += 30
         }
+    }
+    
+    # チャプターの有無
+    if ($hasChapterCount -gt 0) {
+        $yPos += 10
+        $checkBox = New-Object System.Windows.Forms.CheckBox
+        $checkBox.Text = "チャプターあり ($hasChapterCount)"
+        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+        $checkBox.Size = New-Object System.Drawing.Size(250, 25)
+        $checkBox.ForeColor = $script:fgColor
+        $otherPanel.Controls.Add($checkBox)
+        $otherCheckBoxes["HasChapter"] = $checkBox
+        $yPos += 30
+    }
+    
+    # 字幕の有無
+    if ($hasSubtitleCount -gt 0) {
+        $checkBox = New-Object System.Windows.Forms.CheckBox
+        $checkBox.Text = "字幕あり ($hasSubtitleCount)"
+        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+        $checkBox.Size = New-Object System.Drawing.Size(250, 25)
+        $checkBox.ForeColor = $script:fgColor
+        $otherPanel.Controls.Add($checkBox)
+        $otherCheckBoxes["HasSubtitle"] = $checkBox
+        $yPos += 30
+    }
+    
+    # カバー画像の有無
+    if ($hasCoverImageCount -gt 0) {
+        $checkBox = New-Object System.Windows.Forms.CheckBox
+        $checkBox.Text = "カバー画像あり ($hasCoverImageCount)"
+        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
+        $checkBox.Size = New-Object System.Drawing.Size(250, 25)
+        $checkBox.ForeColor = $script:fgColor
+        $otherPanel.Controls.Add($checkBox)
+        $otherCheckBoxes["HasCoverImage"] = $checkBox
+        $yPos += 30
     }
     
     # 検索ボタン
@@ -1878,19 +1933,19 @@ function Show-FilterDialog {
             }
         }
         
-        $selectedHdrTypes = @()
-        foreach ($hdrType in $hdrCheckBoxes.Keys) {
-            if ($hdrCheckBoxes[$hdrType].Checked) {
-                $selectedHdrTypes += $hdrType
+        $selectedOtherFilters = @{}
+        foreach ($key in $otherCheckBoxes.Keys) {
+            if ($otherCheckBoxes[$key].Checked) {
+                $selectedOtherFilters[$key] = $true
             }
         }
         
-        if ($selectedVideoCodecs.Count -eq 0 -and $selectedAudioCodecs.Count -eq 0 -and $selectedHdrTypes.Count -eq 0) {
+        if ($selectedVideoCodecs.Count -eq 0 -and $selectedAudioCodecs.Count -eq 0 -and $selectedOtherFilters.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show("少なくとも1つの条件を選択してください。", "情報")
             return
         }
         
-        Show-FilteredResults $selectedVideoCodecs $selectedAudioCodecs $selectedHdrTypes
+        Show-FilteredResults $selectedVideoCodecs $selectedAudioCodecs $selectedOtherFilters
         $filterForm.Close()
     })
     $filterForm.Controls.Add($searchButton)
@@ -1910,7 +1965,7 @@ function Show-FilterDialog {
     [void]$filterForm.ShowDialog($form)
 }
 
-function Show-FilteredResults($videoCodecs, $audioCodecs, $hdrTypes) {
+function Show-FilteredResults($videoCodecs, $audioCodecs, $otherFilters) {
     # 絞り込み実行
     $filteredResults = @()
     
@@ -1918,7 +1973,7 @@ function Show-FilteredResults($videoCodecs, $audioCodecs, $hdrTypes) {
         $content = $result.Content
         $videoMatch = $false
         $audioMatch = $false
-        $hdrMatch = $false
+        $otherMatch = $false
         
         # 映像コーデックチェック
         if ($videoCodecs.Count -gt 0) {
@@ -1944,20 +1999,31 @@ function Show-FilteredResults($videoCodecs, $audioCodecs, $hdrTypes) {
             $audioMatch = $true
         }
         
-        # HDR/SDRチェック
-        if ($hdrTypes.Count -gt 0) {
-            foreach ($hdrType in $hdrTypes) {
-                if ($content -match "\[$([regex]::Escape($hdrType))\]") {
-                    $hdrMatch = $true
+        # その他フィルターチェック
+        if ($otherFilters.Count -gt 0) {
+            $allOtherMatch = $true
+            foreach ($key in $otherFilters.Keys) {
+                $match = $false
+                switch ($key) {
+                    "HDR10" { if ($content -match "\[HDR10\]") { $match = $true } }
+                    "HLG" { if ($content -match "\[HLG\]") { $match = $true } }
+                    "SDR" { if ($content -match "\[SDR\]") { $match = $true } }
+                    "HasChapter" { if ($content -match "✅ チャプターあり") { $match = $true } }
+                    "HasSubtitle" { if ($content -match "テキスト\d+:") { $match = $true } }
+                    "HasCoverImage" { if ($content -match "カバー画像\d+:") { $match = $true } }
+                }
+                if (-not $match) {
+                    $allOtherMatch = $false
                     break
                 }
             }
+            $otherMatch = $allOtherMatch
         } else {
-            $hdrMatch = $true
+            $otherMatch = $true
         }
         
         # すべての選択された条件に一致する場合のみ追加
-        if ($videoMatch -and $audioMatch -and $hdrMatch) {
+        if ($videoMatch -and $audioMatch -and $otherMatch) {
             $filteredResults += $result
         }
     }
