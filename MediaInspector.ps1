@@ -298,6 +298,7 @@ $form.BackColor = $script:bgColor
 $form.ForeColor = $script:fgColor
 $form.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
 $form.Opacity = $script:windowOpacity
+$form.KeyPreview = $true
 
 # カスタム ColorTable クラスを定義
 Add-Type -TypeDefinition @'
@@ -3609,4 +3610,23 @@ function Analyze-Video {
 }
 
 $button.Add_Click({ Analyze-Video })
+
+# キーボードショートカット
+$form.Add_KeyDown({
+    param($sender, $e)
+    
+    if ($e.Control) {
+        switch ($e.KeyCode) {
+            'N' {
+                $e.Handled = $true
+                $newItem.PerformClick()
+            }
+            'O' {
+                $e.Handled = $true
+                $addFileItem.PerformClick()
+            }
+        }
+    }
+})
+
 [void]$form.ShowDialog()
