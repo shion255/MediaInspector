@@ -37,6 +37,7 @@ function Load-Config {
         YtDlpPath = ""
         MediaInfoPath = ""
         IncludeSubfolders = $false
+        IncludeAudioFiles = $false
         MaxHistoryCount = 20
         ShowYtDlpTitle = $true
         ShowYtDlpUploader = $true
@@ -88,6 +89,7 @@ WindowOpacity=$($script:windowOpacity)
 YtDlpPath=$($script:ytDlpPath)
 MediaInfoPath=$($script:mediaInfoPath)
 IncludeSubfolders=$($script:includeSubfolders)
+IncludeAudioFiles=$($script:includeAudioFiles)
 MaxHistoryCount=$($script:maxHistoryCount)
 ShowYtDlpTitle=$($script:showYtDlpTitle)
 ShowYtDlpUploader=$($script:showYtDlpUploader)
@@ -143,6 +145,7 @@ $script:windowOpacity = [double]$config.WindowOpacity
 $script:ytDlpPath = $config.YtDlpPath
 $script:mediaInfoPath = $config.MediaInfoPath
 $script:includeSubfolders = [bool]::Parse($config.IncludeSubfolders)
+$script:includeAudioFiles = [bool]::Parse($config.IncludeAudioFiles)
 $script:maxHistoryCount = [int]$config.MaxHistoryCount
 $script:showYtDlpTitle = [bool]::Parse($config.ShowYtDlpTitle)
 $script:showYtDlpUploader = [bool]::Parse($config.ShowYtDlpUploader)
@@ -523,31 +526,32 @@ $optionsItem.Add_Click({
     # オプションダイアログを作成
     $optionsForm = New-Object System.Windows.Forms.Form
     $optionsForm.Text = "オプション"
-    $optionsForm.Size = New-Object System.Drawing.Size(550, 460)
+    $optionsForm.Size = New-Object System.Drawing.Size(500, 720)
     $optionsForm.StartPosition = "CenterParent"
     $optionsForm.FormBorderStyle = "FixedDialog"
     $optionsForm.MaximizeBox = $false
     $optionsForm.MinimizeBox = $false
     $optionsForm.BackColor = $script:bgColor
     $optionsForm.ForeColor = $script:fgColor
+    $optionsForm.AutoScroll = $false
     
-    # タブコントロールを作成
     $tabControl = New-Object System.Windows.Forms.TabControl
     $tabControl.Location = New-Object System.Drawing.Point(10, 10)
-    $tabControl.Size = New-Object System.Drawing.Size(510, 620)
-    $tabControl.Anchor = "Top,Left,Right"
+    $tabControl.Size = New-Object System.Drawing.Size(464, 610)
+    $tabControl.Anchor = "Top,Bottom,Left,Right"
     $optionsForm.Controls.Add($tabControl)
     
     # 全般タブ
     $generalTab = New-Object System.Windows.Forms.TabPage
     $generalTab.Text = "全般"
     $generalTab.BackColor = $script:bgColor
+    $generalTab.AutoScroll = $true
     $tabControl.TabPages.Add($generalTab)
     
-    # 解析タブ
     $analysisTab = New-Object System.Windows.Forms.TabPage
     $analysisTab.Text = "解析"
     $analysisTab.BackColor = $script:bgColor
+    $analysisTab.AutoScroll = $true
     $tabControl.TabPages.Add($analysisTab)
     
     # テーマ設定
@@ -737,16 +741,23 @@ $optionsItem.Add_Click({
     $includeSubfoldersCheckBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($includeSubfoldersCheckBox)
     
-    # 履歴の最大保存数設定
+    $includeAudioFilesCheckBox = New-Object System.Windows.Forms.CheckBox
+    $includeAudioFilesCheckBox.Text = "フォルダ解析時に音声ファイルを含める"
+    $includeAudioFilesCheckBox.Location = New-Object System.Drawing.Point(20, 50)
+    $includeAudioFilesCheckBox.Size = New-Object System.Drawing.Size(400, 25)
+    $includeAudioFilesCheckBox.Checked = $script:includeAudioFiles
+    $includeAudioFilesCheckBox.ForeColor = $script:fgColor
+    $analysisTab.Controls.Add($includeAudioFilesCheckBox)
+    
     $maxHistoryLabel = New-Object System.Windows.Forms.Label
     $maxHistoryLabel.Text = "履歴の最大保存数:"
-    $maxHistoryLabel.Location = New-Object System.Drawing.Point(20, 55)
+    $maxHistoryLabel.Location = New-Object System.Drawing.Point(20, 85)
     $maxHistoryLabel.Size = New-Object System.Drawing.Size(150, 20)
     $maxHistoryLabel.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($maxHistoryLabel)
     
     $maxHistoryNumeric = New-Object System.Windows.Forms.NumericUpDown
-    $maxHistoryNumeric.Location = New-Object System.Drawing.Point(180, 53)
+    $maxHistoryNumeric.Location = New-Object System.Drawing.Point(180, 83)
     $maxHistoryNumeric.Size = New-Object System.Drawing.Size(80, 25)
     $maxHistoryNumeric.Minimum = 1
     $maxHistoryNumeric.Maximum = 100
@@ -757,111 +768,107 @@ $optionsItem.Add_Click({
     
     $ytDlpItemsGroupBox = New-Object System.Windows.Forms.GroupBox
     $ytDlpItemsGroupBox.Text = "yt-dlp 解析表示"
-    $ytDlpItemsGroupBox.Location = New-Object System.Drawing.Point(20, 90)
-    $ytDlpItemsGroupBox.Size = New-Object System.Drawing.Size(460, 150)
+    $ytDlpItemsGroupBox.Location = New-Object System.Drawing.Point(20, 120)
+    $ytDlpItemsGroupBox.Size = New-Object System.Drawing.Size(410, 150)
     $ytDlpItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($ytDlpItemsGroupBox)
     
     $ytDlpItemsPanel = New-Object System.Windows.Forms.Panel
     $ytDlpItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $ytDlpItemsPanel.Size = New-Object System.Drawing.Size(440, 115)
-    $ytDlpItemsPanel.AutoScroll = $true
+    $ytDlpItemsPanel.Size = New-Object System.Drawing.Size(390, 115)
+    $ytDlpItemsPanel.AutoScroll = $false
+    $ytDlpItemsPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::None
     $ytDlpItemsGroupBox.Controls.Add($ytDlpItemsPanel)
     
     $ytDlpCheckBoxes = @{}
-    $yPos = 5
     
     $ytDlpItems = @(
-        @{Key="ShowYtDlpTitle"; Label="タイトル"},
-        @{Key="ShowYtDlpUploader"; Label="アップローダー"},
-        @{Key="ShowYtDlpUploadDate"; Label="投稿日時"},
-        @{Key="ShowYtDlpDuration"; Label="再生時間"},
-        @{Key="ShowYtDlpChapters"; Label="チャプター"},
-        @{Key="ShowYtDlpSubtitles"; Label="字幕情報"},
-        @{Key="ShowYtDlpFormats"; Label="フォーマット一覧"}
+        @{Key="ShowYtDlpTitle"; Label="タイトル"; X=5; Y=5},
+        @{Key="ShowYtDlpUploader"; Label="アップローダー"; X=230; Y=5},
+        @{Key="ShowYtDlpUploadDate"; Label="投稿日時"; X=5; Y=30},
+        @{Key="ShowYtDlpDuration"; Label="再生時間"; X=230; Y=30},
+        @{Key="ShowYtDlpChapters"; Label="チャプター"; X=5; Y=55},
+        @{Key="ShowYtDlpSubtitles"; Label="字幕情報"; X=230; Y=55},
+        @{Key="ShowYtDlpFormats"; Label="フォーマット一覧"; X=5; Y=80}
     )
     
     foreach ($item in $ytDlpItems) {
         $checkBox = New-Object System.Windows.Forms.CheckBox
         $checkBox.Text = $item.Label
-        $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-        $checkBox.Size = New-Object System.Drawing.Size(200, 25)
+        $checkBox.Location = New-Object System.Drawing.Point($item.X, $item.Y)
+        $checkBox.Size = New-Object System.Drawing.Size(210, 25)
         $varName = $item.Key.Substring(0,1).ToLower() + $item.Key.Substring(1)
         $checkBox.Checked = (Get-Variable -Name $varName -Scope Script).Value
         $checkBox.ForeColor = $script:fgColor
         $ytDlpItemsPanel.Controls.Add($checkBox)
         $ytDlpCheckBoxes[$item.Key] = $checkBox
-        $yPos += 25
     }
     
     $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
     $analysisItemsGroupBox.Text = "MediaInfo 解析表示"
-    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 250)
-    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(460, 345)
+    $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 280)
+    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 345)
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
     
     $analysisItemsPanel = New-Object System.Windows.Forms.Panel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $analysisItemsPanel.Size = New-Object System.Drawing.Size(440, 310)
-    $analysisItemsPanel.AutoScroll = $true
+    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 310)
+    $analysisItemsPanel.AutoScroll = $false
+    $analysisItemsPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::None
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
     
     $analysisCheckBoxes = @{}
-    $yPos = 5
     
     $analysisItems = @(
-        @{Key="ShowDuration"; Label="再生時間"},
-        @{Key="ShowBitrate"; Label="ビットレート (全体)"},
-        @{Key="ShowArtist"; Label="作成者"},
-        @{Key="ShowComment"; Label="コメント"},
-        @{Key="ShowChapters"; Label="チャプター"},
-        @{Key="Separator1"; Label=""},
-        @{Key="ShowVideoCodec"; Label="映像: コーデック"},
-        @{Key="ShowResolution"; Label="映像: 解像度"},
-        @{Key="ShowFPS"; Label="映像: フレームレート"},
-        @{Key="ShowHDR"; Label="映像: HDR/SDR"},
-        @{Key="ShowVideoBitrate"; Label="映像: ビットレート"},
-        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"},
-        @{Key="Separator2"; Label=""},
-        @{Key="ShowAudioCodec"; Label="音声: コーデック"},
-        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"},
-        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"},
-        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"},
-        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"},
-        @{Key="Separator3"; Label=""},
-        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"},
-        @{Key="ShowCoverImage"; Label="カバー画像"}
+        @{Key="ShowDuration"; Label="再生時間"; X=5; Y=5},
+        @{Key="ShowBitrate"; Label="ビットレート (全体)"; X=230; Y=5},
+        @{Key="ShowArtist"; Label="作成者"; X=5; Y=30},
+        @{Key="ShowComment"; Label="コメント"; X=230; Y=30},
+        @{Key="ShowChapters"; Label="チャプター"; X=5; Y=55},
+        @{Key="Separator1"; Label=""; Y=80},
+        @{Key="ShowVideoCodec"; Label="映像: コーデック"; X=5; Y=95},
+        @{Key="ShowResolution"; Label="映像: 解像度"; X=230; Y=95},
+        @{Key="ShowFPS"; Label="映像: フレームレート"; X=5; Y=120},
+        @{Key="ShowHDR"; Label="映像: HDR/SDR"; X=230; Y=120},
+        @{Key="ShowVideoBitrate"; Label="映像: ビットレート"; X=5; Y=145},
+        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"; X=230; Y=145},
+        @{Key="Separator2"; Label=""; Y=170},
+        @{Key="ShowAudioCodec"; Label="音声: コーデック"; X=5; Y=185},
+        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"; X=230; Y=185},
+        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"; X=5; Y=210},
+        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=210},
+        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=5; Y=235},
+        @{Key="Separator3"; Label=""; Y=260},
+        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=275},
+        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=275}
     )
     
     foreach ($item in $analysisItems) {
         if ($item.Key -match '^Separator\d+$') {
             $separator = New-Object System.Windows.Forms.Label
-            $separator.Location = New-Object System.Drawing.Point(5, $yPos)
+            $separator.Location = New-Object System.Drawing.Point(5, $item.Y)
             $separator.Size = New-Object System.Drawing.Size(410, 2)
             $separator.BorderStyle = [System.Windows.Forms.BorderStyle]::Fixed3D
             $analysisItemsPanel.Controls.Add($separator)
-            $yPos += 12
         } else {
             $checkBox = New-Object System.Windows.Forms.CheckBox
             $checkBox.Text = $item.Label
-            $checkBox.Location = New-Object System.Drawing.Point(5, $yPos)
-            $checkBox.Size = New-Object System.Drawing.Size(400, 25)
+            $checkBox.Location = New-Object System.Drawing.Point($item.X, $item.Y)
+            $checkBox.Size = New-Object System.Drawing.Size(210, 25)
             $varName = $item.Key.Substring(0,1).ToLower() + $item.Key.Substring(1)
             $checkBox.Checked = (Get-Variable -Name $varName -Scope Script).Value
             $checkBox.ForeColor = $script:fgColor
             $analysisItemsPanel.Controls.Add($checkBox)
             $analysisCheckBoxes[$item.Key] = $checkBox
-            $yPos += 25
         }
     }
     
-    $optionsForm.Size = New-Object System.Drawing.Size(550, 720)
-    
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(300, 640)
+    $okButton.Location = New-Object System.Drawing.Point(250, 630)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
+    $okButton.Anchor = "Bottom,Right"
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $okButton.Add_Click({
         # テーマ適用
@@ -895,6 +902,9 @@ $optionsItem.Add_Click({
         # サブフォルダオプション適用
         $script:includeSubfolders = $includeSubfoldersCheckBox.Checked
         
+        # フォルダの音声ファイル適用
+        $script:includeAudioFiles = $includeAudioFilesCheckBox.Checked
+        
         # 履歴の最大保存数適用
         $script:maxHistoryCount = [int]$maxHistoryNumeric.Value
         
@@ -922,8 +932,9 @@ $optionsItem.Add_Click({
     # キャンセルボタン
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(390, 640)
+    $cancelButton.Location = New-Object System.Drawing.Point(340, 630)
     $cancelButton.Size = New-Object System.Drawing.Size(80, 30)
+    $cancelButton.Anchor = "Bottom,Right"
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     $cancelButton.Add_Click({
         # 透明度を元に戻す
@@ -3734,24 +3745,31 @@ function Analyze-Video {
                         $resultContent += "(サブフォルダを含む)`r`n"
                     }
                     
-                    # 動画ファイルを取得
+                    # ファイル拡張子リストを作成
                     $videoExtensions = @('*.mp4', '*.mkv', '*.avi', '*.mov', '*.wmv', '*.flv', '*.webm', '*.m4v', '*.ts', '*.m2ts')
+                    $audioExtensions = @('*.mp3', '*.flac', '*.wav', '*.m4a', '*.aac', '*.ogg', '*.opus', '*.wma', '*.ape', '*.tak', '*.tta', '*.dsd', '*.dsf', '*.dff')
+                    
+                    $extensions = $videoExtensions
+                    if ($script:includeAudioFiles) {
+                        $extensions = $videoExtensions + $audioExtensions
+                    }
                     
                     if ($script:includeSubfolders) {
                         $files = Get-ChildItem -LiteralPath $input -File -Recurse | Where-Object {
                             $ext = $_.Extension.ToLower()
-                            $videoExtensions | ForEach-Object { $_ -replace '\*', '' } | Where-Object { $ext -eq $_ }
+                            $extensions | ForEach-Object { $_ -replace '\*', '' } | Where-Object { $ext -eq $_ }
                         } | Sort-Object FullName
                     } else {
                         $files = Get-ChildItem -LiteralPath $input -File | Where-Object {
                             $ext = $_.Extension.ToLower()
-                            $videoExtensions | ForEach-Object { $_ -replace '\*', '' } | Where-Object { $ext -eq $_ }
+                            $extensions | ForEach-Object { $_ -replace '\*', '' } | Where-Object { $ext -eq $_ }
                         } | Sort-Object Name
                     }
                     
                     if ($files.Count -eq 0) {
-                        Write-OutputBox("⚠ フォルダ内に動画ファイルが見つかりませんでした。")
-                        $resultContent += "⚠ フォルダ内に動画ファイルが見つかりませんでした。`r`n"
+                        $fileTypeMsg = if ($script:includeAudioFiles) { "動画または音声ファイル" } else { "動画ファイル" }
+                        Write-OutputBox("⚠ フォルダ内に${fileTypeMsg}が見つかりませんでした。")
+                        $resultContent += "⚠ フォルダ内に${fileTypeMsg}が見つかりませんでした。`r`n"
                         continue
                     }
                     
