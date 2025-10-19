@@ -3188,13 +3188,14 @@ function Parse-MediaInfo($mediaInfoOutput) {
             
             if ($currentSection -eq "Menu") {
                 $hasChapters = $true
-                $chapterCount++
             }
             continue
         }
         
-        if ($currentSection -eq "Menu" -and $line -match '^Chapters') {
-            $hasChapters = $true
+        if ($currentSection -eq "Menu") {
+            if ($line -match '^\d+\s*:\s*\d') {
+                $chapterCount++
+            }
         }
         
         if ($line -match '^(.+?)\s*:\s*(.+)$') {
@@ -3308,11 +3309,13 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
     # チャプター情報を表示
     if ($script:showChapters) {
         if ($parsedInfo.HasChapters) {
-            Write-OutputBox("✅ チャプターあり")
-            $resultContentRef.Value += "✅ チャプターあり`r`n"
-        } else {
-            Write-OutputBox("❌ チャプターなし")
-            $resultContentRef.Value += "❌ チャプターなし`r`n"
+            if ($parsedInfo.ChapterCount -gt 0) {
+                Write-OutputBox("✅ チャプターあり ($($parsedInfo.ChapterCount)個)")
+                $resultContentRef.Value += "✅ チャプターあり ($($parsedInfo.ChapterCount)個)`r`n"
+            } else {
+                Write-OutputBox("✅ チャプターあり")
+                $resultContentRef.Value += "✅ チャプターあり`r`n"
+            }
         }
     }
     
