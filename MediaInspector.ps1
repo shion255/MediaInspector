@@ -3237,6 +3237,7 @@ function Parse-MediaInfo($mediaInfoOutput) {
                     if ($key -eq "Frame rate") { $videoInfo["fps"] = $value }
                     if ($key -eq "Frame rate mode") { $videoInfo["fps_mode"] = $value }
                     if ($key -eq "Bit rate") { $videoInfo["bitrate"] = $value }
+                    if ($key -eq "Maximum bit rate") { $videoInfo["max_bitrate"] = $value }
                     if ($key -eq "Bit rate mode") { $videoInfo["bitrate_mode"] = $value }
                     if ($key -eq "Stream size") { $videoInfo["stream_size"] = $value }
                     if ($key -eq "Color primaries") { $videoInfo["color_primaries"] = $value }
@@ -3384,7 +3385,12 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         if ($script:showVideoBitrate) {
             $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
             $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
-            $parts += "$bitrateMode $bitrate"
+            if ($v["max_bitrate"]) {
+                $maxBitrate = Format-Bitrate $v["max_bitrate"]
+                $parts += "$bitrateMode $bitrate (Max: $maxBitrate)"
+            } else {
+                $parts += "$bitrateMode $bitrate"
+            }
         }
         
         # 言語
