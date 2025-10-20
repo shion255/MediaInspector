@@ -39,6 +39,8 @@ function Load-Config {
         IncludeSubfolders = $false
         IncludeAudioFiles = $false
         MaxHistoryCount = 20
+        NewShortcut = "Ctrl+N"
+        OpenFileShortcut = "Ctrl+O"
         ShowYtDlpTitle = $true
         ShowYtDlpUploader = $true
         ShowYtDlpUploadDate = $true
@@ -101,6 +103,8 @@ MediaInfoPath=$($script:mediaInfoPath)
 IncludeSubfolders=$($script:includeSubfolders)
 IncludeAudioFiles=$($script:includeAudioFiles)
 MaxHistoryCount=$($script:maxHistoryCount)
+NewShortcut=$($script:newShortcut)
+OpenFileShortcut=$($script:openFileShortcut)
 ShowYtDlpTitle=$($script:showYtDlpTitle)
 ShowYtDlpUploader=$($script:showYtDlpUploader)
 ShowYtDlpUploadDate=$($script:showYtDlpUploadDate)
@@ -167,6 +171,8 @@ $script:mediaInfoPath = $config.MediaInfoPath
 $script:includeSubfolders = [bool]::Parse($config.IncludeSubfolders)
 $script:includeAudioFiles = [bool]::Parse($config.IncludeAudioFiles)
 $script:maxHistoryCount = [int]$config.MaxHistoryCount
+$script:newShortcut = $config.NewShortcut
+$script:openFileShortcut = $config.OpenFileShortcut
 $script:showYtDlpTitle = [bool]::Parse($config.ShowYtDlpTitle)
 $script:showYtDlpUploader = [bool]::Parse($config.ShowYtDlpUploader)
 $script:showYtDlpUploadDate = [bool]::Parse($config.ShowYtDlpUploadDate)
@@ -584,6 +590,12 @@ $optionsItem.Add_Click({
     $analysisTab.AutoScroll = $true
     $tabControl.TabPages.Add($analysisTab)
     
+    $keyboardTab = New-Object System.Windows.Forms.TabPage
+    $keyboardTab.Text = "キーボード"
+    $keyboardTab.BackColor = $script:bgColor
+    $keyboardTab.AutoScroll = $true
+    $tabControl.TabPages.Add($keyboardTab)
+    
     # テーマ設定
     $themeLabel = New-Object System.Windows.Forms.Label
     $themeLabel.Text = "テーマ:"
@@ -904,6 +916,36 @@ $optionsItem.Add_Click({
         }
     }
     
+    $newShortcutLabel = New-Object System.Windows.Forms.Label
+    $newShortcutLabel.Text = "新規作成:"
+    $newShortcutLabel.Location = New-Object System.Drawing.Point(20, 20)
+    $newShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $newShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($newShortcutLabel)
+    
+    $newShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $newShortcutTextBox.Location = New-Object System.Drawing.Point(180, 18)
+    $newShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $newShortcutTextBox.Text = $script:newShortcut
+    $newShortcutTextBox.BackColor = $script:inputBgColor
+    $newShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($newShortcutTextBox)
+    
+    $openFileShortcutLabel = New-Object System.Windows.Forms.Label
+    $openFileShortcutLabel.Text = "ファイルを追加:"
+    $openFileShortcutLabel.Location = New-Object System.Drawing.Point(20, 60)
+    $openFileShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $openFileShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($openFileShortcutLabel)
+    
+    $openFileShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $openFileShortcutTextBox.Location = New-Object System.Drawing.Point(180, 58)
+    $openFileShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $openFileShortcutTextBox.Text = $script:openFileShortcut
+    $openFileShortcutTextBox.BackColor = $script:inputBgColor
+    $openFileShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($openFileShortcutTextBox)
+    
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
     $okButton.Location = New-Object System.Drawing.Point(250, 635)
@@ -947,6 +989,9 @@ $optionsItem.Add_Click({
         
         # 履歴の最大保存数適用
         $script:maxHistoryCount = [int]$maxHistoryNumeric.Value
+        
+        $script:newShortcut = $newShortcutTextBox.Text.Trim()
+        $script:openFileShortcut = $openFileShortcutTextBox.Text.Trim()
         
         foreach ($key in $ytDlpCheckBoxes.Keys) {
             $varName = $key.Substring(0,1).ToLower() + $key.Substring(1)
@@ -4005,20 +4050,55 @@ function Analyze-Video {
 $button.Add_Click({ Analyze-Video })
 
 # キーボードショートカット
+function Parse-Shortcut($shortcutString) {
+    $parts = $shortcutString -split '\+'
+    $modifiers = @{
+        Control = $false
+        Alt = $false
+        Shift = $false
+    }
+    $key = ""
+    
+    foreach ($part in $parts) {
+        $part = $part.Trim()
+        switch ($part) {
+            "Ctrl" { $modifiers.Control = $true }
+            "Control" { $modifiers.Control = $true }
+            "Alt" { $modifiers.Alt = $true }
+            "Shift" { $modifiers.Shift = $true }
+            default { $key = $part }
+        }
+    }
+    
+    return @{
+        Control = $modifiers.Control
+        Alt = $modifiers.Alt
+        Shift = $modifiers.Shift
+        Key = $key
+    }
+}
+
 $form.Add_KeyDown({
     param($sender, $e)
     
-    if ($e.Control) {
-        switch ($e.KeyCode) {
-            'N' {
-                $e.Handled = $true
-                $newItem.PerformClick()
-            }
-            'O' {
-                $e.Handled = $true
-                $addFileItem.PerformClick()
-            }
-        }
+    $newShortcutParsed = Parse-Shortcut $script:newShortcut
+    if ($e.Control -eq $newShortcutParsed.Control -and
+        $e.Alt -eq $newShortcutParsed.Alt -and
+        $e.Shift -eq $newShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $newShortcutParsed.Key) {
+        $e.Handled = $true
+        $newItem.PerformClick()
+        return
+    }
+    
+    $openFileShortcutParsed = Parse-Shortcut $script:openFileShortcut
+    if ($e.Control -eq $openFileShortcutParsed.Control -and
+        $e.Alt -eq $openFileShortcutParsed.Alt -and
+        $e.Shift -eq $openFileShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $newShortcutParsed.Key) {
+        $e.Handled = $true
+        $addFileItem.PerformClick()
+        return
     }
 })
 
