@@ -53,6 +53,11 @@ function Load-Config {
         ShowVideoCodec = $true
         ShowResolution = $true
         ShowFPS = $true
+        ShowColorSpace = $true
+        ShowChromaSubsampling = $true
+        ShowBitDepth = $true
+        ShowScanType = $true
+        ShowColorRange = $true
         ShowHDR = $true
         ShowVideoBitrate = $true
         ShowVideoLanguage = $true
@@ -110,6 +115,11 @@ ShowChapters=$($script:showChapters)
 ShowVideoCodec=$($script:showVideoCodec)
 ShowResolution=$($script:showResolution)
 ShowFPS=$($script:showFPS)
+ShowColorSpace=$($script:showColorSpace)
+ShowChromaSubsampling=$($script:showChromaSubsampling)
+ShowBitDepth=$($script:showBitDepth)
+ShowScanType=$($script:showScanType)
+ShowColorRange=$($script:showColorRange)
 ShowHDR=$($script:showHDR)
 ShowVideoBitrate=$($script:showVideoBitrate)
 ShowVideoLanguage=$($script:showVideoLanguage)
@@ -171,6 +181,11 @@ $script:showChapters = [bool]::Parse($config.ShowChapters)
 $script:showVideoCodec = [bool]::Parse($config.ShowVideoCodec)
 $script:showResolution = [bool]::Parse($config.ShowResolution)
 $script:showFPS = [bool]::Parse($config.ShowFPS)
+$script:showColorSpace = [bool]::Parse($config.ShowColorSpace)
+$script:showChromaSubsampling = [bool]::Parse($config.ShowChromaSubsampling)
+$script:showBitDepth = [bool]::Parse($config.ShowBitDepth)
+$script:showScanType = [bool]::Parse($config.ShowScanType)
+$script:showColorRange = [bool]::Parse($config.ShowColorRange)
 $script:showHDR = [bool]::Parse($config.ShowHDR)
 $script:showVideoBitrate = [bool]::Parse($config.ShowVideoBitrate)
 $script:showVideoLanguage = [bool]::Parse($config.ShowVideoLanguage)
@@ -822,13 +837,13 @@ $optionsItem.Add_Click({
     $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
     $analysisItemsGroupBox.Text = "MediaInfo 解析表示"
     $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 280)
-    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 420)
+    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 470)
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
     
     $analysisItemsPanel = New-Object System.Windows.Forms.Panel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 385)
+    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 435)
     $analysisItemsPanel.AutoScroll = $false
     $analysisItemsPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::None
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
@@ -843,25 +858,30 @@ $optionsItem.Add_Click({
         @{Key="ShowChapters"; Label="チャプター"; X=5; Y=55},
         @{Key="Separator1"; Label=""; Y=80},
         @{Key="ShowVideoCodec"; Label="映像: コーデック"; X=5; Y=95},
-        @{Key="ShowResolution"; Label="映像: 解像度"; X=230; Y=95},
-        @{Key="ShowFPS"; Label="映像: フレームレート"; X=5; Y=120},
-        @{Key="ShowHDR"; Label="映像: HDR/SDR"; X=230; Y=120},
-        @{Key="ShowVideoBitrate"; Label="映像: ビットレート"; X=5; Y=145},
-        @{Key="ShowVideoLanguage"; Label="映像: 言語"; X=230; Y=145},
-        @{Key="ShowVideoWritingLibrary"; Label="映像: ライブラリ"; X=5; Y=170},
-        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"; X=230; Y=170},
-        @{Key="ShowVideoEncodingSettings"; Label="映像: エンコードの設定"; X=5; Y=195},
-        @{Key="Separator2"; Label=""; Y=220},
-        @{Key="ShowAudioCodec"; Label="音声: コーデック"; X=5; Y=235},
-        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"; X=230; Y=235},
-        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"; X=5; Y=260},
-        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=260},
-        @{Key="ShowAudioLanguage"; Label="音声: 言語"; X=5; Y=285},
-        @{Key="ShowAudioWritingLibrary"; Label="音声: ライブラリ"; X=230; Y=285},
-        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=5; Y=310},
-        @{Key="Separator3"; Label=""; Y=335},
-        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=350},
-        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=350}
+        @{Key="ShowVideoBitrate"; Label="映像: ビットレート"; X=230; Y=95},
+        @{Key="ShowResolution"; Label="映像: 解像度"; X=5; Y=120},
+        @{Key="ShowFPS"; Label="映像: フレームレート"; X=230; Y=120},
+        @{Key="ShowColorSpace"; Label="映像: 色空間"; X=5; Y=145},
+        @{Key="ShowChromaSubsampling"; Label="映像: クロマサブサンプリング"; X=230; Y=145},
+        @{Key="ShowBitDepth"; Label="映像: ビット深度"; X=5; Y=170},
+        @{Key="ShowScanType"; Label="映像: スキャンタイプ"; X=230; Y=170},
+        @{Key="ShowColorRange"; Label="映像: 色範囲"; X=5; Y=195},
+        @{Key="ShowHDR"; Label="映像: HDR/SDR"; X=230; Y=195},
+        @{Key="ShowVideoLanguage"; Label="映像: 言語"; X=5; Y=220},
+        @{Key="ShowVideoWritingLibrary"; Label="映像: ライブラリ"; X=230; Y=220},
+        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"; X=5; Y=245},
+        @{Key="ShowVideoEncodingSettings"; Label="映像: エンコードの設定"; X=230; Y=245},
+        @{Key="Separator2"; Label=""; Y=270},
+        @{Key="ShowAudioCodec"; Label="音声: コーデック"; X=5; Y=285},
+        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"; X=230; Y=285},
+        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"; X=5; Y=310},
+        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=310},
+        @{Key="ShowAudioLanguage"; Label="音声: 言語"; X=5; Y=335},
+        @{Key="ShowAudioWritingLibrary"; Label="音声: ライブラリ"; X=230; Y=335},
+        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=5; Y=360},
+        @{Key="Separator3"; Label=""; Y=385},
+        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=400},
+        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=400}
     )
     
     foreach ($item in $analysisItems) {
@@ -886,7 +906,7 @@ $optionsItem.Add_Click({
     
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(250, 630)
+    $okButton.Location = New-Object System.Drawing.Point(250, 635)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
     $okButton.Anchor = "Bottom,Right"
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
@@ -952,7 +972,7 @@ $optionsItem.Add_Click({
     # キャンセルボタン
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(340, 630)
+    $cancelButton.Location = New-Object System.Drawing.Point(340, 635)
     $cancelButton.Size = New-Object System.Drawing.Size(80, 30)
     $cancelButton.Anchor = "Bottom,Right"
     $cancelButton.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
@@ -3240,6 +3260,11 @@ function Parse-MediaInfo($mediaInfoOutput) {
                     if ($key -eq "Maximum bit rate") { $videoInfo["max_bitrate"] = $value }
                     if ($key -eq "Bit rate mode") { $videoInfo["bitrate_mode"] = $value }
                     if ($key -eq "Stream size") { $videoInfo["stream_size"] = $value }
+                    if ($key -eq "Color space") { $videoInfo["color_space"] = $value }
+                    if ($key -eq "Chroma subsampling") { $videoInfo["chroma_subsampling"] = $value }
+                    if ($key -eq "Bit depth") { $videoInfo["bit_depth"] = $value }
+                    if ($key -eq "Scan type") { $videoInfo["scan_type"] = $value }
+                    if ($key -eq "Color range") { $videoInfo["color_range"] = $value }
                     if ($key -eq "Color primaries") { $videoInfo["color_primaries"] = $value }
                     if ($key -eq "Transfer characteristics") { $videoInfo["transfer_characteristics"] = $value }
                     if ($key -eq "Matrix coefficients") { $videoInfo["matrix_coefficients"] = $value }
@@ -3358,6 +3383,18 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
             $parts += $format
         }
         
+        # ビットレート
+        if ($script:showVideoBitrate) {
+            $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
+            $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
+            if ($v["max_bitrate"]) {
+                $maxBitrate = Format-Bitrate $v["max_bitrate"]
+                $parts += "$bitrateMode $bitrate (Max: $maxBitrate)"
+            } else {
+                $parts += "$bitrateMode $bitrate"
+            }
+        }
+        
         # 解像度
         if ($script:showResolution) {
             $res = if ($v["width"] -and $v["height"]) { "$($v['width'])x$($v['height'])" } else { "不明" }
@@ -3375,22 +3412,42 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
             $parts += "$fpsMode $fps"
         }
         
+        # 色空間
+        if ($script:showColorSpace -and $v["color_space"]) {
+            $parts += $v["color_space"]
+        }
+        
+        # クロマサブサンプリング
+        if ($script:showChromaSubsampling -and $v["chroma_subsampling"]) {
+            $parts += $v["chroma_subsampling"]
+        }
+        
+        # ビット深度
+        if ($script:showBitDepth -and $v["bit_depth"]) {
+            $bitDepthValue = $v["bit_depth"] -replace '\s*bits', ''
+            $parts += "${bitDepthValue}bit"
+        }
+        
+        # スキャンタイプ
+        if ($script:showScanType -and $v["scan_type"]) {
+            $scanType = $v["scan_type"]
+            $scanTypeJp = switch ($scanType) {
+                "Progressive" { "プログレッシブ" }
+                "Interlaced" { "インターレース" }
+                default { $scanType }
+            }
+            $parts += $scanTypeJp
+        }
+        
+        # 色範囲
+        if ($script:showColorRange -and $v["color_range"]) {
+            $parts += $v["color_range"]
+        }
+        
         # HDR/SDR情報
         if ($script:showHDR) {
             $hdrInfo = Get-HDRInfo $v["color_primaries"] $v["transfer_characteristics"] $v["matrix_coefficients"]
             $parts += $hdrInfo
-        }
-        
-        # ビットレート
-        if ($script:showVideoBitrate) {
-            $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
-            $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
-            if ($v["max_bitrate"]) {
-                $maxBitrate = Format-Bitrate $v["max_bitrate"]
-                $parts += "$bitrateMode $bitrate (Max: $maxBitrate)"
-            } else {
-                $parts += "$bitrateMode $bitrate"
-            }
         }
         
         # 言語
@@ -3438,16 +3495,16 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
             $parts += $format
         }
         
-        # サンプリングレート
-        if ($script:showSampleRate) {
-            $samplerate = if ($a["samplerate"]) { $a["samplerate"] } else { "不明" }
-            $parts += $samplerate
-        }
-        
         # ビットレート
         if ($script:showAudioBitrate) {
             $bitrate = if ($a["bitrate"]) { (Format-Bitrate $a["bitrate"]) } else { "不明" }
             $parts += $bitrate
+        }
+        
+        # サンプリングレート
+        if ($script:showSampleRate) {
+            $samplerate = if ($a["samplerate"]) { $a["samplerate"] } else { "不明" }
+            $parts += $samplerate
         }
         
         # リプレイゲイン
