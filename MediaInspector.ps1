@@ -56,10 +56,13 @@ function Load-Config {
         ShowHDR = $true
         ShowVideoBitrate = $true
         ShowVideoStreamSize = $true
+        ShowVideoWritingLibrary = $true
+        ShowVideoEncodingSettings = $true
         ShowAudioCodec = $true
         ShowSampleRate = $true
         ShowAudioBitrate = $true
         ShowAudioStreamSize = $true
+        ShowAudioWritingLibrary = $true
         ShowCoverImage = $true
         ShowTextStream = $true
         ShowComment = $true
@@ -108,10 +111,13 @@ ShowFPS=$($script:showFPS)
 ShowHDR=$($script:showHDR)
 ShowVideoBitrate=$($script:showVideoBitrate)
 ShowVideoStreamSize=$($script:showVideoStreamSize)
+ShowVideoWritingLibrary=$($script:showVideoWritingLibrary)
+ShowVideoEncodingSettings=$($script:showVideoEncodingSettings)
 ShowAudioCodec=$($script:showAudioCodec)
 ShowSampleRate=$($script:showSampleRate)
 ShowAudioBitrate=$($script:showAudioBitrate)
 ShowAudioStreamSize=$($script:showAudioStreamSize)
+ShowAudioWritingLibrary=$($script:showAudioWritingLibrary)
 ShowCoverImage=$($script:showCoverImage)
 ShowTextStream=$($script:showTextStream)
 ShowComment=$($script:showComment)
@@ -164,10 +170,13 @@ $script:showFPS = [bool]::Parse($config.ShowFPS)
 $script:showHDR = [bool]::Parse($config.ShowHDR)
 $script:showVideoBitrate = [bool]::Parse($config.ShowVideoBitrate)
 $script:showVideoStreamSize = [bool]::Parse($config.ShowVideoStreamSize)
+$script:showVideoWritingLibrary = [bool]::Parse($config.ShowVideoWritingLibrary)
+$script:showVideoEncodingSettings = [bool]::Parse($config.ShowVideoEncodingSettings)
 $script:showAudioCodec = [bool]::Parse($config.ShowAudioCodec)
 $script:showSampleRate = [bool]::Parse($config.ShowSampleRate)
 $script:showAudioBitrate = [bool]::Parse($config.ShowAudioBitrate)
 $script:showAudioStreamSize = [bool]::Parse($config.ShowAudioStreamSize)
+$script:showAudioWritingLibrary = [bool]::Parse($config.ShowAudioWritingLibrary)
 $script:showCoverImage = [bool]::Parse($config.ShowCoverImage)
 $script:showTextStream = [bool]::Parse($config.ShowTextStream)
 $script:showComment = [bool]::Parse($config.ShowComment)
@@ -807,13 +816,13 @@ $optionsItem.Add_Click({
     $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
     $analysisItemsGroupBox.Text = "MediaInfo 解析表示"
     $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 280)
-    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 345)
+    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 370)
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
     
     $analysisItemsPanel = New-Object System.Windows.Forms.Panel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 310)
+    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 335)
     $analysisItemsPanel.AutoScroll = $false
     $analysisItemsPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::None
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
@@ -832,16 +841,19 @@ $optionsItem.Add_Click({
         @{Key="ShowFPS"; Label="映像: フレームレート"; X=5; Y=120},
         @{Key="ShowHDR"; Label="映像: HDR/SDR"; X=230; Y=120},
         @{Key="ShowVideoBitrate"; Label="映像: ビットレート"; X=5; Y=145},
-        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"; X=230; Y=145},
-        @{Key="Separator2"; Label=""; Y=170},
-        @{Key="ShowAudioCodec"; Label="音声: コーデック"; X=5; Y=185},
-        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"; X=230; Y=185},
-        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"; X=5; Y=210},
-        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=210},
-        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=5; Y=235},
-        @{Key="Separator3"; Label=""; Y=260},
-        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=275},
-        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=275}
+        @{Key="ShowVideoWritingLibrary"; Label="映像: ライブラリ"; X=230; Y=145},
+        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"; X=5; Y=170},
+        @{Key="ShowVideoEncodingSettings"; Label="映像: エンコードの設定"; X=230; Y=170},
+        @{Key="Separator2"; Label=""; Y=195},
+        @{Key="ShowAudioCodec"; Label="音声: コーデック"; X=5; Y=210},
+        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"; X=230; Y=210},
+        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"; X=5; Y=235},
+        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=235},
+        @{Key="ShowAudioWritingLibrary"; Label="音声: ライブラリ"; X=5; Y=260},
+        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=230; Y=260},
+        @{Key="Separator3"; Label=""; Y=285},
+        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=300},
+        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=300}
     )
     
     foreach ($item in $analysisItems) {
@@ -3222,6 +3234,8 @@ function Parse-MediaInfo($mediaInfoOutput) {
                     if ($key -eq "Color primaries") { $videoInfo["color_primaries"] = $value }
                     if ($key -eq "Transfer characteristics") { $videoInfo["transfer_characteristics"] = $value }
                     if ($key -eq "Matrix coefficients") { $videoInfo["matrix_coefficients"] = $value }
+                    if ($key -eq "Writing library") { $videoInfo["writing_library"] = $value }
+                    if ($key -eq "Encoding settings") { $videoInfo["encoding_settings"] = $value }
                 }
                 "Audio" {
                     if ($key -eq "Format") { $audioInfo["format"] = $value }
@@ -3235,6 +3249,8 @@ function Parse-MediaInfo($mediaInfoOutput) {
                     if ($key -eq "Replay gain peak") { 
                         if (-not $replayGainPeak) { $replayGainPeak = $value }
                     }
+                    if ($key -eq "Writing library") { $audioInfo["writing_library"] = $value }
+                    if ($key -eq "Encoding settings") { $audioInfo["encoding_settings"] = $value }
                 }
                 "Text" {
                     if ($key -eq "Language") { $textInfo["language"] = $value }
@@ -3361,6 +3377,11 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
             $parts += "$bitrateMode $bitrate"
         }
         
+        # ライブラリ
+        if ($script:showVideoWritingLibrary -and $v["writing_library"]) {
+            $parts += $v["writing_library"]
+        }
+        
         # ストリームサイズ
         if ($script:showVideoStreamSize -and $v["stream_size"]) {
             $parts += $v["stream_size"]
@@ -3370,6 +3391,15 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
             $videoLine = "映像${videoIndex}: " + ($parts -join " | ")
             Write-OutputBox($videoLine)
             $resultContentRef.Value += $videoLine + "`r`n"
+        }
+        
+        if ($script:showVideoEncodingSettings -and $v["encoding_settings"]) {
+            Write-OutputBox("")
+            $resultContentRef.Value += "`r`n"
+            Write-OutputBox($v["encoding_settings"])
+            $resultContentRef.Value += $v["encoding_settings"] + "`r`n"
+            Write-OutputBox("")
+            $resultContentRef.Value += "`r`n"
         }
         
         $videoIndex++
@@ -3407,6 +3437,11 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
             if ($parsedInfo.ReplayGainPeak) {
                 $parts += "Peak: $($parsedInfo.ReplayGainPeak)"
             }
+        }
+        
+        # ライブラリ
+        if ($script:showAudioWritingLibrary -and $a["writing_library"]) {
+            $parts += $a["writing_library"]
         }
         
         # ストリームサイズ
