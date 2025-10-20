@@ -41,6 +41,9 @@ function Load-Config {
         MaxHistoryCount = 20
         NewShortcut = "Ctrl+N"
         OpenFileShortcut = "Ctrl+O"
+        AnalyzeShortcut = "Ctrl+R"
+        ShowWindowShortcut = "Ctrl+W"
+        CloseAllWindowsShortcut = "Ctrl+Q"
         ShowYtDlpTitle = $true
         ShowYtDlpUploader = $true
         ShowYtDlpUploadDate = $true
@@ -105,6 +108,9 @@ IncludeAudioFiles=$($script:includeAudioFiles)
 MaxHistoryCount=$($script:maxHistoryCount)
 NewShortcut=$($script:newShortcut)
 OpenFileShortcut=$($script:openFileShortcut)
+AnalyzeShortcut=$($script:analyzeShortcut)
+ShowWindowShortcut=$($script:showWindowShortcut)
+CloseAllWindowsShortcut=$($script:closeAllWindowsShortcut)
 ShowYtDlpTitle=$($script:showYtDlpTitle)
 ShowYtDlpUploader=$($script:showYtDlpUploader)
 ShowYtDlpUploadDate=$($script:showYtDlpUploadDate)
@@ -173,6 +179,9 @@ $script:includeAudioFiles = [bool]::Parse($config.IncludeAudioFiles)
 $script:maxHistoryCount = [int]$config.MaxHistoryCount
 $script:newShortcut = $config.NewShortcut
 $script:openFileShortcut = $config.OpenFileShortcut
+$script:analyzeShortcut = $config.AnalyzeShortcut
+$script:showWindowShortcut = $config.ShowWindowShortcut
+$script:closeAllWindowsShortcut = $config.CloseAllWindowsShortcut
 $script:showYtDlpTitle = [bool]::Parse($config.ShowYtDlpTitle)
 $script:showYtDlpUploader = [bool]::Parse($config.ShowYtDlpUploader)
 $script:showYtDlpUploadDate = [bool]::Parse($config.ShowYtDlpUploadDate)
@@ -946,6 +955,51 @@ $optionsItem.Add_Click({
     $openFileShortcutTextBox.ForeColor = $script:fgColor
     $keyboardTab.Controls.Add($openFileShortcutTextBox)
     
+    $analyzeShortcutLabel = New-Object System.Windows.Forms.Label
+    $analyzeShortcutLabel.Text = "解析開始:"
+    $analyzeShortcutLabel.Location = New-Object System.Drawing.Point(20, 100)
+    $analyzeShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $analyzeShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($analyzeShortcutLabel)
+    
+    $analyzeShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $analyzeShortcutTextBox.Location = New-Object System.Drawing.Point(180, 98)
+    $analyzeShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $analyzeShortcutTextBox.Text = $script:analyzeShortcut
+    $analyzeShortcutTextBox.BackColor = $script:inputBgColor
+    $analyzeShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($analyzeShortcutTextBox)
+    
+    $showWindowShortcutLabel = New-Object System.Windows.Forms.Label
+    $showWindowShortcutLabel.Text = "結果を別ウィンドウ表示:"
+    $showWindowShortcutLabel.Location = New-Object System.Drawing.Point(20, 140)
+    $showWindowShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $showWindowShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($showWindowShortcutLabel)
+    
+    $showWindowShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $showWindowShortcutTextBox.Location = New-Object System.Drawing.Point(180, 138)
+    $showWindowShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $showWindowShortcutTextBox.Text = $script:showWindowShortcut
+    $showWindowShortcutTextBox.BackColor = $script:inputBgColor
+    $showWindowShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($showWindowShortcutTextBox)
+    
+    $closeAllWindowsShortcutLabel = New-Object System.Windows.Forms.Label
+    $closeAllWindowsShortcutLabel.Text = "全ウィンドウを閉じる:"
+    $closeAllWindowsShortcutLabel.Location = New-Object System.Drawing.Point(20, 180)
+    $closeAllWindowsShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $closeAllWindowsShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($closeAllWindowsShortcutLabel)
+    
+    $closeAllWindowsShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $closeAllWindowsShortcutTextBox.Location = New-Object System.Drawing.Point(180, 178)
+    $closeAllWindowsShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $closeAllWindowsShortcutTextBox.Text = $script:closeAllWindowsShortcut
+    $closeAllWindowsShortcutTextBox.BackColor = $script:inputBgColor
+    $closeAllWindowsShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($closeAllWindowsShortcutTextBox)
+    
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
     $okButton.Location = New-Object System.Drawing.Point(250, 635)
@@ -992,6 +1046,9 @@ $optionsItem.Add_Click({
         
         $script:newShortcut = $newShortcutTextBox.Text.Trim()
         $script:openFileShortcut = $openFileShortcutTextBox.Text.Trim()
+        $script:analyzeShortcut = $analyzeShortcutTextBox.Text.Trim()
+        $script:showWindowShortcut = $showWindowShortcutTextBox.Text.Trim()
+        $script:closeAllWindowsShortcut = $closeAllWindowsShortcutTextBox.Text.Trim()
         
         foreach ($key in $ytDlpCheckBoxes.Keys) {
             $varName = $key.Substring(0,1).ToLower() + $key.Substring(1)
@@ -4095,9 +4152,43 @@ $form.Add_KeyDown({
     if ($e.Control -eq $openFileShortcutParsed.Control -and
         $e.Alt -eq $openFileShortcutParsed.Alt -and
         $e.Shift -eq $openFileShortcutParsed.Shift -and
-        $e.KeyCode.ToString() -eq $newShortcutParsed.Key) {
+        $e.KeyCode.ToString() -eq $openFileShortcutParsed.Key) {
         $e.Handled = $true
         $addFileItem.PerformClick()
+        return
+    }
+    
+    $analyzeShortcutParsed = Parse-Shortcut $script:analyzeShortcut
+    if ($e.Control -eq $analyzeShortcutParsed.Control -and
+        $e.Alt -eq $analyzeShortcutParsed.Alt -and
+        $e.Shift -eq $analyzeShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $analyzeShortcutParsed.Key) {
+        $e.Handled = $true
+        $button.PerformClick()
+        return
+    }
+    
+    $showWindowShortcutParsed = Parse-Shortcut $script:showWindowShortcut
+    if ($e.Control -eq $showWindowShortcutParsed.Control -and
+        $e.Alt -eq $showWindowShortcutParsed.Alt -and
+        $e.Shift -eq $showWindowShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $showWindowShortcutParsed.Key) {
+        $e.Handled = $true
+        if ($showWindowButton.Enabled) {
+            $showWindowButton.PerformClick()
+        }
+        return
+    }
+    
+    $closeAllWindowsShortcutParsed = Parse-Shortcut $script:closeAllWindowsShortcut
+    if ($e.Control -eq $closeAllWindowsShortcutParsed.Control -and
+        $e.Alt -eq $closeAllWindowsShortcutParsed.Alt -and
+        $e.Shift -eq $closeAllWindowsShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $closeAllWindowsShortcutParsed.Key) {
+        $e.Handled = $true
+        if ($closeAllWindowsButton.Enabled) {
+            $closeAllWindowsButton.PerformClick()
+        }
         return
     }
 })
