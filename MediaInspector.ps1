@@ -47,6 +47,7 @@ function Load-Config {
         AnalyzeShortcut = "Ctrl+R"
         ShowWindowShortcut = "Ctrl+W"
         CloseAllWindowsShortcut = "Ctrl+Q"
+        OptionsShortcut = "Ctrl+P"
         SearchShortcut = "Ctrl+F"
         FindNextShortcut = "F3"
         FindPreviousShortcut = "Shift+F3"
@@ -121,6 +122,7 @@ OpenFileShortcut=$($script:openFileShortcut)
 AnalyzeShortcut=$($script:analyzeShortcut)
 ShowWindowShortcut=$($script:showWindowShortcut)
 CloseAllWindowsShortcut=$($script:closeAllWindowsShortcut)
+OptionsShortcut=$($script:optionsShortcut)
 SearchShortcut=$($script:searchShortcut)
 FindNextShortcut=$($script:findNextShortcut)
 FindPreviousShortcut=$($script:findPreviousShortcut)
@@ -199,6 +201,7 @@ $script:openFileShortcut = $config.OpenFileShortcut
 $script:analyzeShortcut = $config.AnalyzeShortcut
 $script:showWindowShortcut = $config.ShowWindowShortcut
 $script:closeAllWindowsShortcut = $config.CloseAllWindowsShortcut
+$script:optionsShortcut = $config.OptionsShortcut
 $script:searchShortcut = $config.SearchShortcut
 $script:findNextShortcut = $config.FindNextShortcut
 $script:findPreviousShortcut = $config.FindPreviousShortcut
@@ -1075,15 +1078,30 @@ $optionsItem.Add_Click({
     $closeAllWindowsShortcutTextBox.ForeColor = $script:fgColor
     $keyboardTab.Controls.Add($closeAllWindowsShortcutTextBox)
     
+    $optionsShortcutLabel = New-Object System.Windows.Forms.Label
+    $optionsShortcutLabel.Text = "オプション:"
+    $optionsShortcutLabel.Location = New-Object System.Drawing.Point(20, 220)
+    $optionsShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $optionsShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($optionsShortcutLabel)
+    
+    $optionsShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $optionsShortcutTextBox.Location = New-Object System.Drawing.Point(180, 218)
+    $optionsShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $optionsShortcutTextBox.Text = $script:optionsShortcut
+    $optionsShortcutTextBox.BackColor = $script:inputBgColor
+    $optionsShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($optionsShortcutTextBox)
+    
     $searchShortcutLabel = New-Object System.Windows.Forms.Label
     $searchShortcutLabel.Text = "検索:"
-    $searchShortcutLabel.Location = New-Object System.Drawing.Point(20, 220)
+    $searchShortcutLabel.Location = New-Object System.Drawing.Point(20, 260)
     $searchShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
     $searchShortcutLabel.ForeColor = $script:fgColor
     $keyboardTab.Controls.Add($searchShortcutLabel)
     
     $searchShortcutTextBox = New-Object System.Windows.Forms.TextBox
-    $searchShortcutTextBox.Location = New-Object System.Drawing.Point(180, 218)
+    $searchShortcutTextBox.Location = New-Object System.Drawing.Point(180, 258)
     $searchShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
     $searchShortcutTextBox.Text = $script:searchShortcut
     $searchShortcutTextBox.BackColor = $script:inputBgColor
@@ -1092,13 +1110,13 @@ $optionsItem.Add_Click({
     
     $findNextShortcutLabel = New-Object System.Windows.Forms.Label
     $findNextShortcutLabel.Text = "次を検索:"
-    $findNextShortcutLabel.Location = New-Object System.Drawing.Point(20, 260)
+    $findNextShortcutLabel.Location = New-Object System.Drawing.Point(20, 300)
     $findNextShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
     $findNextShortcutLabel.ForeColor = $script:fgColor
     $keyboardTab.Controls.Add($findNextShortcutLabel)
     
     $findNextShortcutTextBox = New-Object System.Windows.Forms.TextBox
-    $findNextShortcutTextBox.Location = New-Object System.Drawing.Point(180, 258)
+    $findNextShortcutTextBox.Location = New-Object System.Drawing.Point(180, 298)
     $findNextShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
     $findNextShortcutTextBox.Text = $script:findNextShortcut
     $findNextShortcutTextBox.BackColor = $script:inputBgColor
@@ -1107,13 +1125,13 @@ $optionsItem.Add_Click({
     
     $findPreviousShortcutLabel = New-Object System.Windows.Forms.Label
     $findPreviousShortcutLabel.Text = "前を検索:"
-    $findPreviousShortcutLabel.Location = New-Object System.Drawing.Point(20, 300)
+    $findPreviousShortcutLabel.Location = New-Object System.Drawing.Point(20, 340)
     $findPreviousShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
     $findPreviousShortcutLabel.ForeColor = $script:fgColor
     $keyboardTab.Controls.Add($findPreviousShortcutLabel)
     
     $findPreviousShortcutTextBox = New-Object System.Windows.Forms.TextBox
-    $findPreviousShortcutTextBox.Location = New-Object System.Drawing.Point(180, 298)
+    $findPreviousShortcutTextBox.Location = New-Object System.Drawing.Point(180, 338)
     $findPreviousShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
     $findPreviousShortcutTextBox.Text = $script:findPreviousShortcut
     $findPreviousShortcutTextBox.BackColor = $script:inputBgColor
@@ -1122,13 +1140,13 @@ $optionsItem.Add_Click({
     
     $clearHighlightShortcutLabel = New-Object System.Windows.Forms.Label
     $clearHighlightShortcutLabel.Text = "ハイライト解除:"
-    $clearHighlightShortcutLabel.Location = New-Object System.Drawing.Point(20, 340)
+    $clearHighlightShortcutLabel.Location = New-Object System.Drawing.Point(20, 380)
     $clearHighlightShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
     $clearHighlightShortcutLabel.ForeColor = $script:fgColor
     $keyboardTab.Controls.Add($clearHighlightShortcutLabel)
     
     $clearHighlightShortcutTextBox = New-Object System.Windows.Forms.TextBox
-    $clearHighlightShortcutTextBox.Location = New-Object System.Drawing.Point(180, 338)
+    $clearHighlightShortcutTextBox.Location = New-Object System.Drawing.Point(180, 378)
     $clearHighlightShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
     $clearHighlightShortcutTextBox.Text = $script:clearHighlightShortcut
     $clearHighlightShortcutTextBox.BackColor = $script:inputBgColor
@@ -1187,6 +1205,7 @@ $optionsItem.Add_Click({
         $script:analyzeShortcut = $analyzeShortcutTextBox.Text.Trim()
         $script:showWindowShortcut = $showWindowShortcutTextBox.Text.Trim()
         $script:closeAllWindowsShortcut = $closeAllWindowsShortcutTextBox.Text.Trim()
+        $script:optionsShortcut = $optionsShortcutTextBox.Text.Trim()
         $script:searchShortcut = $searchShortcutTextBox.Text.Trim()
         $script:findNextShortcut = $findNextShortcutTextBox.Text.Trim()
         $script:findPreviousShortcut = $findPreviousShortcutTextBox.Text.Trim()
@@ -4618,6 +4637,16 @@ $form.Add_KeyDown({
         if ($closeAllWindowsButton.Enabled) {
             $closeAllWindowsButton.PerformClick()
         }
+        return
+    }
+    
+    $optionsShortcutParsed = Parse-Shortcut $script:optionsShortcut
+    if ($e.Control -eq $optionsShortcutParsed.Control -and
+        $e.Alt -eq $optionsShortcutParsed.Alt -and
+        $e.Shift -eq $optionsShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $optionsShortcutParsed.Key) {
+        $e.Handled = $true
+        $optionsItem.PerformClick()
         return
     }
 })
