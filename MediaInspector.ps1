@@ -44,6 +44,10 @@ function Load-Config {
         AnalyzeShortcut = "Ctrl+R"
         ShowWindowShortcut = "Ctrl+W"
         CloseAllWindowsShortcut = "Ctrl+Q"
+        SearchShortcut = "Ctrl+F"
+        FindNextShortcut = "F3"
+        FindPreviousShortcut = "Shift+F3"
+        ClearHighlightShortcut = "Alt+F3"
         ShowYtDlpTitle = $true
         ShowYtDlpUploader = $true
         ShowYtDlpUploadDate = $true
@@ -111,6 +115,10 @@ OpenFileShortcut=$($script:openFileShortcut)
 AnalyzeShortcut=$($script:analyzeShortcut)
 ShowWindowShortcut=$($script:showWindowShortcut)
 CloseAllWindowsShortcut=$($script:closeAllWindowsShortcut)
+SearchShortcut=$($script:searchShortcut)
+FindNextShortcut=$($script:findNextShortcut)
+FindPreviousShortcut=$($script:findPreviousShortcut)
+ClearHighlightShortcut=$($script:clearHighlightShortcut)
 ShowYtDlpTitle=$($script:showYtDlpTitle)
 ShowYtDlpUploader=$($script:showYtDlpUploader)
 ShowYtDlpUploadDate=$($script:showYtDlpUploadDate)
@@ -182,6 +190,10 @@ $script:openFileShortcut = $config.OpenFileShortcut
 $script:analyzeShortcut = $config.AnalyzeShortcut
 $script:showWindowShortcut = $config.ShowWindowShortcut
 $script:closeAllWindowsShortcut = $config.CloseAllWindowsShortcut
+$script:searchShortcut = $config.SearchShortcut
+$script:findNextShortcut = $config.FindNextShortcut
+$script:findPreviousShortcut = $config.FindPreviousShortcut
+$script:clearHighlightShortcut = $config.ClearHighlightShortcut
 $script:showYtDlpTitle = [bool]::Parse($config.ShowYtDlpTitle)
 $script:showYtDlpUploader = [bool]::Parse($config.ShowYtDlpUploader)
 $script:showYtDlpUploadDate = [bool]::Parse($config.ShowYtDlpUploadDate)
@@ -539,6 +551,44 @@ $exitItem.Add_Click({
 $fileMenu.DropDownItems.Add($exitItem)
 
 $menuStrip.Items.Add($fileMenu)
+
+# 「検索」メニュー
+$searchMenu = New-Object System.Windows.Forms.ToolStripMenuItem
+$searchMenu.Text = "検索(&S)"
+
+# 検索
+$searchItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$searchItem.Text = "検索(&F)...`tCtrl+F"
+$searchItem.Add_Click({
+    Show-SearchDialog
+})
+$searchMenu.DropDownItems.Add($searchItem)
+
+# 次を検索
+$findNextItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$findNextItem.Text = "次を検索(&N)`tF3"
+$findNextItem.Add_Click({
+    Find-Next
+})
+$searchMenu.DropDownItems.Add($findNextItem)
+
+# 前を検索
+$findPreviousItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$findPreviousItem.Text = "前を検索(&P)`tShift+F3"
+$findPreviousItem.Add_Click({
+    Find-Previous
+})
+$searchMenu.DropDownItems.Add($findPreviousItem)
+
+# ハイライト解除
+$clearHighlightItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$clearHighlightItem.Text = "ハイライト解除(&C)`tAlt+F3"
+$clearHighlightItem.Add_Click({
+    Clear-SearchHighlight
+})
+$searchMenu.DropDownItems.Add($clearHighlightItem)
+
+$menuStrip.Items.Add($searchMenu)
 
 # 「ツール」メニュー
 $toolMenu = New-Object System.Windows.Forms.ToolStripMenuItem
@@ -1000,6 +1050,66 @@ $optionsItem.Add_Click({
     $closeAllWindowsShortcutTextBox.ForeColor = $script:fgColor
     $keyboardTab.Controls.Add($closeAllWindowsShortcutTextBox)
     
+    $searchShortcutLabel = New-Object System.Windows.Forms.Label
+    $searchShortcutLabel.Text = "検索:"
+    $searchShortcutLabel.Location = New-Object System.Drawing.Point(20, 220)
+    $searchShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $searchShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($searchShortcutLabel)
+    
+    $searchShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $searchShortcutTextBox.Location = New-Object System.Drawing.Point(180, 218)
+    $searchShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $searchShortcutTextBox.Text = $script:searchShortcut
+    $searchShortcutTextBox.BackColor = $script:inputBgColor
+    $searchShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($searchShortcutTextBox)
+    
+    $findNextShortcutLabel = New-Object System.Windows.Forms.Label
+    $findNextShortcutLabel.Text = "次を検索:"
+    $findNextShortcutLabel.Location = New-Object System.Drawing.Point(20, 260)
+    $findNextShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $findNextShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($findNextShortcutLabel)
+    
+    $findNextShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $findNextShortcutTextBox.Location = New-Object System.Drawing.Point(180, 258)
+    $findNextShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $findNextShortcutTextBox.Text = $script:findNextShortcut
+    $findNextShortcutTextBox.BackColor = $script:inputBgColor
+    $findNextShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($findNextShortcutTextBox)
+    
+    $findPreviousShortcutLabel = New-Object System.Windows.Forms.Label
+    $findPreviousShortcutLabel.Text = "前を検索:"
+    $findPreviousShortcutLabel.Location = New-Object System.Drawing.Point(20, 300)
+    $findPreviousShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $findPreviousShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($findPreviousShortcutLabel)
+    
+    $findPreviousShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $findPreviousShortcutTextBox.Location = New-Object System.Drawing.Point(180, 298)
+    $findPreviousShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $findPreviousShortcutTextBox.Text = $script:findPreviousShortcut
+    $findPreviousShortcutTextBox.BackColor = $script:inputBgColor
+    $findPreviousShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($findPreviousShortcutTextBox)
+    
+    $clearHighlightShortcutLabel = New-Object System.Windows.Forms.Label
+    $clearHighlightShortcutLabel.Text = "ハイライト解除:"
+    $clearHighlightShortcutLabel.Location = New-Object System.Drawing.Point(20, 340)
+    $clearHighlightShortcutLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $clearHighlightShortcutLabel.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($clearHighlightShortcutLabel)
+    
+    $clearHighlightShortcutTextBox = New-Object System.Windows.Forms.TextBox
+    $clearHighlightShortcutTextBox.Location = New-Object System.Drawing.Point(180, 338)
+    $clearHighlightShortcutTextBox.Size = New-Object System.Drawing.Size(250, 25)
+    $clearHighlightShortcutTextBox.Text = $script:clearHighlightShortcut
+    $clearHighlightShortcutTextBox.BackColor = $script:inputBgColor
+    $clearHighlightShortcutTextBox.ForeColor = $script:fgColor
+    $keyboardTab.Controls.Add($clearHighlightShortcutTextBox)
+    
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
     $okButton.Location = New-Object System.Drawing.Point(250, 635)
@@ -1049,6 +1159,10 @@ $optionsItem.Add_Click({
         $script:analyzeShortcut = $analyzeShortcutTextBox.Text.Trim()
         $script:showWindowShortcut = $showWindowShortcutTextBox.Text.Trim()
         $script:closeAllWindowsShortcut = $closeAllWindowsShortcutTextBox.Text.Trim()
+        $script:searchShortcut = $searchShortcutTextBox.Text.Trim()
+        $script:findNextShortcut = $findNextShortcutTextBox.Text.Trim()
+        $script:findPreviousShortcut = $findPreviousShortcutTextBox.Text.Trim()
+        $script:clearHighlightShortcut = $clearHighlightShortcutTextBox.Text.Trim()
         
         foreach ($key in $ytDlpCheckBoxes.Keys) {
             $varName = $key.Substring(0,1).ToLower() + $key.Substring(1)
@@ -1262,7 +1376,7 @@ $progressLabel.Text = "0%"
 $progressLabel.Anchor = "Top,Right"
 $form.Controls.Add($progressLabel)
 
-$outputBox = New-Object System.Windows.Forms.TextBox
+$outputBox = New-Object System.Windows.Forms.RichTextBox
 $outputBox.Multiline = $true
 $outputBox.ScrollBars = "Vertical"
 $outputBox.ReadOnly = $true
@@ -1272,6 +1386,7 @@ $outputBox.Size = New-Object System.Drawing.Size(810, 360)
 $outputBox.BackColor = $script:outputBgColor
 $outputBox.ForeColor = $script:fgColor
 $outputBox.Anchor = "Top,Bottom,Left,Right"
+$outputBox.HideSelection = $false
 $form.Controls.Add($outputBox)
 
 # 解析結果を保存するグローバル変数
@@ -1418,6 +1533,248 @@ function Close-AllResultWindows {
     }
     $script:resultForms = @()
     $closeAllWindowsButton.Enabled = $false
+}
+
+# --- 検索関連のグローバル変数 ---
+$script:searchText = ""
+$script:searchMatchCase = $false
+$script:searchWrapAround = $false
+$script:lastSearchIndex = -1
+
+# --- 検索ダイアログを表示する関数 ---
+function Show-SearchDialog {
+    $searchForm = New-Object System.Windows.Forms.Form
+    $searchForm.Text = "検索"
+    $searchForm.Size = New-Object System.Drawing.Size(400, 180)
+    $searchForm.StartPosition = "CenterParent"
+    $searchForm.FormBorderStyle = "FixedDialog"
+    $searchForm.MaximizeBox = $false
+    $searchForm.MinimizeBox = $false
+    $searchForm.BackColor = $script:bgColor
+    $searchForm.ForeColor = $script:fgColor
+    
+    $searchLabel = New-Object System.Windows.Forms.Label
+    $searchLabel.Text = "検索する文字列(E):"
+    $searchLabel.Location = New-Object System.Drawing.Point(10, 15)
+    $searchLabel.Size = New-Object System.Drawing.Size(280, 20)
+    $searchLabel.ForeColor = $script:fgColor
+    $searchForm.Controls.Add($searchLabel)
+    
+    $searchTextBox = New-Object System.Windows.Forms.TextBox
+    $searchTextBox.Location = New-Object System.Drawing.Point(10, 40)
+    $searchTextBox.Size = New-Object System.Drawing.Size(280, 25)
+    $searchTextBox.Text = $script:searchText
+    $searchTextBox.BackColor = $script:inputBgColor
+    $searchTextBox.ForeColor = $script:fgColor
+    $searchForm.Controls.Add($searchTextBox)
+    
+    $matchCaseCheckBox = New-Object System.Windows.Forms.CheckBox
+    $matchCaseCheckBox.Text = "大文字と小文字を区別(C)"
+    $matchCaseCheckBox.Location = New-Object System.Drawing.Point(10, 75)
+    $matchCaseCheckBox.Size = New-Object System.Drawing.Size(200, 25)
+    $matchCaseCheckBox.Checked = $script:searchMatchCase
+    $matchCaseCheckBox.ForeColor = $script:fgColor
+    $searchForm.Controls.Add($matchCaseCheckBox)
+    
+    $wrapAroundCheckBox = New-Object System.Windows.Forms.CheckBox
+    $wrapAroundCheckBox.Text = "折り返す(D)"
+    $wrapAroundCheckBox.Location = New-Object System.Drawing.Point(10, 100)
+    $wrapAroundCheckBox.Size = New-Object System.Drawing.Size(200, 25)
+    $wrapAroundCheckBox.Checked = $false
+    $wrapAroundCheckBox.ForeColor = $script:fgColor
+    $searchForm.Controls.Add($wrapAroundCheckBox)
+    
+    $findPreviousButton = New-Object System.Windows.Forms.Button
+    $findPreviousButton.Text = "前を検索(P)"
+    $findPreviousButton.Location = New-Object System.Drawing.Point(300, 15)
+    $findPreviousButton.Size = New-Object System.Drawing.Size(80, 25)
+    $findPreviousButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $findPreviousButton.ForeColor = $script:fgColor
+    $findPreviousButton.Add_Click({
+        $script:searchText = $searchTextBox.Text
+        $script:searchMatchCase = $matchCaseCheckBox.Checked
+        $script:searchWrapAround = $wrapAroundCheckBox.Checked
+        $outputBox.Focus()
+        Find-Previous
+        $searchTextBox.Focus()
+    })
+    $searchForm.Controls.Add($findPreviousButton)
+    
+    $findNextButton = New-Object System.Windows.Forms.Button
+    $findNextButton.Text = "次を検索(N)"
+    $findNextButton.Location = New-Object System.Drawing.Point(300, 45)
+    $findNextButton.Size = New-Object System.Drawing.Size(80, 25)
+    $findNextButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $findNextButton.ForeColor = $script:fgColor
+    $findNextButton.Add_Click({
+        $script:searchText = $searchTextBox.Text
+        $script:searchMatchCase = $matchCaseCheckBox.Checked
+        $script:searchWrapAround = $wrapAroundCheckBox.Checked
+        $outputBox.Focus()
+        Find-Next
+        $searchTextBox.Focus()
+    })
+    $searchForm.Controls.Add($findNextButton)
+    
+    $clearHighlightButton = New-Object System.Windows.Forms.Button
+    $clearHighlightButton.Text = "解除"
+    $clearHighlightButton.Location = New-Object System.Drawing.Point(300, 75)
+    $clearHighlightButton.Size = New-Object System.Drawing.Size(80, 25)
+    $clearHighlightButton.BackColor = [System.Drawing.Color]::FromArgb(150, 100, 50)
+    $clearHighlightButton.ForeColor = $script:fgColor
+    $clearHighlightButton.Add_Click({
+        Clear-SearchHighlight
+    })
+    $searchForm.Controls.Add($clearHighlightButton)
+    
+    $closeButton = New-Object System.Windows.Forms.Button
+    $closeButton.Text = "閉じる"
+    $closeButton.Location = New-Object System.Drawing.Point(300, 105)
+    $closeButton.Size = New-Object System.Drawing.Size(80, 25)
+    $closeButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
+    $closeButton.ForeColor = $script:fgColor
+    $closeButton.Add_Click({
+        $searchForm.Close()
+    })
+    $searchForm.Controls.Add($closeButton)
+    
+    $searchForm.AcceptButton = $findPreviousButton
+    $searchForm.CancelButton = $closeButton
+    
+    [void]$searchForm.ShowDialog($form)
+}
+
+# --- 次を検索する関数 ---
+function Find-Next {
+    if ([string]::IsNullOrEmpty($script:searchText)) {
+        [System.Windows.Forms.MessageBox]::Show("検索する文字列を入力してください。", "情報")
+        return
+    }
+
+    if ($script:prevSearchText -ne $script:searchText) {
+        Clear-SearchHighlight
+        $script:prevSearchText = $script:searchText
+    }
+    
+    $text = $outputBox.Text
+    $startIndex = if ($script:lastSearchIndex -ge 0) { $script:lastSearchIndex + $script:searchText.Length } else { 0 }
+    
+    $comparisonType = if ($script:searchMatchCase) {
+        [System.StringComparison]::Ordinal
+    } else {
+        [System.StringComparison]::OrdinalIgnoreCase
+    }
+    
+    $foundIndex = $text.IndexOf($script:searchText, $startIndex, $comparisonType)
+    
+    if ($foundIndex -eq -1 -and $script:searchWrapAround -and $startIndex -gt 0) {
+        $foundIndex = $text.IndexOf($script:searchText, 0, $comparisonType)
+    }
+    
+    if ($foundIndex -ge 0) {
+        Highlight-SearchResult $foundIndex
+        $script:lastSearchIndex = $foundIndex
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("検索文字列が見つかりませんでした。", "情報")
+        $script:lastSearchIndex = -1
+    }
+}
+
+# --- 前を検索する関数 ---
+function Find-Previous {
+    if ([string]::IsNullOrEmpty($script:searchText)) {
+        [System.Windows.Forms.MessageBox]::Show("検索する文字列を入力してください。", "情報")
+        return
+    }
+    
+    if ($script:prevSearchText -ne $script:searchText) {
+        Clear-SearchHighlight
+        $script:prevSearchText = $script:searchText
+    }
+    
+    $text = $outputBox.Text
+    $startIndex = if ($script:lastSearchIndex -gt 0) { $script:lastSearchIndex - 1 } else { $text.Length - 1 }
+    
+    $comparisonType = if ($script:searchMatchCase) {
+        [System.StringComparison]::Ordinal
+    } else {
+        [System.StringComparison]::OrdinalIgnoreCase
+    }
+    
+    $foundIndex = $text.LastIndexOf($script:searchText, $startIndex, $comparisonType)
+    
+    if ($foundIndex -eq -1 -and $script:searchWrapAround -and $startIndex -lt $text.Length - 1) {
+        $foundIndex = $text.LastIndexOf($script:searchText, $text.Length - 1, $comparisonType)
+    }
+    
+    if ($foundIndex -ge 0) {
+        Highlight-SearchResult $foundIndex
+        $script:lastSearchIndex = $foundIndex
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("検索文字列が見つかりませんでした。", "情報")
+        $script:lastSearchIndex = -1
+    }
+}
+
+# --- 検索結果をハイライト表示する関数 ---
+function Highlight-SearchResult($foundIndex) {
+    $text = $outputBox.Text
+    $searchLength = $script:searchText.Length
+
+    $nativeDef = @'
+using System;
+using System.Runtime.InteropServices;
+namespace Win32 {
+  public static class NativeMethods {
+    [DllImport("user32.dll", CharSet=CharSet.Auto)]
+    public static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+  }
+}
+'@
+    Add-Type -TypeDefinition $nativeDef -ErrorAction SilentlyContinue
+
+    $outputBox.SelectionStart = $foundIndex
+    $outputBox.SelectionLength = $searchLength
+    $outputBox.SelectionBackColor = if ($script:currentTheme -eq "Dark") {
+        [System.Drawing.Color]::FromArgb(255, 165, 0)
+    } else {
+        [System.Drawing.Color]::FromArgb(255, 255, 0)
+    }
+
+    $lineIndex = $outputBox.GetLineFromCharIndex($foundIndex)
+
+    $EM_GETFIRSTVISIBLELINE = 0x00CE
+    $EM_LINESCROLL = 0x00B6
+
+    $firstVisible = [Win32.NativeMethods]::SendMessage($outputBox.Handle, $EM_GETFIRSTVISIBLELINE, 0, 0)
+
+    $fontHeight = [int][Math]::Ceiling($outputBox.Font.GetHeight())
+    if ($fontHeight -le 0) { $fontHeight = 16 }
+
+    $visibleLines = [int][Math]::Floor($outputBox.Height / $fontHeight)
+    if ($visibleLines -lt 1) { $visibleLines = 1 }
+
+    $desiredFirst = $lineIndex - [math]::Floor($visibleLines / 2)
+    if ($desiredFirst -lt 0) { $desiredFirst = 0 }
+
+    $delta = $desiredFirst - $firstVisible
+
+    if ($delta -ne 0) {
+        [Win32.NativeMethods]::SendMessage($outputBox.Handle, $EM_LINESCROLL, 0, $delta)
+    } else {
+        $outputBox.ScrollToCaret()
+    }
+}
+
+# --- ハイライトを解除する関数 ---
+function Clear-SearchHighlight {
+    $outputBox.SelectionStart = 0
+    $outputBox.SelectionLength = $outputBox.Text.Length
+    $outputBox.SelectionBackColor = $outputBox.BackColor
+    $outputBox.SelectionStart = 0
+    $outputBox.SelectionLength = 0
+    
+    $script:lastSearchIndex = -1
 }
 
 # --- クリップボードにコピーする関数 ---
@@ -4137,6 +4494,46 @@ function Parse-Shortcut($shortcutString) {
 
 $form.Add_KeyDown({
     param($sender, $e)
+    
+    $searchShortcutParsed = Parse-Shortcut $script:searchShortcut
+    if ($e.Control -eq $searchShortcutParsed.Control -and
+        $e.Alt -eq $searchShortcutParsed.Alt -and
+        $e.Shift -eq $searchShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $searchShortcutParsed.Key) {
+        $e.Handled = $true
+        $searchItem.PerformClick()
+        return
+    }
+    
+    $findNextShortcutParsed = Parse-Shortcut $script:findNextShortcut
+    if ($e.Control -eq $findNextShortcutParsed.Control -and
+        $e.Alt -eq $findNextShortcutParsed.Alt -and
+        $e.Shift -eq $findNextShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $findNextShortcutParsed.Key) {
+        $e.Handled = $true
+        $findNextItem.PerformClick()
+        return
+    }
+    
+    $findPreviousShortcutParsed = Parse-Shortcut $script:findPreviousShortcut
+    if ($e.Control -eq $findPreviousShortcutParsed.Control -and
+        $e.Alt -eq $findPreviousShortcutParsed.Alt -and
+        $e.Shift -eq $findPreviousShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $findPreviousShortcutParsed.Key) {
+        $e.Handled = $true
+        $findPreviousItem.PerformClick()
+        return
+    }
+    
+    $clearHighlightShortcutParsed = Parse-Shortcut $script:clearHighlightShortcut
+    if ($e.Control -eq $clearHighlightShortcutParsed.Control -and
+        $e.Alt -eq $clearHighlightShortcutParsed.Alt -and
+        $e.Shift -eq $clearHighlightShortcutParsed.Shift -and
+        $e.KeyCode.ToString() -eq $clearHighlightShortcutParsed.Key) {
+        $e.Handled = $true
+        $clearHighlightItem.PerformClick()
+        return
+    }
     
     $newShortcutParsed = Parse-Shortcut $script:newShortcut
     if ($e.Control -eq $newShortcutParsed.Control -and
