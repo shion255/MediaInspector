@@ -1601,7 +1601,7 @@ function Show-SearchDialog {
     $searchForm.ForeColor = $script:fgColor
     
     $searchLabel = New-Object System.Windows.Forms.Label
-    $searchLabel.Text = "検索する文字列(E):"
+    $searchLabel.Text = "検索する文字列:(&F)"
     $searchLabel.Location = New-Object System.Drawing.Point(10, 15)
     $searchLabel.Size = New-Object System.Drawing.Size(110, 20)
     $searchLabel.ForeColor = $script:fgColor
@@ -1668,7 +1668,7 @@ function Show-SearchDialog {
     })
     
     $matchCaseCheckBox = New-Object System.Windows.Forms.CheckBox
-    $matchCaseCheckBox.Text = "大文字と小文字を区別(C)"
+    $matchCaseCheckBox.Text = "大文字と小文字を区別(&C)"
     $matchCaseCheckBox.Location = New-Object System.Drawing.Point(10, 75)
     $matchCaseCheckBox.Size = New-Object System.Drawing.Size(200, 25)
     $matchCaseCheckBox.Checked = $script:searchMatchCase
@@ -1679,7 +1679,7 @@ function Show-SearchDialog {
     $searchForm.Controls.Add($matchCaseCheckBox)
     
     $wrapAroundCheckBox = New-Object System.Windows.Forms.CheckBox
-    $wrapAroundCheckBox.Text = "折り返す(D)"
+    $wrapAroundCheckBox.Text = "折り返す(&D)"
     $wrapAroundCheckBox.Location = New-Object System.Drawing.Point(10, 100)
     $wrapAroundCheckBox.Size = New-Object System.Drawing.Size(200, 25)
     $wrapAroundCheckBox.Checked = $false
