@@ -87,6 +87,8 @@ function Load-Config {
         ShowTextStream = $true
         ShowComment = $true
         ShowReplayGain = $true
+        SearchMatchCase = $false
+        SearchWrapAround = $false
     }
     
     if (Test-Path $configFile) {
@@ -162,6 +164,8 @@ ShowCoverImage=$($script:showCoverImage)
 ShowTextStream=$($script:showTextStream)
 ShowComment=$($script:showComment)
 ShowReplayGain=$($script:showReplayGain)
+SearchMatchCase=$($script:searchMatchCase)
+SearchWrapAround=$($script:searchWrapAround)
 "@
     Set-Content -Path $configFile -Value $content -Encoding UTF8
 }
@@ -241,6 +245,8 @@ $script:showCoverImage = [bool]::Parse($config.ShowCoverImage)
 $script:showTextStream = [bool]::Parse($config.ShowTextStream)
 $script:showComment = [bool]::Parse($config.ShowComment)
 $script:showReplayGain = [bool]::Parse($config.ShowReplayGain)
+$script:searchMatchCase = [bool]::Parse($config.SearchMatchCase)
+$script:searchWrapAround = [bool]::Parse($config.SearchWrapAround)
 
 # --- ツールパスチェック ---
 foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
@@ -1686,9 +1692,16 @@ function Show-SearchDialog {
     $wrapAroundCheckBox.Text = "折り返す(&D)"
     $wrapAroundCheckBox.Location = New-Object System.Drawing.Point(10, 100)
     $wrapAroundCheckBox.Size = New-Object System.Drawing.Size(200, 25)
-    $wrapAroundCheckBox.Checked = $false
+    $wrapAroundCheckBox.Checked = $script:searchWrapAround
     $wrapAroundCheckBox.ForeColor = $script:fgColor
     $searchForm.Controls.Add($wrapAroundCheckBox)
+    
+    $searchForm.Add_FormClosed({
+        # ダイアログを閉じた時点でチェック状態を script 変数に反映して一括保存
+        $script:searchMatchCase = $matchCaseCheckBox.Checked
+        $script:searchWrapAround = $wrapAroundCheckBox.Checked
+        Save-Config
+    })
     
     $findPreviousButton = New-Object System.Windows.Forms.Button
     $findPreviousButton.Text = "前を検索(P)"
