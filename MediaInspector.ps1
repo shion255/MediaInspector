@@ -493,6 +493,8 @@ $newItem.Add_Click({
             $outputBox.Clear()
             $script:analysisResults = @()
             $showWindowButton.Enabled = $false
+            $progress.Value = 0
+            $progressLabel.Text = "0%"
             $textBox.Focus()
         }
     } else {
@@ -500,6 +502,8 @@ $newItem.Add_Click({
         $outputBox.Clear()
         $script:analysisResults = @()
         $showWindowButton.Enabled = $false
+        $progress.Value = 0
+        $progressLabel.Text = "0%"
         $textBox.Focus()
     }
 })
