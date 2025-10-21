@@ -39,6 +39,9 @@ function Load-Config {
         IncludeSubfolders = $false
         IncludeAudioFiles = $false
         MaxHistoryCount = 20
+        RememberWindowPosition = $false
+        WindowX = ""
+        WindowY = ""
         NewShortcut = "Ctrl+N"
         OpenFileShortcut = "Ctrl+O"
         AnalyzeShortcut = "Ctrl+R"
@@ -110,6 +113,9 @@ MediaInfoPath=$($script:mediaInfoPath)
 IncludeSubfolders=$($script:includeSubfolders)
 IncludeAudioFiles=$($script:includeAudioFiles)
 MaxHistoryCount=$($script:maxHistoryCount)
+RememberWindowPosition=$($script:rememberWindowPosition)
+WindowX=$($script:windowX)
+WindowY=$($script:windowY)
 NewShortcut=$($script:newShortcut)
 OpenFileShortcut=$($script:openFileShortcut)
 AnalyzeShortcut=$($script:analyzeShortcut)
@@ -185,6 +191,9 @@ $script:mediaInfoPath = $config.MediaInfoPath
 $script:includeSubfolders = [bool]::Parse($config.IncludeSubfolders)
 $script:includeAudioFiles = [bool]::Parse($config.IncludeAudioFiles)
 $script:maxHistoryCount = [int]$config.MaxHistoryCount
+$script:rememberWindowPosition = [bool]::Parse($config.RememberWindowPosition)
+$script:windowX = $config.WindowX
+$script:windowY = $config.WindowY
 $script:newShortcut = $config.NewShortcut
 $script:openFileShortcut = $config.OpenFileShortcut
 $script:analyzeShortcut = $config.AnalyzeShortcut
@@ -377,7 +386,14 @@ $script:version = "1.0"
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "MediaInspector v$script:version"
 $form.Size = New-Object System.Drawing.Size(850, 600)
-$form.StartPosition = "CenterScreen"
+
+if ($script:rememberWindowPosition -and $script:windowX -and $script:windowY) {
+    $form.StartPosition = "Manual"
+    $form.Location = New-Object System.Drawing.Point([int]$script:windowX, [int]$script:windowY)
+} else {
+    $form.StartPosition = "CenterScreen"
+}
+
 $form.BackColor = $script:bgColor
 $form.ForeColor = $script:fgColor
 $form.Font = New-Object System.Drawing.Font("Meiryo UI", 9)
@@ -833,7 +849,16 @@ $optionsItem.Add_Click({
         $form.Opacity = $opacityTrackBar.Value / 100.0
     })
     
-    # サブフォルダを含めるオプション
+    # ウィンドウの位置とサイズを記憶する
+    $rememberWindowPositionCheckBox = New-Object System.Windows.Forms.CheckBox
+    $rememberWindowPositionCheckBox.Text = "ウィンドウの位置を記憶する"
+    $rememberWindowPositionCheckBox.Location = New-Object System.Drawing.Point(20, 300)
+    $rememberWindowPositionCheckBox.Size = New-Object System.Drawing.Size(400, 25)
+    $rememberWindowPositionCheckBox.Checked = $script:rememberWindowPosition
+    $rememberWindowPositionCheckBox.ForeColor = $script:fgColor
+    $generalTab.Controls.Add($rememberWindowPositionCheckBox)
+    
+    # サブフォルダを含むオプション
     $includeSubfoldersCheckBox = New-Object System.Windows.Forms.CheckBox
     $includeSubfoldersCheckBox.Text = "フォルダ解析時にサブフォルダを含める"
     $includeSubfoldersCheckBox.Location = New-Object System.Drawing.Point(20, 20)
@@ -1153,6 +1178,9 @@ $optionsItem.Add_Click({
         
         # 履歴の最大保存数適用
         $script:maxHistoryCount = [int]$maxHistoryNumeric.Value
+        
+        # ウィンドウの位置とサイズ記憶適用
+        $script:rememberWindowPosition = $rememberWindowPositionCheckBox.Checked
         
         $script:newShortcut = $newShortcutTextBox.Text.Trim()
         $script:openFileShortcut = $openFileShortcutTextBox.Text.Trim()
@@ -4591,6 +4619,14 @@ $form.Add_KeyDown({
             $closeAllWindowsButton.PerformClick()
         }
         return
+    }
+})
+
+$form.Add_FormClosing({
+    if ($script:rememberWindowPosition) {
+        $script:windowX = $form.Location.X
+        $script:windowY = $form.Location.Y
+        Save-Config
     }
 })
 
