@@ -1790,6 +1790,8 @@ function Copy-OutputToClipboard {
     $removePatterns = @(
         "解析開始\.\.\. 少々お待ちください。",
         "ローカルファイルとして解析します。",
+        "フォルダ内のファイルを解析します。",
+        "見つかったファイル数:.*",
         "解析完了。",
         "=== 全ファイル解析完了 ==="
     )
@@ -3121,6 +3123,8 @@ function Show-FilteredResults($videoCodecs, $audioCodecs, $otherFilters) {
         $removePatterns = @(
             "解析開始\.\.\. 少々お待ちください。",
             "ローカルファイルとして解析します。",
+            "フォルダ内のファイルを解析します。",
+            "見つかったファイル数:.*",
             "解析完了。",
             "=== 全ファイル解析完了 ==="
         )
