@@ -1592,7 +1592,7 @@ $script:lastSearchIndex = -1
 function Show-SearchDialog {
     $searchForm = New-Object System.Windows.Forms.Form
     $searchForm.Text = "検索"
-    $searchForm.Size = New-Object System.Drawing.Size(400, 180)
+    $searchForm.Size = New-Object System.Drawing.Size(405, 180)
     $searchForm.StartPosition = "CenterParent"
     $searchForm.FormBorderStyle = "FixedDialog"
     $searchForm.MaximizeBox = $false
@@ -1603,9 +1603,17 @@ function Show-SearchDialog {
     $searchLabel = New-Object System.Windows.Forms.Label
     $searchLabel.Text = "検索する文字列(E):"
     $searchLabel.Location = New-Object System.Drawing.Point(10, 15)
-    $searchLabel.Size = New-Object System.Drawing.Size(280, 20)
+    $searchLabel.Size = New-Object System.Drawing.Size(110, 20)
     $searchLabel.ForeColor = $script:fgColor
     $searchForm.Controls.Add($searchLabel)
+    
+    $hitCountLabel = New-Object System.Windows.Forms.Label
+    $hitCountLabel.Text = ""
+    $hitCountLabel.Location = New-Object System.Drawing.Point(120, 15)
+    $hitCountLabel.Size = New-Object System.Drawing.Size(170, 20)
+    $hitCountLabel.ForeColor = $script:fgColor
+    $hitCountLabel.AutoSize = $false
+    $searchForm.Controls.Add($hitCountLabel)
     
     $searchTextBox = New-Object System.Windows.Forms.TextBox
     $searchTextBox.Location = New-Object System.Drawing.Point(10, 40)
@@ -1615,12 +1623,59 @@ function Show-SearchDialog {
     $searchTextBox.ForeColor = $script:fgColor
     $searchForm.Controls.Add($searchTextBox)
     
+    function Update-HitCount {
+        $searchString = $searchTextBox.Text
+        
+        if ([string]::IsNullOrEmpty($searchString)) {
+            $hitCountLabel.Text = ""
+            return
+        }
+        
+        $text = $outputBox.Text
+        if ([string]::IsNullOrEmpty($text)) {
+            $hitCountLabel.Text = "0個、ヒットしました。"
+            return
+        }
+        
+        $comparisonType = if ($matchCaseCheckBox.Checked) {
+            [System.StringComparison]::Ordinal
+        } else {
+            [System.StringComparison]::OrdinalIgnoreCase
+        }
+        
+        $count = 0
+        $startIndex = 0
+        
+        while ($startIndex -lt $text.Length) {
+            $foundIndex = $text.IndexOf($searchString, $startIndex, $comparisonType)
+            if ($foundIndex -ge 0) {
+                $count++
+                $startIndex = $foundIndex + 1
+            } else {
+                break
+            }
+        }
+        
+        if ($count -gt 0) {
+            $hitCountLabel.Text = "$($count)個、ヒットしました。"
+        } else {
+            $hitCountLabel.Text = "0個、ヒットしました。"
+        }
+    }
+    
+    $searchTextBox.Add_TextChanged({
+        Update-HitCount
+    })
+    
     $matchCaseCheckBox = New-Object System.Windows.Forms.CheckBox
     $matchCaseCheckBox.Text = "大文字と小文字を区別(C)"
     $matchCaseCheckBox.Location = New-Object System.Drawing.Point(10, 75)
     $matchCaseCheckBox.Size = New-Object System.Drawing.Size(200, 25)
     $matchCaseCheckBox.Checked = $script:searchMatchCase
     $matchCaseCheckBox.ForeColor = $script:fgColor
+    $matchCaseCheckBox.Add_CheckedChanged({
+        Update-HitCount
+    })
     $searchForm.Controls.Add($matchCaseCheckBox)
     
     $wrapAroundCheckBox = New-Object System.Windows.Forms.CheckBox
@@ -1687,6 +1742,8 @@ function Show-SearchDialog {
     
     $searchForm.AcceptButton = $findPreviousButton
     $searchForm.CancelButton = $closeButton
+    
+    Update-HitCount
     
     [void]$searchForm.ShowDialog($form)
 }
