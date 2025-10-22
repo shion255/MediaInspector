@@ -4120,6 +4120,7 @@ function Parse-MediaInfoJSON($jsonContent) {
                     $videoInfo["matrix_coefficients"] = if ($track.matrix_coefficients) { $track.matrix_coefficients } else { "" }
                     $videoInfo["stream_size"] = if ($track.StreamSize) { Format-FileSize $track.StreamSize } else { "" }
                     $videoInfo["writing_library"] = if ($track.Encoded_Library) { $track.Encoded_Library } else { "" }
+                    $videoInfo["encoding_settings"] = if ($track.Encoded_Library_Settings) { $track.Encoded_Library_Settings } else { "" }
                     $videoInfo["default"] = if ($track.Default) { $track.Default } else { "" }
                     $videoInfo["forced"] = if ($track.Forced) { $track.Forced } else { "" }
                     $videoInfo["language"] = if ($track.Language) { 
