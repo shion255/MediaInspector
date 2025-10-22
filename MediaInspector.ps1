@@ -4598,10 +4598,48 @@ function Analyze-Video {
     Set-Progress(100)
     Write-OutputBox("=== 全ファイル解析完了 ===")
     
-    # 履歴を保存
-    $currentHistory = Load-History
-    $newHistory = @($inputs) + $currentHistory
-    Save-History $newHistory
+    # 成功した入力のみ履歴に保存
+    $successfulInputs = @()
+    $processedFolders = @{}
+    
+    foreach ($result in $script:analysisResults) {
+        if ($result.Content -notmatch "ファイルが存在しません|yt-dlp で情報取得に失敗|MediaInfo で情報を取得できませんでした|エラー:") {
+            if ($result.ContainsKey('FullPath') -and $result.FullPath) {
+                # フォルダ解析の場合はフォルダパスを取得
+                $filePath = $result.FullPath
+                $parentFolder = Split-Path -Parent $filePath
+                
+                # 元の入力がフォルダかどうかを確認
+                $isFromFolder = $false
+                foreach ($inputRaw in $inputs) {
+                    $cleanInput = $inputRaw.Trim()
+                    if ((Test-Path -LiteralPath $cleanInput -PathType Container) -and 
+                        $filePath.StartsWith($cleanInput, [StringComparison]::OrdinalIgnoreCase)) {
+                        # フォルダ解析の場合
+                        if (-not $processedFolders.ContainsKey($cleanInput)) {
+                            $successfulInputs += $cleanInput
+                            $processedFolders[$cleanInput] = $true
+                        }
+                        $isFromFolder = $true
+                        break
+                    }
+                }
+                
+                # フォルダ解析ではない場合は個別ファイルとして保存
+                if (-not $isFromFolder) {
+                    $successfulInputs += $filePath
+                }
+            } else {
+                $successfulInputs += $result.Title
+            }
+        }
+    }
+    
+    if ($successfulInputs.Count -gt 0) {
+        $currentHistory = Load-History
+        $newHistory = @($successfulInputs) + $currentHistory
+        Save-History $newHistory
+    }
     
     # 解析完了後にボタンを有効化
     $showWindowButton.Enabled = $true
