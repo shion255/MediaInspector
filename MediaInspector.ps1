@@ -1453,6 +1453,11 @@ $outputBox.BackColor = $script:outputBgColor
 $outputBox.ForeColor = $script:fgColor
 $outputBox.Anchor = "Top,Bottom,Left,Right"
 $outputBox.HideSelection = $false
+$outputBox.DetectUrls = $true
+$outputBox.Add_LinkClicked({
+    param($sender, $e)
+    Start-Process $e.LinkText
+})
 $form.Controls.Add($outputBox)
 
 # 解析結果を保存するグローバル変数
@@ -4314,8 +4319,9 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
     
     # コメント情報を表示
     if ($script:showComment -and $parsedInfo.Comment) {
-        Write-OutputBox("コメント: $($parsedInfo.Comment)")
-        $resultContentRef.Value += "コメント: $($parsedInfo.Comment)`r`n"
+        $comment = $parsedInfo.Comment
+        Write-OutputBox("コメント: $comment")
+        $resultContentRef.Value += "コメント: $comment`r`n"
     }
     
     # チャプター情報を表示
