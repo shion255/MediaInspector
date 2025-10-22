@@ -629,6 +629,14 @@ $menuStrip.Items.Add($searchMenu)
 $toolMenu = New-Object System.Windows.Forms.ToolStripMenuItem
 $toolMenu.Text = "ツール(&T)"
 
+# 解析結果をリスト表示
+$filterItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$filterItem.Text = "解析結果をリスト表示(&F)..."
+$filterItem.Add_Click({
+    Show-AllResultsList
+})
+$toolMenu.DropDownItems.Add($filterItem)
+
 # 動画ファイルを整理
 $organizeItem = New-Object System.Windows.Forms.ToolStripMenuItem
 $organizeItem.Text = "動画ファイルを整理(&M)..."
@@ -637,14 +645,6 @@ $organizeItem.Add_Click({
     Show-FileOrganizer
 })
 $toolMenu.DropDownItems.Add($organizeItem)
-
-# 解析結果をリスト表示
-$filterItem = New-Object System.Windows.Forms.ToolStripMenuItem
-$filterItem.Text = "解析結果をリスト表示(&F)..."
-$filterItem.Add_Click({
-    Show-AllResultsList
-})
-$toolMenu.DropDownItems.Add($filterItem)
 
 # セパレーター
 $toolMenu.DropDownItems.Add((New-Object System.Windows.Forms.ToolStripSeparator))
