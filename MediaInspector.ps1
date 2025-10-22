@@ -1338,7 +1338,8 @@ $textBox.Add_DragDrop({
     $files = $e.Data.GetData([Windows.Forms.DataFormats]::FileDrop)
     if ($files) {
         $existingText = $textBox.Text.Trim()
-        $newFiles = $files -join "`r`n"
+        $quotedFiles = $files | ForEach-Object { "`"$_`"" }
+        $newFiles = $quotedFiles -join "`r`n"
         
         if ($existingText) {
             $textBox.Text = $existingText + "`r`n" + $newFiles
