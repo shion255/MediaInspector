@@ -2362,21 +2362,22 @@ function Show-AboutMediaInspector {
 # --- 解析結果をリスト表示 ---
 function Show-AllResultsList {
     if ($script:analysisResults.Count -eq 0) {
-        [System.Windows.Forms.MessageBox]::Show("解析結果がありません。先に解析を実行してください。", "情報")
+        [System.Windows.Forms.MessageBox]::Show("解析結果がありません。先に解析を実行して下さい。", "情報")
         return
     }
 
-    # 絞り込み前の状態を保存 （初回のみ）
-    if ($script:originalAnalysisResults.Count -eq 0) {
-        $script:originalAnalysisResults = $script:analysisResults.Clone()
-    }
-
+    # 既存のフォームが開いている場合は更新
     if ($script:analysisListForm -and -not $script:analysisListForm.IsDisposed) {
         $listView = $script:analysisListListView
         $listView.Items.Clear()
         $rowIndex = 0
         foreach ($result in $script:analysisResults) {
+            $resolution = Get-ResolutionFromContent $result.Content
+            $fps = Get-FPSFromContent $result.Content
+            
             $item = New-Object System.Windows.Forms.ListViewItem($result.Title)
+            $item.SubItems.Add($resolution) | Out-Null
+            $item.SubItems.Add($fps) | Out-Null
             $item.Tag = $result
             if ($rowIndex % 2 -eq 0) {
                 if ($script:currentTheme -eq "Dark") {
@@ -2411,11 +2412,133 @@ function Show-AllResultsList {
     $listView.ForeColor = $script:fgColor
     $listView.Anchor = "Top,Bottom,Left,Right"
 
-    [void]$listView.Columns.Add("ファイル名", 700)
+    [void]$listView.Columns.Add("ファイル名", 400)
+    [void]$listView.Columns.Add("解像度", 150)
+    [void]$listView.Columns.Add("フレームレート", 150)
+
+    # 解像度とフレームレートを抽出する関数
+    function Get-ResolutionFromContent($content) {
+        # 様々なパターンを試す
+        $patterns = @(
+            "解像度:\s*(\d+\s*x\s*\d+)",
+            "映像\d+:\s*.*?(\d+\s*x\s*\d+)",
+            "映像\d+\s*.*?解像度\s*:\s*(\d+\s*x\s*\d+)",
+            "映像ストリーム\s*.*?(\d+\s*x\s*\d+)",
+            "Width\s*:\s*\d+.*?Height\s*:\s*\d+",
+            "(\d{3,5}\s*x\s*\d{3,5})"
+        )
+        
+        foreach ($pattern in $patterns) {
+            if ($content -match $pattern) {
+                $resolution = $matches[1] -replace '\s+', ''
+                Write-Host "解像度マッチ: $resolution (パターン: $pattern)" -ForegroundColor Magenta
+                return $resolution
+            }
+        }
+        return "不明"
+    }
+
+    function Get-FPSFromContent($content) {
+        # 様々なパターンを試す
+        $patterns = @(
+            "フレームレート:\s*([\d.]+\s*fps)",
+            "フレームレート:\s*([\d.]+)\s*FPS",
+            "フレームレート\s*:\s*([\d.]+)\s*fps",
+            "映像\d+:\s*.*?([\d.]+\s*fps)",
+            "映像\d+\s*.*?フレームレート\s*:\s*([\d.]+)",
+            "Frame rate\s*:\s*([\d.]+)",
+            "([\d.]+)\s*fps"
+        )
+        
+        foreach ($pattern in $patterns) {
+            if ($content -match $pattern) {
+                $fps = $matches[1] -replace '\s+', ' '
+                if ($fps -notmatch "fps$") {
+                    $fps = $fps + " fps"
+                }
+                Write-Host "FPSマッチ: $fps (パターン: $pattern)" -ForegroundColor Magenta
+                return $fps
+            }
+        }
+        return "不明"
+    }
+
+    # ソート用の変数
+    $script:analysisListSortColumn = 0
+    $script:analysisListSortOrder = $true
+
+    # 列クリックでソート
+    $listView.Add_ColumnClick({
+        param($sender, $e)
+        
+        $columnIndex = $e.Column
+        
+        if ($script:analysisListSortColumn -eq $columnIndex) {
+            $script:analysisListSortOrder = -not $script:analysisListSortOrder
+        } else {
+            $script:analysisListSortColumn = $columnIndex
+            $script:analysisListSortOrder = $true
+        }
+        
+        $items = @($listView.Items | ForEach-Object { $_ })
+        $listView.Items.Clear()
+        
+        $sortedItems = if ($columnIndex -eq 0) {
+            if ($script:analysisListSortOrder) {
+                $items | Sort-Object { $_.Tag.Title }
+            } else {
+                $items | Sort-Object { $_.Tag.Title } -Descending
+            }
+        } elseif ($columnIndex -eq 1) {
+            if ($script:analysisListSortOrder) {
+                $items | Sort-Object { $_.SubItems[1].Text }
+            } else {
+                $items | Sort-Object { $_.SubItems[1].Text } -Descending
+            }
+        } else {
+            if ($script:analysisListSortOrder) {
+                $items | Sort-Object { $_.SubItems[2].Text }
+            } else {
+                $items | Sort-Object { $_.SubItems[2].Text } -Descending
+            }
+        }
+        
+        $rowIndex = 0
+        foreach ($item in $sortedItems) {
+            if ($rowIndex % 2 -eq 0) {
+                if ($script:currentTheme -eq "Dark") {
+                    $item.BackColor = [System.Drawing.Color]::FromArgb(55, 60, 65)
+                } else {
+                    $item.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+                }
+            } else {
+                $item.BackColor = $script:inputBgColor
+            }
+            
+            [void]$listView.Items.Add($item)
+            $rowIndex++
+        }
+    })
 
     $rowIndex = 0
     foreach ($result in $script:analysisResults) {
+        # 解析結果の内容を取得
+        $content = $result.Content
+        
+        # デバッグ用: 最初の数行を表示
+        $firstLines = ($content -split "`r?`n")[0..4] -join "`n"
+        Write-Host "解析内容 (最初の5行):" -ForegroundColor Yellow
+        Write-Host $firstLines -ForegroundColor Cyan
+        
+        $resolution = Get-ResolutionFromContent $content
+        $fps = Get-FPSFromContent $content
+        
+        Write-Host "抽出した解像度: $resolution" -ForegroundColor Green
+        Write-Host "抽出したフレームレート: $fps" -ForegroundColor Green
+        
         $item = New-Object System.Windows.Forms.ListViewItem($result.Title)
+        $item.SubItems.Add($resolution) | Out-Null
+        $item.SubItems.Add($fps) | Out-Null
         $item.Tag = $result
         if ($rowIndex % 2 -eq 0) {
             if ($script:currentTheme -eq "Dark") {
