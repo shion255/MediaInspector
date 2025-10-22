@@ -1450,6 +1450,7 @@ $form.Controls.Add($outputBox)
 # 解析結果を保存するグローバル変数
 $script:analysisResults = @()
 $script:resultForms = @()
+$script:originalAnalysisResults = @()
 
 function Write-OutputBox($msg) {
     $outputBox.AppendText($msg + "`r`n")
@@ -2365,6 +2366,11 @@ function Show-AllResultsList {
         return
     }
 
+    # 絞り込み前の状態を保存 （初回のみ）
+    if ($script:originalAnalysisResults.Count -eq 0) {
+        $script:originalAnalysisResults = $script:analysisResults.Clone()
+    }
+
     if ($script:analysisListForm -and -not $script:analysisListForm.IsDisposed) {
         $listView = $script:analysisListListView
         $listView.Items.Clear()
@@ -3228,9 +3234,64 @@ function Show-FilterDialog {
         $yPos += 30
     }
     
+    $resetButton = New-Object System.Windows.Forms.Button
+    $resetButton.Text = "リセット"
+    $resetButton.Location = New-Object System.Drawing.Point(250, 390)
+    $resetButton.Size = New-Object System.Drawing.Size(100, 35)
+    $resetButton.BackColor = [System.Drawing.Color]::FromArgb(150, 100, 50)
+    $resetButton.ForeColor = $script:fgColor
+    $resetButton.Add_Click({
+        if (-not $script:analysisListForm -or $script:analysisListForm.IsDisposed) {
+            [System.Windows.Forms.MessageBox]::Show("解析結果一覧が開かれていません。", "情報")
+            return
+        }
+        
+        # 絞り込み前の状態に戻す（移動・削除されたファイルを除く）
+        $lv = $script:analysisListListView
+        $lv.Items.Clear()
+        
+        $validResults = @()
+        $rowIndex = 0
+        
+        foreach ($r in $script:originalAnalysisResults) {
+            # ファイルが存在するかチェック
+            $filePath = if ($r.ContainsKey('FullPath') -and $r.FullPath) { 
+                $r.FullPath 
+            } else { 
+                $r.Title 
+            }
+            
+            # URLまたは存在するファイルのみ表示
+            $isUrl = $filePath -match '^https?://'
+            if ($isUrl -or (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                $item = New-Object System.Windows.Forms.ListViewItem($r.Title)
+                $item.Tag = $r
+                if ($rowIndex % 2 -eq 0) {
+                    if ($script:currentTheme -eq "Dark") {
+                        $item.BackColor = [System.Drawing.Color]::FromArgb(55, 60, 65)
+                    } else {
+                        $item.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+                    }
+                }
+                [void]$lv.Items.Add($item)
+                $validResults += $r
+                $rowIndex++
+            }
+        }
+        
+        # 有効な結果で originalAnalysisResults を更新
+        $script:originalAnalysisResults = $validResults
+        
+        $script:analysisListForm.Text = "解析結果一覧 - $($lv.Items.Count)件"
+        
+        [System.Windows.Forms.MessageBox]::Show("リセットしました。移動・削除されたファイルは除外されています。", "完了")
+        $filterForm.Close()
+    })
+    $filterForm.Controls.Add($resetButton)
+    
     $searchButton = New-Object System.Windows.Forms.Button
     $searchButton.Text = "検索"
-    $searchButton.Location = New-Object System.Drawing.Point(300, 390)
+    $searchButton.Location = New-Object System.Drawing.Point(360, 390)
     $searchButton.Size = New-Object System.Drawing.Size(100, 35)
     $searchButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
     $searchButton.ForeColor = $script:fgColor
@@ -3356,7 +3417,7 @@ function Show-FilterDialog {
     
     $cancelButton = New-Object System.Windows.Forms.Button
     $cancelButton.Text = "キャンセル"
-    $cancelButton.Location = New-Object System.Drawing.Point(450, 390)
+    $cancelButton.Location = New-Object System.Drawing.Point(470, 390)
     $cancelButton.Size = New-Object System.Drawing.Size(100, 35)
     $cancelButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
     $cancelButton.ForeColor = $script:fgColor
@@ -4597,6 +4658,9 @@ function Analyze-Video {
 
     Set-Progress(100)
     Write-OutputBox("=== 全ファイル解析完了 ===")
+    
+    # 絞り込み前の状態をリセット
+    $script:originalAnalysisResults = @()
     
     # 成功した入力のみ履歴に保存
     $successfulInputs = @()
