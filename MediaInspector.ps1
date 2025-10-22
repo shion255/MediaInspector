@@ -89,6 +89,8 @@ function Load-Config {
         ShowReplayGain = $true
         SearchMatchCase = $false
         SearchWrapAround = $false
+        ShowAudioChannels = $true
+        ShowAudioBitDepth = $true
     }
     
     if (Test-Path $configFile) {
@@ -160,6 +162,8 @@ ShowAudioBitrate=$($script:showAudioBitrate)
 ShowAudioLanguage=$($script:showAudioLanguage)
 ShowAudioStreamSize=$($script:showAudioStreamSize)
 ShowAudioWritingLibrary=$($script:showAudioWritingLibrary)
+ShowAudioChannels=$($script:showAudioChannels)
+ShowAudioBitDepth=$($script:showAudioBitDepth)
 ShowCoverImage=$($script:showCoverImage)
 ShowTextStream=$($script:showTextStream)
 ShowComment=$($script:showComment)
@@ -236,11 +240,14 @@ $script:showVideoStreamSize = [bool]::Parse($config.ShowVideoStreamSize)
 $script:showVideoWritingLibrary = [bool]::Parse($config.ShowVideoWritingLibrary)
 $script:showVideoEncodingSettings = [bool]::Parse($config.ShowVideoEncodingSettings)
 $script:showAudioCodec = [bool]::Parse($config.ShowAudioCodec)
-$script:showSampleRate = [bool]::Parse($config.ShowSampleRate)
 $script:showAudioBitrate = [bool]::Parse($config.ShowAudioBitrate)
+$script:showSampleRate = [bool]::Parse($config.ShowSampleRate)
+$script:showAudioChannels = [bool]::Parse($config.ShowAudioChannels)
+$script:showAudioBitDepth = [bool]::Parse($config.ShowAudioBitDepth)
+$script:showReplayGain = [bool]::Parse($config.ShowReplayGain)
 $script:showAudioLanguage = [bool]::Parse($config.ShowAudioLanguage)
-$script:showAudioStreamSize = [bool]::Parse($config.ShowAudioStreamSize)
 $script:showAudioWritingLibrary = [bool]::Parse($config.ShowAudioWritingLibrary)
+$script:showAudioStreamSize = [bool]::Parse($config.ShowAudioStreamSize)
 $script:showCoverImage = [bool]::Parse($config.ShowCoverImage)
 $script:showTextStream = [bool]::Parse($config.ShowTextStream)
 $script:showComment = [bool]::Parse($config.ShowComment)
@@ -922,7 +929,7 @@ $optionsItem.Add_Click({
     
     $ytDlpItems = @(
         @{Key="ShowYtDlpTitle"; Label="タイトル"; X=5; Y=5},
-        @{Key="ShowYtDlpUploader"; Label="アップローダー"; X=230; Y=5},
+        @{Key="ShowYtDlpUploader"; Label="作成者"; X=230; Y=5},
         @{Key="ShowYtDlpUploadDate"; Label="投稿日時"; X=5; Y=30},
         @{Key="ShowYtDlpDuration"; Label="再生時間"; X=230; Y=30},
         @{Key="ShowYtDlpChapters"; Label="チャプター"; X=5; Y=55},
@@ -945,13 +952,13 @@ $optionsItem.Add_Click({
     $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
     $analysisItemsGroupBox.Text = "MediaInfo 解析表示"
     $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 280)
-    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 470)
+    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 490)
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
     
     $analysisItemsPanel = New-Object System.Windows.Forms.Panel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 435)
+    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 455)
     $analysisItemsPanel.AutoScroll = $false
     $analysisItemsPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::None
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
@@ -983,13 +990,15 @@ $optionsItem.Add_Click({
         @{Key="ShowAudioCodec"; Label="音声: コーデック"; X=5; Y=285},
         @{Key="ShowAudioBitrate"; Label="音声: ビットレート"; X=230; Y=285},
         @{Key="ShowSampleRate"; Label="音声: サンプリングレート"; X=5; Y=310},
-        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=310},
-        @{Key="ShowAudioLanguage"; Label="音声: 言語"; X=5; Y=335},
-        @{Key="ShowAudioWritingLibrary"; Label="音声: ライブラリ"; X=230; Y=335},
-        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=5; Y=360},
-        @{Key="Separator3"; Label=""; Y=385},
-        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=400},
-        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=400}
+        @{Key="ShowAudioChannels"; Label="音声: チャンネル数"; X=230; Y=310},
+        @{Key="ShowAudioBitDepth"; Label="音声: ビット深度"; X=5; Y=335},
+        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=335},
+        @{Key="ShowAudioLanguage"; Label="音声: 言語"; X=5; Y=360},
+        @{Key="ShowAudioWritingLibrary"; Label="音声: ライブラリ"; X=230; Y=360},
+        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=5; Y=385},
+        @{Key="Separator3"; Label=""; Y=410},
+        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=425},
+        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=425}
     )
     
     foreach ($item in $analysisItems) {
@@ -4158,7 +4167,9 @@ function Parse-MediaInfoJSON($jsonContent) {
                     $audioInfo["channels"] = if ($track.Channels) { $track.Channels + " channels" } else { "" }
                     $audioInfo["channel_layout"] = if ($track.ChannelLayout) { $track.ChannelLayout } else { "" }
                     $audioInfo["samplerate"] = if ($track.SamplingRate) { ([math]::Round([double]$track.SamplingRate / 1000, 1)).ToString() + " kHz" } else { "不明" }
-                    $audioInfo["bitrate"] = if ($track.BitRate) {
+                    $audioInfo["channels"] = if ($track.Channels) { $track.Channels + " ch" } else { "" }
+                    $audioInfo["bit_depth"] = if ($track.BitDepth) { $track.BitDepth + " bit" } else { "" }
+                    $audioInfo["bitrate"] = if ($track.BitRate) { 
                         $bitrateValue = [double]$track.BitRate
                         if ($bitrateValue -ge 10000000) {  # 10,000 kb/s = 10 Mb/s 以上
                             $bitrateValueMb = [math]::Round($bitrateValue / 1000000, 2)
@@ -4437,6 +4448,16 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         if ($script:showSampleRate) {
             $samplerate = if ($a["samplerate"]) { $a["samplerate"] } else { "不明" }
             $parts += $samplerate
+        }
+        
+        # チャンネル
+        if ($script:showAudioChannels -and $a["channels"]) {
+            $parts += $a["channels"]
+        }
+        
+        # ビット深度
+        if ($script:showAudioBitDepth -and $a["bit_depth"]) {
+            $parts += $a["bit_depth"]
         }
         
         # リプレイゲイン
