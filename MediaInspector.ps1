@@ -4241,6 +4241,21 @@ function Parse-MediaInfoJSON($jsonContent) {
                     
                     $textStreams += $textInfo
                 }
+                "Image" {
+                    $imageInfo = @{}
+                    $imageInfo["type"] = if ($track.Type) { $track.Type } else { "" }
+                    $imageInfo["format"] = if ($track.Format) { $track.Format } else { "不明" }
+                    $imageInfo["muxing_mode"] = if ($track.MuxingMode) { $track.MuxingMode } else { "" }
+                    $imageInfo["width"] = if ($track.Width) { $track.Width } else { "" }
+                    $imageInfo["height"] = if ($track.Height) { $track.Height } else { "" }
+                    $imageInfo["color_space"] = if ($track.ColorSpace) { $track.ColorSpace } else { "" }
+                    $imageInfo["chroma_subsampling"] = if ($track.ChromaSubsampling) { $track.ChromaSubsampling } else { "" }
+                    $imageInfo["bit_depth"] = if ($track.BitDepth) { $track.BitDepth + " bit" } else { "" }
+                    $imageInfo["compression_mode"] = if ($track.Compression_Mode) { $track.Compression_Mode } else { "" }
+                    $imageInfo["stream_size"] = if ($track.StreamSize) { Format-FileSize $track.StreamSize } else { "" }
+                    
+                    $imageStreams += $imageInfo
+                }
                 "Menu" {
                     $hasChapters = $true
                     if ($track.extra) {
@@ -4541,14 +4556,23 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
     if ($script:showCoverImage) {
         $imageIndex = 1
         foreach ($img in $parsedInfo.ImageStreams) {
-            $format = if ($img["format"]) { $img["format"] } else { "不明" }
-            $res = if ($img["width"] -and $img["height"]) { "$($img['width'])x$($img['height'])" } else { "不明" }
-            $streamSize = if ($img["stream_size"]) { $img["stream_size"] } else { "" }
+            $imageLine = ""
+            $parts = @()
             
-            $imageLine = "カバー画像${imageIndex}: $format $res"
-            if ($streamSize) { $imageLine += " | $streamSize" }
-            Write-OutputBox($imageLine)
-            $resultContentRef.Value += $imageLine + "`r`n"
+            if ($img["type"]) { $parts += $img["type"] }
+            if ($img["format"]) { $parts += $img["format"] }
+            if ($img["width"] -and $img["height"]) { $parts += "$($img['width'])x$($img['height'])" }
+            if ($img["color_space"]) { $parts += $img["color_space"] }
+            if ($img["chroma_subsampling"]) { $parts += $img["chroma_subsampling"] }
+            if ($img["bit_depth"]) { $parts += $img["bit_depth"] }
+            if ($img["stream_size"]) { $parts += $img["stream_size"] }
+            
+            if ($parts.Count -gt 0) {
+                $imageLine = "カバー画像${imageIndex}: " + ($parts -join " | ")
+                Write-OutputBox($imageLine)
+                $resultContentRef.Value += $imageLine + "`r`n"
+            }
+            
             $imageIndex++
         }
     }
