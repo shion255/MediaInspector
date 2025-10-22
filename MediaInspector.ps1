@@ -288,25 +288,24 @@ function Format-Bitrate($bitrate) {
     return $bitrate
 }
 
-function Convert-DurationToJapanese($duration) {
-    if (-not $duration) { return "不明" }
+function Convert-DurationToJapanese($seconds) {
+    if (-not $seconds) { return "不明" }
     
-    if ($duration -match '(\d+)\s*h\s*(\d+)\s*min') {
-        $hours = $matches[1]
-        $minutes = $matches[2]
-        return "${hours}時間${minutes}分"
+    try {
+        $totalSeconds = [double]$seconds
+        $hours = [math]::Floor($totalSeconds / 3600)
+        $minutes = [math]::Floor(($totalSeconds % 3600) / 60)
+        $remainingSeconds = [math]::Round($totalSeconds % 60, 0)
+        
+        $parts = @()
+        if ($hours -gt 0) { $parts += "${hours}時間" }
+        if ($minutes -gt 0) { $parts += "${minutes}分" }
+        if ($remainingSeconds -gt 0 -or ($hours -eq 0 -and $minutes -eq 0)) { $parts += "${remainingSeconds}秒" }
+        
+        return $parts -join ""
+    } catch {
+        return $seconds
     }
-    elseif ($duration -match '(\d+)\s*min\s*(\d+)\s*s') {
-        $minutes = $matches[1]
-        $seconds = $matches[2]
-        return "${minutes}分${seconds}秒"
-    }
-    elseif ($duration -match '(\d+)\s*h') {
-        $hours = $matches[1]
-        return "${hours}時間"
-    }
-    
-    return $duration
 }
 
 function Get-HDRInfo($colorPrimaries, $transferCharacteristics, $matrixCoefficients) {
@@ -3954,13 +3953,27 @@ function Invoke-MediaInfo($filePath) {
     try {
         # 一時ファイルに出力してUTF-8で読み込む
         $tempFile = [System.IO.Path]::GetTempFileName()
-        $null = & $script:mediaInfoPath --Output=Text --LogFile="$tempFile" "$filePath" 2>$null
+        
+        # JSON形式のみを使用
+        $null = & $script:mediaInfoPath --Output=JSON --LogFile="$tempFile" "$filePath" 2>$null
         
         if (Test-Path $tempFile) {
-            $output = Get-Content -Path $tempFile -Encoding UTF8
-            Remove-Item -Path $tempFile -Force
-            return $output
+            $output = Get-Content -Path $tempFile -Encoding UTF8 -Raw
+            if ($output -and $output.Trim()) {
+                try {
+                    $jsonData = $output | ConvertFrom-Json
+                    if ($jsonData -and $jsonData.media -and $jsonData.media.track) {
+                        Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
+                        return @("JSON_FORMAT", $output)
+                    }
+                } catch {
+                    # JSONパース失敗
+                    Write-OutputBox("⚠ JSON解析エラー: $($_.Exception.Message)")
+                }
+            }
         }
+        
+        Remove-Item -Path $tempFile -Force -ErrorAction SilentlyContinue
         return $null
     } catch {
         Write-OutputBox("⚠ MediaInfo エラー: $($_.Exception.Message)")
@@ -3970,149 +3983,280 @@ function Invoke-MediaInfo($filePath) {
 
 # MediaInfo出力をパースする関数
 function Parse-MediaInfo($mediaInfoOutput) {
-    $currentSection = ""
-    $duration = ""
-    $overallBitrate = ""
-    $fileSize = ""
-    $artist = ""
-    $comment = ""
-    $replayGain = ""
-    $replayGainPeak = ""
-    $videoStreams = @()
-    $audioStreams = @()
-    $textStreams = @()
-    $imageStreams = @()
-    $hasChapters = $false
-    $chapterCount = 0
-    
-    $videoInfo = @{}
-    $audioInfo = @{}
-    $textInfo = @{}
-    $imageInfo = @{}
-    
-    foreach ($line in $mediaInfoOutput) {
-        $line = $line.Trim()
-        if (-not $line) { continue }
+    # JSON形式のみを使用
+    if ($mediaInfoOutput -and $mediaInfoOutput[0] -eq "JSON_FORMAT") {
+        return Parse-MediaInfoJSON($mediaInfoOutput[1])
+    }
+    return $null
+}
+
+function Parse-MediaInfoJSON($jsonContent) {
+    try {
+        $jsonData = $jsonContent | ConvertFrom-Json
+        $tracks = $jsonData.media.track
         
-        # セクションヘッダー検出
-        if ($line -match '^(General|Video|Audio|Text|Menu|Image)') {
-            if ($currentSection -eq "Video" -and $videoInfo.Count -gt 0) {
-                $videoStreams += $videoInfo.Clone()
-                $videoInfo.Clear()
-            }
-            if ($currentSection -eq "Audio" -and $audioInfo.Count -gt 0) {
-                $audioStreams += $audioInfo.Clone()
-                $audioInfo.Clear()
-            }
-            if ($currentSection -eq "Text" -and $textInfo.Count -gt 0) {
-                $textStreams += $textInfo.Clone()
-                $textInfo.Clear()
-            }
-            if ($currentSection -eq "Image" -and $imageInfo.Count -gt 0) {
-                $imageStreams += $imageInfo.Clone()
-                $imageInfo.Clear()
-            }
-            
-            $currentSection = $matches[1]
-            
-            if ($currentSection -eq "Menu") {
-                $hasChapters = $true
-            }
-            continue
-        }
+        $duration = ""
+        $overallBitrate = ""
+        $fileSize = ""
+        $artist = ""
+        $comment = ""
+        $videoStreams = @()
+        $audioStreams = @()
+        $textStreams = @()
+        $imageStreams = @()
+        $hasChapters = $false
+        $chapterCount = 0
         
-        if ($currentSection -eq "Menu") {
-            if ($line -match '^\d+\s*:\s*\d') {
-                $chapterCount++
-            }
-        }
-        
-        if ($line -match '^(.+?)\s*:\s*(.+)$') {
-            $key = $matches[1].Trim()
-            $value = $matches[2].Trim()
-            
-            switch ($currentSection) {
+        foreach ($track in $tracks) {
+            switch ($track.'@type') {
                 "General" {
-                    if ($key -eq "Duration") { $duration = $value }
-                    if ($key -eq "Overall bit rate") { $overallBitrate = $value }
-                    if ($key -eq "File size") { $fileSize = $value }
-                    if ($key -match "^(Performer|Artist)$") { $artist = $value }
-                    if ($key -eq "Comment") { $comment = $value }
+                    $duration = if ($track.Duration) { Convert-DurationToJapanese([double]$track.Duration) } else { "不明" }
+                    $overallBitrate = if ($track.OverallBitRate) { 
+                        $bitrateValue = [double]$track.OverallBitRate
+                        if ($bitrateValue -ge 10000000) {  # 10,000 kb/s = 10 Mb/s 以上
+                            $bitrateValueMb = [math]::Round($bitrateValue / 1000000, 2)
+                            $bitrateMode = if ($track.OverallBitRate_Mode) { "[$($track.OverallBitRate_Mode)]" } else { "" }
+                            "$bitrateMode $bitrateValueMb Mb/s"
+                        } else {
+                            $bitrateValueKb = [math]::Round($bitrateValue / 1000, 0)
+                            $bitrateValueFormatted = "{0:N0}" -f $bitrateValueKb
+                            $bitrateMode = if ($track.OverallBitRate_Mode) { "[$($track.OverallBitRate_Mode)]" } else { "" }
+                            "$bitrateMode $bitrateValueFormatted kb/s"
+                        }
+                    } else { "ビットレート不明" }
+                    $fileSize = if ($track.FileSize) { Format-FileSize $track.FileSize } else { "不明" }
+                    # ARTISTをextraセクションからも検索
+                    $artist = if ($track.ARTIST) { $track.ARTIST } else { 
+                        if ($track.extra -and $track.extra.ARTIST) { $track.extra.ARTIST } else {
+                            if ($track.Performer) { $track.Performer } else { 
+                                if ($track.Artist) { $track.Artist } else { "" } 
+                            }
+                        }
+                    }
+                    $comment = if ($track.Comment) { $track.Comment } else { "" }
                 }
                 "Video" {
-                    if ($key -eq "Format") { $videoInfo["format"] = $value }
-                    if ($key -eq "Width") { $videoInfo["width"] = $value -replace '\D', '' }
-                    if ($key -eq "Height") { $videoInfo["height"] = $value -replace '\D', '' }
-                    if ($key -eq "Frame rate") { $videoInfo["fps"] = $value }
-                    if ($key -eq "Frame rate mode") { $videoInfo["fps_mode"] = $value }
-                    if ($key -eq "Bit rate") { $videoInfo["bitrate"] = $value }
-                    if ($key -eq "Maximum bit rate") { $videoInfo["max_bitrate"] = $value }
-                    if ($key -eq "Bit rate mode") { $videoInfo["bitrate_mode"] = $value }
-                    if ($key -eq "Stream size") { $videoInfo["stream_size"] = $value }
-                    if ($key -eq "Color space") { $videoInfo["color_space"] = $value }
-                    if ($key -eq "Chroma subsampling") { $videoInfo["chroma_subsampling"] = $value }
-                    if ($key -eq "Bit depth") { $videoInfo["bit_depth"] = $value }
-                    if ($key -eq "Scan type") { $videoInfo["scan_type"] = $value }
-                    if ($key -eq "Color range") { $videoInfo["color_range"] = $value }
-                    if ($key -eq "Color primaries") { $videoInfo["color_primaries"] = $value }
-                    if ($key -eq "Transfer characteristics") { $videoInfo["transfer_characteristics"] = $value }
-                    if ($key -eq "Matrix coefficients") { $videoInfo["matrix_coefficients"] = $value }
-                    if ($key -eq "Language") { $videoInfo["language"] = $value }
-                    if ($key -eq "Writing library") { $videoInfo["writing_library"] = $value }
-                    if ($key -eq "Encoding settings") { $videoInfo["encoding_settings"] = $value }
+                    $videoInfo = @{}
+                    $videoInfo["format"] = if ($track.Format) { 
+                        if ($track.Format_Profile -and $track.Format_Level) {
+                            "$($track.Format) ($($track.Format_Profile)@L$($track.Format_Level))"
+                        } elseif ($track.Format_Profile) {
+                            "$($track.Format) ($($track.Format_Profile))"
+                        } else {
+                            $track.Format
+                        }
+                    } else { "不明" }
+                    $videoInfo["format_profile"] = if ($track.Format_Profile) { $track.Format_Profile } else { "" }
+                    $videoInfo["format_level"] = if ($track.Format_Level) { $track.Format_Level } else { "" }
+                    $videoInfo["format_tier"] = if ($track.Format_Tier) { $track.Format_Tier } else { "" }
+                    $videoInfo["hdr_format"] = if ($track.HDR_Format) { $track.HDR_Format } else { "" }
+                    $videoInfo["codec_id"] = if ($track.CodecID) { $track.CodecID } else { "" }
+                    $videoInfo["width"] = if ($track.Width) { $track.Width } else { "" }
+                    $videoInfo["height"] = if ($track.Height) { $track.Height } else { "" }
+                    $videoInfo["display_aspect_ratio"] = if ($track.DisplayAspectRatio) { $track.DisplayAspectRatio } else { "" }
+                    $videoInfo["fps"] = if ($track.FrameRate) { $track.FrameRate + " fps" } else { "不明" }
+                    $videoInfo["fps_mode"] = if ($track.FrameRate_Mode) { "[$($track.FrameRate_Mode)]" } else { "" }
+                    $videoInfo["bitrate"] = if ($track.BitRate) { 
+                        $bitrateValue = [double]$track.BitRate
+                        if ($bitrateValue -ge 10000000) {  # 10,000 kb/s = 10 Mb/s 以上
+                            $bitrateValueMb = [math]::Round($bitrateValue / 1000000, 2)
+                            $bitrateValueFormatted = "{0:N2}" -f $bitrateValueMb
+                            if ($track.BitRate_Maximum) {
+                                $maxBitrateValue = [double]$track.BitRate_Maximum
+                                if ($maxBitrateValue -ge 10000000) {
+                                    $maxBitrateValueMb = [math]::Round($maxBitrateValue / 1000000, 2)
+                                    $maxBitrateValueFormatted = "{0:N2}" -f $maxBitrateValueMb
+                                    "$bitrateValueFormatted Mb/s (Max: $maxBitrateValueFormatted Mb/s)"
+                                } else {
+                                    $maxBitrateValueKb = [math]::Round($maxBitrateValue / 1000, 0)
+                                    $maxBitrateValueFormatted = "{0:N0}" -f $maxBitrateValueKb
+                                    "$bitrateValueFormatted Mb/s (Max: $maxBitrateValueFormatted kb/s)"
+                                }
+                            } else {
+                                "$bitrateValueFormatted Mb/s"
+                            }
+                        } else {
+                            $bitrateValueKb = [math]::Round($bitrateValue / 1000, 0)
+                            $bitrateValueFormatted = "{0:N0}" -f $bitrateValueKb
+                            if ($track.BitRate_Maximum) {
+                                $maxBitrateValue = [double]$track.BitRate_Maximum
+                                if ($maxBitrateValue -ge 10000000) {
+                                    $maxBitrateValueMb = [math]::Round($maxBitrateValue / 1000000, 2)
+                                    $maxBitrateValueFormatted = "{0:N2}" -f $maxBitrateValueMb
+                                    "$bitrateValueFormatted kb/s (Max: $maxBitrateValueFormatted Mb/s)"
+                                } else {
+                                    $maxBitrateValueKb = [math]::Round($maxBitrateValue / 1000, 0)
+                                    $maxBitrateValueFormatted = "{0:N0}" -f $maxBitrateValueKb
+                                    "$bitrateValueFormatted kb/s (Max: $maxBitrateValueFormatted kb/s)"
+                                }
+                            } else {
+                                "$bitrateValueFormatted kb/s"
+                            }
+                        }
+                    } else { "ビットレート不明" }
+                    $videoInfo["bitrate_mode"] = if ($track.BitRate_Mode) { $track.BitRate_Mode } else { "" }
+                    $videoInfo["color_space"] = if ($track.ColorSpace) { $track.ColorSpace } else { "" }
+                    $videoInfo["chroma_subsampling"] = if ($track.ChromaSubsampling) { $track.ChromaSubsampling } else { "" }
+                    $videoInfo["bit_depth"] = if ($track.BitDepth) { $track.BitDepth + " bit" } else { "" }
+                    $videoInfo["scan_type"] = if ($track.ScanType) { 
+                        switch ($track.ScanType) {
+                            "Progressive" { "プログレッシブ" }
+                            "Interlaced" { "インターレース" }
+                            default { $track.ScanType }
+                        }
+                    } else { "" }
+                    $videoInfo["color_range"] = if ($track.colour_range) { $track.colour_range } else { "" }
+                    $videoInfo["color_primaries"] = if ($track.colour_primaries) { $track.colour_primaries } else { "" }
+                    $videoInfo["transfer_characteristics"] = if ($track.transfer_characteristics) { $track.transfer_characteristics } else { "" }
+                    $videoInfo["matrix_coefficients"] = if ($track.matrix_coefficients) { $track.matrix_coefficients } else { "" }
+                    $videoInfo["stream_size"] = if ($track.StreamSize) { Format-FileSize $track.StreamSize } else { "" }
+                    $videoInfo["writing_library"] = if ($track.Encoded_Library) { $track.Encoded_Library } else { "" }
+                    $videoInfo["default"] = if ($track.Default) { $track.Default } else { "" }
+                    $videoInfo["forced"] = if ($track.Forced) { $track.Forced } else { "" }
+                    $videoInfo["language"] = if ($track.Language) { 
+                        switch ($track.Language) {
+                            "ja" { "日本語" }
+                            "jpn" { "日本語" }
+                            "eng" { "英語" }
+                            "en" { "英語" }
+                            "fr" { "フランス語" }
+                            "de" { "ドイツ語" }
+                            "es" { "スペイン語" }
+                            "it" { "イタリア語" }
+                            "pt" { "ポルトガル語" }
+                            "ru" { "ロシア語" }
+                            "zh" { "中国語" }
+                            "ko" { "韓国語" }
+                            "ar" { "アラビア語" }
+                            "hi" { "ヒンディー語" }
+                            default { $track.Language }
+                        }
+                    } else { "" }
+                    
+                    $videoStreams += $videoInfo
                 }
                 "Audio" {
-                    if ($key -eq "Format") { $audioInfo["format"] = $value }
-                    if ($key -match "Channel") { $audioInfo["channels"] = $value }
-                    if ($key -eq "Sampling rate") { $audioInfo["samplerate"] = $value }
-                    if ($key -eq "Bit rate") { $audioInfo["bitrate"] = $value }
-                    if ($key -eq "Stream size") { $audioInfo["stream_size"] = $value }
-                    if ($key -eq "Replay gain") { 
-                        if (-not $replayGain) { $replayGain = $value }
-                    }
-                    if ($key -eq "Replay gain peak") { 
-                        if (-not $replayGainPeak) { $replayGainPeak = $value }
-                    }
-                    if ($key -eq "Language") { $audioInfo["language"] = $value }
-                    if ($key -eq "Writing library") { $audioInfo["writing_library"] = $value }
-                    if ($key -eq "Encoding settings") { $audioInfo["encoding_settings"] = $value }
+                    $audioInfo = @{}
+                    $audioInfo["format"] = if ($track.Format) { 
+                        if ($track.Format_Version -and $track.Format_Profile) {
+                            "$($track.Format) (Version $($track.Format_Version) $($track.Format_Profile))"
+                        } elseif ($track.Format_Version) {
+                            "$($track.Format) (Version $($track.Format_Version))"
+                        } elseif ($track.Format_Profile) {
+                            "$($track.Format) ($($track.Format_Profile))"
+                        } elseif ($track.Format_AdditionalFeatures) {
+                            "$($track.Format) $($track.Format_AdditionalFeatures)"
+                        } else {
+                            $track.Format
+                        }
+                    } else { "不明" }
+                    $audioInfo["format_info"] = if ($track.Format_AdditionalFeatures) { $track.Format + " " + $track.Format_AdditionalFeatures } else { $track.Format }
+                    $audioInfo["format_version"] = if ($track.Format_Version) { "Version " + $track.Format_Version } else { "" }
+                    $audioInfo["format_profile"] = if ($track.Format_Profile) { $track.Format_Profile } else { "" }
+                    $audioInfo["muxing_mode"] = if ($track.MuxingMode) { $track.MuxingMode } else { "" }
+                    $audioInfo["codec_id"] = if ($track.CodecID) { $track.CodecID } else { "" }
+                    $audioInfo["channels"] = if ($track.Channels) { $track.Channels + " channels" } else { "" }
+                    $audioInfo["channel_layout"] = if ($track.ChannelLayout) { $track.ChannelLayout } else { "" }
+                    $audioInfo["samplerate"] = if ($track.SamplingRate) { ([math]::Round([double]$track.SamplingRate / 1000, 1)).ToString() + " kHz" } else { "不明" }
+                    $audioInfo["bitrate"] = if ($track.BitRate) {
+                        $bitrateValue = [double]$track.BitRate
+                        if ($bitrateValue -ge 10000000) {  # 10,000 kb/s = 10 Mb/s 以上
+                            $bitrateValueMb = [math]::Round($bitrateValue / 1000000, 2)
+                            $bitrateValueFormatted = "{0:N2}" -f $bitrateValueMb
+                            "$bitrateValueFormatted Mb/s"
+                        } else {
+                            $bitrateValueKb = [math]::Round($bitrateValue / 1000, 0)
+                            $bitrateValueFormatted = "{0:N0}" -f $bitrateValueKb
+                            "$bitrateValueFormatted kb/s"
+                        }
+                    } else { "ビットレート不明" }
+                    $audioInfo["bitrate_mode"] = if ($track.BitRate_Mode) { $track.BitRate_Mode } else { "" }
+                    $audioInfo["stream_size"] = if ($track.StreamSize) { Format-FileSize $track.StreamSize } else { "" }
+                    $audioInfo["replay_gain"] = if ($track.ReplayGain_Gain) { $track.ReplayGain_Gain + " dB" } else { "" }
+                    $audioInfo["replay_gain_peak"] = if ($track.ReplayGain_Peak) { $track.ReplayGain_Peak } else { "" }
+                    $audioInfo["writing_library"] = if ($track.Encoded_Library) { $track.Encoded_Library } else { "" }
+                    $audioInfo["default"] = if ($track.Default) { $track.Default } else { "" }
+                    $audioInfo["forced"] = if ($track.Forced) { $track.Forced } else { "" }
+                    $audioInfo["language"] = if ($track.Language) {
+                        switch ($track.Language) {
+                            "ja" { "日本語" }
+                            "jpn" { "日本語" }
+                            "eng" { "英語" }
+                            "en" { "英語" }
+                            "fr" { "フランス語" }
+                            "de" { "ドイツ語" }
+                            "es" { "スペイン語" }
+                            "it" { "イタリア語" }
+                            "pt" { "ポルトガル語" }
+                            "ru" { "ロシア語" }
+                            "zh" { "中国語" }
+                            "ko" { "韓国語" }
+                            "ar" { "アラビア語" }
+                            "hi" { "ヒンディー語" }
+                            default { $track.Language }
+                        }
+                    } else { "" }
+                    
+                    $audioStreams += $audioInfo
                 }
-                "Text" {
-                    if ($key -eq "Language") { $textInfo["language"] = $value }
-                    if ($key -eq "Default") { $textInfo["default"] = $value }
-                    if ($key -eq "Forced") { $textInfo["forced"] = $value }
-                    if ($key -eq "Stream size") { $textInfo["stream_size"] = $value }
+            "Text" {
+                    $textInfo = @{}
+                    $textInfo["format"] = if ($track.Format) { $track.Format } else { "不明" }
+                    $textInfo["codec_id"] = if ($track.CodecID) { $track.CodecID } else { "" }
+                    $textInfo["duration"] = if ($track.Duration) { Convert-DurationToJapanese([double]$track.Duration) } else { "" }
+                    $textInfo["stream_size"] = if ($track.StreamSize) { Format-FileSize $track.StreamSize } else { "" }
+                    $textInfo["title"] = if ($track.Title) { $track.Title } else { "" }
+                    $textInfo["language"] = if ($track.Language) {
+                        switch ($track.Language) {
+                            "ja" { "日本語" }
+                            "jpn" { "日本語" }
+                            "eng" { "英語" }
+                            "en" { "英語" }
+                            "fr" { "フランス語" }
+                            "de" { "ドイツ語" }
+                            "es" { "スペイン語" }
+                            "it" { "イタリア語" }
+                            "pt" { "ポルトガル語" }
+                            "ru" { "ロシア語" }
+                            "zh" { "中国語" }
+                            "ko" { "韓国語" }
+                            "ar" { "アラビア語" }
+                            "hi" { "ヒンディー語" }
+                            default { $track.Language }
+                        }
+                    } else { "" }
+                    $textInfo["default"] = if ($track.Default) { $track.Default } else { "" }
+                    $textInfo["forced"] = if ($track.Forced) { $track.Forced } else { "" }
+                    
+                    $textStreams += $textInfo
                 }
-                "Image" {
-                    if ($key -eq "Format") { $imageInfo["format"] = $value }
-                    if ($key -eq "Width") { $imageInfo["width"] = $value -replace '\D', '' }
-                    if ($key -eq "Height") { $imageInfo["height"] = $value -replace '\D', '' }
-                    if ($key -eq "Stream size") { $imageInfo["stream_size"] = $value }
+                "Menu" {
+                    $hasChapters = $true
+                    if ($track.extra) {
+                        $chapterCount = ($track.extra.PSObject.Properties | Where-Object { $_.Name -match '^_\d+' }).Count
+                    }
                 }
             }
         }
-    }
-    
-    # 最後のストリームを追加
-    if ($videoInfo.Count -gt 0) { $videoStreams += $videoInfo }
-    if ($audioInfo.Count -gt 0) { $audioStreams += $audioInfo }
-    if ($textInfo.Count -gt 0) { $textStreams += $textInfo }
-    if ($imageInfo.Count -gt 0) { $imageStreams += $imageInfo }
-    
-    return @{
-        Duration = $duration
-        OverallBitrate = $overallBitrate
-        FileSize = $fileSize
-        Artist = $artist
-        Comment = $comment
-        ReplayGain = $replayGain
-        ReplayGainPeak = $replayGainPeak
-        VideoStreams = $videoStreams
-        AudioStreams = $audioStreams
-        TextStreams = $textStreams
-        ImageStreams = $imageStreams
-        HasChapters = $hasChapters
-        ChapterCount = $chapterCount
+        
+        return @{
+            Duration = $duration
+            OverallBitrate = $overallBitrate
+            FileSize = $fileSize
+            Artist = $artist
+            Comment = $comment
+            ReplayGain = ""
+            ReplayGainPeak = ""
+            VideoStreams = $videoStreams
+            AudioStreams = $audioStreams
+            TextStreams = $textStreams
+            ImageStreams = $imageStreams
+            HasChapters = $hasChapters
+            ChapterCount = $chapterCount
+        }
+    } catch {
+        Write-OutputBox("⚠ JSON解析エラー: $($_.Exception.Message)")
+        return $null
     }
 }
 
@@ -4174,14 +4318,8 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         
         # ビットレート
         if ($script:showVideoBitrate) {
-            $bitrateMode = if ($v["bitrate_mode"]) { "[$($v['bitrate_mode'])]" } else { "" }
-            $bitrate = if ($v["bitrate"]) { (Format-Bitrate $v["bitrate"]) } else { "不明" }
-            if ($v["max_bitrate"]) {
-                $maxBitrate = Format-Bitrate $v["max_bitrate"]
-                $parts += "$bitrateMode $bitrate (Max: $maxBitrate)"
-            } else {
-                $parts += "$bitrateMode $bitrate"
-            }
+            $bitrate = if ($v["bitrate"]) { $v["bitrate"] } else { "不明" }
+            $parts += $bitrate
         }
         
         # 解像度
@@ -4192,9 +4330,9 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         
         # FPS
         if ($script:showFPS) {
-            $fpsMode = if ($v["fps_mode"]) { "[$($v['fps_mode'])]" } else { "" }
+            $fpsMode = if ($v["fps_mode"]) { $v["fps_mode"] } else { "" }
             $fps = if ($v["fps"]) { 
-                ($v["fps"] -replace '\s*FPS', '') + " fps"
+                $v["fps"]
             } else { 
                 "不明" 
             }
@@ -4213,8 +4351,7 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         
         # ビット深度
         if ($script:showBitDepth -and $v["bit_depth"]) {
-            $bitDepthValue = $v["bit_depth"] -replace '\s*bits', ''
-            $parts += "${bitDepthValue}bit"
+            $parts += $v["bit_depth"]
         }
         
         # スキャンタイプ
@@ -4236,12 +4373,18 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         # HDR/SDR情報
         if ($script:showHDR) {
             $hdrInfo = Get-HDRInfo $v["color_primaries"] $v["transfer_characteristics"] $v["matrix_coefficients"]
+            if ($v["hdr_format"]) {
+                $hdrInfo = "$hdrInfo ($($v['hdr_format']))"
+            }
             $parts += $hdrInfo
         }
         
         # 言語
         if ($script:showVideoLanguage -and $v["language"]) {
-            $parts += $v["language"]
+            $languageInfo = $v["language"]
+            if ($v["default"] -eq "Yes") { $languageInfo += " (Default)" }
+            if ($v["forced"] -eq "Yes") { $languageInfo += " (Forced)" }
+            $parts += $languageInfo
         }
         
         # ライブラリ
@@ -4298,17 +4441,20 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         
         # リプレイゲイン
         if ($script:showReplayGain) {
-            if ($parsedInfo.ReplayGain) {
-                $parts += "RG: $($parsedInfo.ReplayGain)"
+            if ($a["replay_gain"]) {
+                $parts += "RG: $($a['replay_gain'])"
             }
-            if ($parsedInfo.ReplayGainPeak) {
-                $parts += "Peak: $($parsedInfo.ReplayGainPeak)"
+            if ($a["replay_gain_peak"]) {
+                $parts += "Peak: $($a['replay_gain_peak'])"
             }
         }
         
         # 言語
         if ($script:showAudioLanguage -and $a["language"]) {
-            $parts += $a["language"]
+            $languageInfo = $a["language"]
+            if ($a["default"] -eq "Yes") { $languageInfo += " (Default)" }
+            if ($a["forced"] -eq "Yes") { $languageInfo += " (Forced)" }
+            $parts += $languageInfo
         }
         
         # ライブラリ
@@ -4334,13 +4480,38 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
     if ($script:showTextStream) {
         $textIndex = 1
         foreach ($txt in $parsedInfo.TextStreams) {
-            $language = if ($txt["language"]) { $txt["language"] } else { "不明" }
-            $default = if ($txt["default"] -eq "Yes") { "はい" } else { "いいえ" }
-            $forced = if ($txt["forced"] -eq "Yes") { "はい" } else { "いいえ" }
+            $textLine = ""
+            $parts = @()
             
-            $textLine = "テキスト${textIndex}: $language | Default - $default | Forced - $forced"
-            Write-OutputBox($textLine)
-            $resultContentRef.Value += $textLine + "`r`n"
+            # フォーマット
+            if ($txt["format"]) {
+                $parts += $txt["format"]
+            }
+            
+            # 言語
+            if ($txt["language"]) {
+                $languageInfo = $txt["language"]
+                if ($txt["default"] -eq "Yes") { $languageInfo += " (Default)" }
+                if ($txt["forced"] -eq "Yes") { $languageInfo += " (Forced)" }
+                $parts += $languageInfo
+            }
+            
+            # タイトル
+            if ($txt["title"]) {
+                $parts += "`"$($txt['title'])`""
+            }
+            
+            # ストリームサイズ
+            if ($txt["stream_size"]) {
+                $parts += $txt["stream_size"]
+            }
+            
+            if ($parts.Count -gt 0) {
+                $textLine = "テキスト${textIndex}: " + ($parts -join " | ")
+                Write-OutputBox($textLine)
+                $resultContentRef.Value += $textLine + "`r`n"
+            }
+            
             $textIndex++
         }
     }
