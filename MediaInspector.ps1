@@ -2973,6 +2973,7 @@ function Show-AllResultsList {
         param($sender, $e)
         if ($listView.SelectedItems.Count -gt 0) {
             $filePaths = New-Object System.Collections.Specialized.StringCollection
+            $dragItems = @()
             foreach ($item in $listView.SelectedItems) {
                 $selectedResult = $item.Tag
                 $filePath = if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
@@ -2983,13 +2984,40 @@ function Show-AllResultsList {
                 
                 if (Test-Path -LiteralPath $filePath -PathType Leaf) {
                     $filePaths.Add($filePath) | Out-Null
+                    $dragItems += @{
+                        Item = $item
+                        FilePath = $filePath
+                    }
                 }
             }
             if ($filePaths.Count -gt 0) {
                 # DataObjectを作成してファイルリストを設定
                 $dataObject = New-Object System.Windows.Forms.DataObject
                 $dataObject.SetFileDropList($filePaths)
-                $listView.DoDragDrop($dataObject, [System.Windows.Forms.DragDropEffects]::Copy -bor [System.Windows.Forms.DragDropEffects]::Move)
+                $result = $listView.DoDragDrop($dataObject, [System.Windows.Forms.DragDropEffects]::Copy -bor [System.Windows.Forms.DragDropEffects]::Move)
+                
+                # 移動操作が完了した場合、ファイルが存在しなくなったアイテムをリストから削除
+                if ($result -eq [System.Windows.Forms.DragDropEffects]::Move) {
+                    Start-Sleep -Milliseconds 500  # ファイル操作の完了を待つ
+                    $itemsToRemove = @()
+                    foreach ($dragItem in $dragItems) {
+                        if (-not (Test-Path -LiteralPath $dragItem.FilePath -PathType Leaf)) {
+                            $itemsToRemove += $dragItem.Item
+                        }
+                    }
+                    
+                    foreach ($item in $itemsToRemove) {
+                        $listView.Items.Remove($item)
+                    }
+                    
+                    # リストのタイトルを更新
+                    if ($listView.Items.Count -eq 0) {
+                        [System.Windows.Forms.MessageBox]::Show("すべてのファイルが移動されました。", "情報")
+                        $resultForm.Close()
+                    } else {
+                        $resultForm.Text = "解析結果一覧 - $($listView.Items.Count)件"
+                    }
+                }
             }
         }
     })
