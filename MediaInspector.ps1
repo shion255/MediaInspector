@@ -3432,7 +3432,7 @@ function Show-FilterDialog {
         $validResults = @()
         $rowIndex = 0
         
-        foreach ($r in $script:originalAnalysisResults) {
+        foreach ($r in $script:analysisResults) {
             # ファイルが存在するかチェック
             $filePath = if ($r.ContainsKey('FullPath') -and $r.FullPath) { 
                 $r.FullPath 
@@ -3443,7 +3443,12 @@ function Show-FilterDialog {
             # URLまたは存在するファイルのみ表示
             $isUrl = $filePath -match '^https?://'
             if ($isUrl -or (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                $resolution = Get-ResolutionFromContent $r.Content
+                $fps = Get-FPSFromContent $r.Content
+                
                 $item = New-Object System.Windows.Forms.ListViewItem($r.Title)
+                $item.SubItems.Add($resolution) | Out-Null
+                $item.SubItems.Add($fps) | Out-Null
                 $item.Tag = $r
                 if ($rowIndex % 2 -eq 0) {
                     if ($script:currentTheme -eq "Dark") {
@@ -3457,9 +3462,6 @@ function Show-FilterDialog {
                 $rowIndex++
             }
         }
-        
-        # 有効な結果で originalAnalysisResults を更新
-        $script:originalAnalysisResults = $validResults
         
         $script:analysisListForm.Text = "解析結果一覧 - $($lv.Items.Count)件"
         
