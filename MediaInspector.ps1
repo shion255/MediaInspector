@@ -2965,6 +2965,49 @@ function Show-AllResultsList {
     })
     $contextMenu.Items.Add($copyPathMenuItem)
 
+    # ドラッグ＆ドロップ機能を追加
+    $listView.AllowDrop = $true
+    
+    # ドラッグ開始処理
+    $listView.Add_ItemDrag({
+        param($sender, $e)
+        if ($listView.SelectedItems.Count -gt 0) {
+            $filePaths = New-Object System.Collections.Specialized.StringCollection
+            foreach ($item in $listView.SelectedItems) {
+                $selectedResult = $item.Tag
+                $filePath = if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
+                    $selectedResult.FullPath
+                } else {
+                    $selectedResult.Title
+                }
+                
+                if (Test-Path -LiteralPath $filePath -PathType Leaf) {
+                    $filePaths.Add($filePath) | Out-Null
+                }
+            }
+            if ($filePaths.Count -gt 0) {
+                # DataObjectを作成してファイルリストを設定
+                $dataObject = New-Object System.Windows.Forms.DataObject
+                $dataObject.SetFileDropList($filePaths)
+                $listView.DoDragDrop($dataObject, [System.Windows.Forms.DragDropEffects]::Copy -bor [System.Windows.Forms.DragDropEffects]::Move)
+            }
+        }
+    })
+
+    # ドラッグ中のカーソル設定 - デフォルトカーソルを使用してファイルドラッグの標準表示にする
+    $listView.Add_GiveFeedback({
+        param($sender, $e)
+        $e.UseDefaultCursors = $true
+    })
+
+    # ドラッグ中の視覚的フィードバック
+    $listView.Add_QueryContinueDrag({
+        param($sender, $e)
+        if ($e.Action -eq [System.Windows.Forms.DragAction]::Continue) {
+            $e.Action = [System.Windows.Forms.DragAction]::Continue
+        }
+    })
+
     $listView.ContextMenuStrip = $contextMenu
 
     $resultForm.Controls.Add($listView)
