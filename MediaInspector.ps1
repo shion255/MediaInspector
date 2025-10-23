@@ -4734,16 +4734,16 @@ function Analyze-Video {
         Write-OutputBox("解析開始... 少々お待ちください。")
         $resultContent += "解析開始... 少々お待ちください。`r`n"
         Set-Progress([math]::Round($count / $total * 100 / 2))
-
+        
         $isUrl = $input -match '^https?://'
         $target = $null
-
+        
         try {
             if ($isUrl) {
-                # yt-dlpの出力を適切に処理（余計な出力を抑制）
+                # yt-dlpの出力を適切に処理
                 $infoJson = & $script:ytDlpPath --dump-json --no-warnings "$input" 2>$null | ConvertFrom-Json
                 if ($infoJson) {
-                    $resultTitle = $infoJson.title
+                    $resultTitle = $input
                     
                     if ($script:showYtDlpTitle) {
                         Write-OutputBox("タイトル: $($infoJson.title)")
@@ -5108,7 +5108,7 @@ function Analyze-Video {
     
     if ($successfulInputs.Count -gt 0) {
         $currentHistory = Load-History
-        $newHistory = @($successfulInputs) + $currentHistory
+        $newHistory = @($inputs) + $currentHistory
         Save-History $newHistory
     }
     
