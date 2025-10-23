@@ -91,6 +91,9 @@ function Load-Config {
         SearchWrapAround = $false
         ShowAudioChannels = $true
         ShowAudioBitDepth = $true
+        ColumnWidth1 = 400
+        ColumnWidth2 = 150
+        ColumnWidth3 = 150
     }
     
     if (Test-Path $configFile) {
@@ -170,6 +173,9 @@ ShowComment=$($script:showComment)
 ShowReplayGain=$($script:showReplayGain)
 SearchMatchCase=$($script:searchMatchCase)
 SearchWrapAround=$($script:searchWrapAround)
+ColumnWidth1=$($script:columnWidth1)
+ColumnWidth2=$($script:columnWidth2)
+ColumnWidth3=$($script:columnWidth3)
 "@
     Set-Content -Path $configFile -Value $content -Encoding UTF8
 }
@@ -254,6 +260,9 @@ $script:showComment = [bool]::Parse($config.ShowComment)
 $script:showReplayGain = [bool]::Parse($config.ShowReplayGain)
 $script:searchMatchCase = [bool]::Parse($config.SearchMatchCase)
 $script:searchWrapAround = [bool]::Parse($config.SearchWrapAround)
+$script:columnWidth1 = if ($config.ColumnWidth1) { [int]$config.ColumnWidth1 } else { 400 }
+$script:columnWidth2 = if ($config.ColumnWidth2) { [int]$config.ColumnWidth2 } else { 150 }
+$script:columnWidth3 = if ($config.ColumnWidth3) { [int]$config.ColumnWidth3 } else { 150 }
 
 # --- ツールパスチェック ---
 foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
@@ -2425,9 +2434,9 @@ function Show-AllResultsList {
     $listView.ForeColor = $script:fgColor
     $listView.Anchor = "Top,Bottom,Left,Right"
 
-    [void]$listView.Columns.Add("ファイル名", 400)
-    [void]$listView.Columns.Add("解像度", 150)
-    [void]$listView.Columns.Add("フレームレート", 150)
+    [void]$listView.Columns.Add("ファイル名", $script:columnWidth1)
+    [void]$listView.Columns.Add("解像度", $script:columnWidth2)
+    [void]$listView.Columns.Add("フレームレート", $script:columnWidth3)
 
     # 解像度とフレームレートを抽出する関数
     function Get-ResolutionFromContent($content) {
@@ -3187,7 +3196,22 @@ function Show-AllResultsList {
     })
     $resultForm.Controls.Add($closeButton)
 
+    $listView.Add_ColumnWidthChanged({
+        param($sender, $e)
+        if ($listView.Columns.Count -ge 3) {
+            $script:columnWidth1 = $listView.Columns[0].Width
+            $script:columnWidth2 = $listView.Columns[1].Width
+            $script:columnWidth3 = $listView.Columns[2].Width
+        }
+    })
+
     $resultForm.Add_FormClosed({
+        if ($listView.Columns.Count -ge 3) {
+            $script:columnWidth1 = $listView.Columns[0].Width
+            $script:columnWidth2 = $listView.Columns[1].Width
+            $script:columnWidth3 = $listView.Columns[2].Width
+            Save-Config
+        }
         $script:analysisListForm = $null
         $script:analysisListListView = $null
     })
