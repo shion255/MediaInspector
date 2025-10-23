@@ -4884,8 +4884,8 @@ function Analyze-Video {
                                 Write-OutputBox("【映像フォーマット】")
                                 $resultContent += "【映像フォーマット】`r`n"
                                 $videoFormats | ForEach-Object {
-                                    $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
-                                    if ($_.Resolution) { $line += " | 解像度: $($_.Resolution)" }
+                                    $line = "  ID: $($_.ID) | $($_.Ext)"
+                                    if ($_.Resolution) { $line += " | $($_.Resolution)" }
                                     if ($_.VCodec -and $_.VCodec -ne "none") { $line += " | Vコーデック: $($_.VCodec)" }
                                     if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | Aコーデック: $($_.ACodec)" }
                                     if ($_.TBR) { $line += " | $($_.TBR)bps" }
@@ -4902,7 +4902,7 @@ function Analyze-Video {
                                 Write-OutputBox("【音声フォーマット】")
                                 $resultContent += "【音声フォーマット】`r`n"
                                 $audioFormats | ForEach-Object {
-                                    $line = "  ID: $($_.ID) | 拡張子: $($_.Ext)"
+                                    $line = "  ID: $($_.ID) | $($_.Ext)"
                                     if ($_.ACodec -and $_.ACodec -ne "none") { $line += " | コーデック: $($_.ACodec)" }
                                     if ($_.TBR) { $line += " | $($_.TBR)bps" }
                                     if ($_.FileSize) { $line += " | $($_.FileSize)" }
