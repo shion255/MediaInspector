@@ -2800,25 +2800,13 @@ function Show-AllResultsList {
         
         foreach ($item in $listView.SelectedItems) {
             $selectedResult = $item.Tag
-            if ($selectedResult.ContainsKey('FullPath') -and $selectedResult.FullPath) {
-                $filePath = $selectedResult.FullPath
-            } else {
-                $filePath = $selectedResult.Title
-            }
+            $content = $selectedResult.Content
             
-            if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
-                $mediaInfoOutput = Invoke-MediaInfo "$filePath"
-                
-                if ($mediaInfoOutput) {
-                    foreach ($line in $mediaInfoOutput) {
-                        if ($line -match '^\s*Comment\s*:\s*(.+)$') {
-                            $comment = $matches[1].Trim()
-                            if ($comment -match 'https?://[^\s]+') {
-                                $urls += $matches[0]
-                            }
-                            break
-                        }
-                    }
+            # 解析結果の内容からコメントを検索
+            if ($content -match 'コメント:\s*(.+)') {
+                $comment = $matches[1].Trim()
+                if ($comment -match 'https?://[^\s]+') {
+                    $urls += $matches[0]
                 }
             }
         }
