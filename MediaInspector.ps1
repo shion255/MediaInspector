@@ -1461,7 +1461,7 @@ $outputBox.Size = New-Object System.Drawing.Size(810, 360)
 $outputBox.BackColor = $script:outputBgColor
 $outputBox.ForeColor = $script:fgColor
 $outputBox.Anchor = "Top,Bottom,Left,Right"
-$outputBox.HideSelection = $false
+$outputBox.HideSelection = $true
 $outputBox.DetectUrls = $true
 $outputBox.Add_LinkClicked({
     param($sender, $e)
@@ -1737,9 +1737,7 @@ function Show-SearchDialog {
         $script:searchText = $searchTextBox.Text
         $script:searchMatchCase = $matchCaseCheckBox.Checked
         $script:searchWrapAround = $wrapAroundCheckBox.Checked
-        $outputBox.Focus()
         Find-Previous
-        $searchTextBox.Focus()
     })
     $searchForm.Controls.Add($findPreviousButton)
     
@@ -1753,9 +1751,7 @@ function Show-SearchDialog {
         $script:searchText = $searchTextBox.Text
         $script:searchMatchCase = $matchCaseCheckBox.Checked
         $script:searchWrapAround = $wrapAroundCheckBox.Checked
-        $outputBox.Focus()
         Find-Next
-        $searchTextBox.Focus()
     })
     $searchForm.Controls.Add($findNextButton)
     
@@ -1817,6 +1813,7 @@ function Find-Next {
     }
     
     if ($foundIndex -ge 0) {
+        $outputBox.Focus()
         Highlight-SearchResult $foundIndex
         $script:lastSearchIndex = $foundIndex
     } else {
@@ -1853,6 +1850,7 @@ function Find-Previous {
     }
     
     if ($foundIndex -ge 0) {
+        $outputBox.Focus()
         Highlight-SearchResult $foundIndex
         $script:lastSearchIndex = $foundIndex
     } else {
@@ -1866,7 +1864,8 @@ function Highlight-SearchResult($foundIndex) {
     $text = $outputBox.Text
     $searchLength = $script:searchText.Length
 
-    $nativeDef = @'
+    if (-not ([System.Management.Automation.PSTypeName]'Win32.NativeMethods').Type) {
+        $nativeDef = @'
 using System;
 using System.Runtime.InteropServices;
 namespace Win32 {
@@ -1876,15 +1875,46 @@ namespace Win32 {
   }
 }
 '@
-    Add-Type -TypeDefinition $nativeDef -ErrorAction SilentlyContinue
+        Add-Type -TypeDefinition $nativeDef -ErrorAction SilentlyContinue
+    }
 
-    $outputBox.SelectionStart = $foundIndex
-    $outputBox.SelectionLength = $searchLength
-    $outputBox.SelectionBackColor = if ($script:currentTheme -eq "Dark") {
+    $comparisonType = if ($script:searchMatchCase) {
+        [System.StringComparison]::Ordinal
+    } else {
+        [System.StringComparison]::OrdinalIgnoreCase
+    }
+
+    $currentColor = if ($script:currentTheme -eq "Dark") {
         [System.Drawing.Color]::FromArgb(255, 165, 0)
     } else {
         [System.Drawing.Color]::FromArgb(255, 255, 0)
     }
+    
+    $otherColor = if ($script:currentTheme -eq "Dark") {
+        [System.Drawing.Color]::FromArgb(100, 100, 50)
+    } else {
+        [System.Drawing.Color]::FromArgb(200, 200, 100)
+    }
+
+    $startIndex = 0
+    while ($startIndex -lt $text.Length) {
+        $matchIndex = $text.IndexOf($script:searchText, $startIndex, $comparisonType)
+        if ($matchIndex -ge 0) {
+            $outputBox.SelectionStart = $matchIndex
+            $outputBox.SelectionLength = $searchLength
+            if ($matchIndex -eq $foundIndex) {
+                $outputBox.SelectionBackColor = $currentColor
+            } else {
+                $outputBox.SelectionBackColor = $otherColor
+            }
+            $startIndex = $matchIndex + 1
+        } else {
+            break
+        }
+    }
+
+    $outputBox.SelectionStart = $foundIndex
+    $outputBox.SelectionLength = $searchLength
 
     $lineIndex = $outputBox.GetLineFromCharIndex($foundIndex)
 
