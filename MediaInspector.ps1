@@ -404,7 +404,7 @@ if ($script:currentTheme -eq "Light") {
 }
 
 # バージョン情報
-$script:version = "1.0"
+$script:version = "1.10"
 
 # --- GUI ---
 $form = New-Object System.Windows.Forms.Form
