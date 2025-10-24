@@ -632,6 +632,29 @@ $clearHighlightItem.Add_Click({
 })
 $searchMenu.DropDownItems.Add($clearHighlightItem)
 
+$searchMenu.DropDownItems.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+$clearSearchHistoryItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$clearSearchHistoryItem.Text = "検索履歴を消去(&H)..."
+$clearSearchHistoryItem.Add_Click({
+    if (Test-Path $script:searchHistoryFile) {
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "検索履歴を全て削除しますか？",
+            "確認",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+        
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Remove-Item -Path $script:searchHistoryFile -Force
+            [System.Windows.Forms.MessageBox]::Show("検索履歴を削除しました。", "完了")
+        }
+    } else {
+        [System.Windows.Forms.MessageBox]::Show("検索履歴がありません。", "情報")
+    }
+})
+$searchMenu.DropDownItems.Add($clearSearchHistoryItem)
+
 $menuStrip.Items.Add($searchMenu)
 
 # 「ツール」メニュー
@@ -1621,6 +1644,23 @@ $script:searchText = ""
 $script:searchMatchCase = $false
 $script:searchWrapAround = $false
 $script:lastSearchIndex = -1
+$script:searchHistoryFile = Join-Path $configDir "search_history.txt"
+$script:maxSearchHistoryCount = 10
+
+# --- 検索履歴を読み込む関数 ---
+function Load-SearchHistory {
+    if (Test-Path $script:searchHistoryFile) {
+        $history = Get-Content -Path $script:searchHistoryFile -Encoding UTF8 | Where-Object { $_.Trim() }
+        return $history
+    }
+    return @()
+}
+
+# --- 検索履歴を保存する関数 ---
+function Save-SearchHistory($items) {
+    $uniqueItems = $items | Select-Object -Unique | Select-Object -First $script:maxSearchHistoryCount
+    Set-Content -Path $script:searchHistoryFile -Value $uniqueItems -Encoding UTF8
+}
 
 # --- 検索ダイアログを表示する関数 ---
 function Show-SearchDialog {
@@ -1649,16 +1689,25 @@ function Show-SearchDialog {
     $hitCountLabel.AutoSize = $false
     $searchForm.Controls.Add($hitCountLabel)
     
-    $searchTextBox = New-Object System.Windows.Forms.TextBox
-    $searchTextBox.Location = New-Object System.Drawing.Point(10, 40)
-    $searchTextBox.Size = New-Object System.Drawing.Size(280, 25)
-    $searchTextBox.Text = $script:searchText
-    $searchTextBox.BackColor = $script:inputBgColor
-    $searchTextBox.ForeColor = $script:fgColor
-    $searchForm.Controls.Add($searchTextBox)
+    $searchComboBox = New-Object System.Windows.Forms.ComboBox
+    $searchComboBox.Location = New-Object System.Drawing.Point(10, 40)
+    $searchComboBox.Size = New-Object System.Drawing.Size(280, 25)
+    $searchComboBox.Text = $script:searchText
+    $searchComboBox.BackColor = $script:inputBgColor
+    $searchComboBox.ForeColor = $script:fgColor
+    $searchComboBox.DropDownStyle = "DropDown"
+    $searchComboBox.AutoCompleteMode = "SuggestAppend"
+    $searchComboBox.AutoCompleteSource = "ListItems"
+    
+    $searchHistory = Load-SearchHistory
+    foreach ($item in $searchHistory) {
+        [void]$searchComboBox.Items.Add($item)
+    }
+    
+    $searchForm.Controls.Add($searchComboBox)
     
     function Update-HitCount {
-        $searchString = $searchTextBox.Text
+        $searchString = $searchComboBox.Text
         
         if ([string]::IsNullOrEmpty($searchString)) {
             $hitCountLabel.Text = ""
@@ -1697,7 +1746,7 @@ function Show-SearchDialog {
         }
     }
     
-    $searchTextBox.Add_TextChanged({
+    $searchComboBox.Add_TextChanged({
         Update-HitCount
     })
     
@@ -1734,9 +1783,16 @@ function Show-SearchDialog {
     $findPreviousButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
     $findPreviousButton.ForeColor = $script:fgColor
     $findPreviousButton.Add_Click({
-        $script:searchText = $searchTextBox.Text
+        $script:searchText = $searchComboBox.Text
         $script:searchMatchCase = $matchCaseCheckBox.Checked
         $script:searchWrapAround = $wrapAroundCheckBox.Checked
+        
+        if ($script:searchText.Trim()) {
+            $currentHistory = Load-SearchHistory
+            $newHistory = @($script:searchText) + $currentHistory
+            Save-SearchHistory $newHistory
+        }
+        
         Find-Previous
     })
     $searchForm.Controls.Add($findPreviousButton)
@@ -1748,9 +1804,16 @@ function Show-SearchDialog {
     $findNextButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
     $findNextButton.ForeColor = $script:fgColor
     $findNextButton.Add_Click({
-        $script:searchText = $searchTextBox.Text
+        $script:searchText = $searchComboBox.Text
         $script:searchMatchCase = $matchCaseCheckBox.Checked
         $script:searchWrapAround = $wrapAroundCheckBox.Checked
+        
+        if ($script:searchText.Trim()) {
+            $currentHistory = Load-SearchHistory
+            $newHistory = @($script:searchText) + $currentHistory
+            Save-SearchHistory $newHistory
+        }
+        
         Find-Next
     })
     $searchForm.Controls.Add($findNextButton)
