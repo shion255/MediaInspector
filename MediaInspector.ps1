@@ -2677,6 +2677,27 @@ function Show-AllResultsList {
     $contextMenu.BackColor = $script:menuBgColor
     $contextMenu.ForeColor = $script:fgColor
 
+    $showSelectedWindowsMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $showSelectedWindowsMenuItem.Text = "選択したファイルを別ウィンドウ表示(&S)"
+    $showSelectedWindowsMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -lt 2) {
+            return
+        }
+        
+        $selectedResults = @()
+        foreach ($item in $listView.SelectedItems) {
+            $selectedResults += $item.Tag
+        }
+        
+        $previousResults = $script:analysisResults
+        $script:analysisResults = $selectedResults
+        Show-ResultWindows
+        $script:analysisResults = $previousResults
+    })
+    $contextMenu.Items.Add($showSelectedWindowsMenuItem)
+
+    $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
     $openFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
     $openFileMenuItem.Text = "ファイルを開く(&O)"
     $openFileMenuItem.Add_Click({
@@ -3124,6 +3145,11 @@ function Show-AllResultsList {
         if ($e.Action -eq [System.Windows.Forms.DragAction]::Continue) {
             $e.Action = [System.Windows.Forms.DragAction]::Continue
         }
+    })
+
+    $contextMenu.Add_Opening({
+        param($sender, $e)
+        $showSelectedWindowsMenuItem.Visible = ($listView.SelectedItems.Count -ge 2)
     })
 
     $listView.ContextMenuStrip = $contextMenu
