@@ -191,7 +191,7 @@ function Load-History {
 
 # --- 履歴を保存する関数 ---
 function Save-History($items) {
-    # 最新N件まで保存
+    # 最新 N 件まで保存
     $uniqueItems = $items | Select-Object -Unique | Select-Object -First $script:maxHistoryCount
     Set-Content -Path $historyFile -Value $uniqueItems -Encoding UTF8
 }
@@ -2511,7 +2511,7 @@ function Show-AllResultsList {
     }
     
     $resultForm = New-Object System.Windows.Forms.Form
-    $resultForm.Text = "解析結果一覧 - $($script:analysisResults.Count)件"
+    $resultForm.Text = "解析結果一覧 - $($script:analysisResults.Count) 件"
     $resultForm.Size = New-Object System.Drawing.Size(800, 650)
     $resultForm.StartPosition = "CenterScreen"
     $resultForm.BackColor = $script:bgColor
@@ -2530,6 +2530,16 @@ function Show-AllResultsList {
     [void]$listView.Columns.Add("ファイル名", $script:columnWidth1)
     [void]$listView.Columns.Add("解像度", $script:columnWidth2)
     [void]$listView.Columns.Add("フレームレート", $script:columnWidth3)
+
+    # 選択アイテム数を追跡するイベントハンドラー （ListView 作成後に設定）
+    $listView.Add_SelectedIndexChanged({
+        $selectedCount = $listView.SelectedItems.Count
+        if ($selectedCount -gt 0) {
+            $resultForm.Text = "解析結果一覧 - $($listView.Items.Count) 件中 $selectedCount 件選択"
+        } else {
+            $resultForm.Text = "解析結果一覧 - $($listView.Items.Count) 件"
+        }
+    })
 
     # 解像度とフレームレートを抽出する関数
     function Get-ResolutionFromContent($content) {
@@ -2596,21 +2606,26 @@ function Show-AllResultsList {
         }
         
         $items = @($listView.Items | ForEach-Object { $_ })
+        $selectedItems = @($listView.SelectedItems | ForEach-Object { $_.Tag })
         $listView.Items.Clear()
+        $listView.SelectedItems.Clear()
         
         $sortedItems = if ($columnIndex -eq 0) {
+            # ファイル名でソート
             if ($script:analysisListSortOrder) {
                 $items | Sort-Object { $_.Tag.Title }
             } else {
                 $items | Sort-Object { $_.Tag.Title } -Descending
             }
         } elseif ($columnIndex -eq 1) {
+            # 解像度でソート
             if ($script:analysisListSortOrder) {
                 $items | Sort-Object { $_.SubItems[1].Text }
             } else {
                 $items | Sort-Object { $_.SubItems[1].Text } -Descending
             }
         } else {
+            # フレームレートでソート
             if ($script:analysisListSortOrder) {
                 $items | Sort-Object { $_.SubItems[2].Text }
             } else {
@@ -2619,6 +2634,7 @@ function Show-AllResultsList {
         }
         
         $rowIndex = 0
+        $newItems = @()
         foreach ($item in $sortedItems) {
             if ($rowIndex % 2 -eq 0) {
                 if ($script:currentTheme -eq "Dark") {
@@ -2631,7 +2647,22 @@ function Show-AllResultsList {
             }
             
             [void]$listView.Items.Add($item)
+            $newItems += $item
+            
+            # 選択状態を復元
+            if ($selectedItems -contains $item.Tag) {
+                $item.Selected = $true
+            }
+            
             $rowIndex++
+        }
+        
+        # 選択件数を更新
+        $selectedCount = $listView.SelectedItems.Count
+        if ($selectedCount -gt 0) {
+            $resultForm.Text = "解析結果一覧 - $($listView.Items.Count) 件中 $selectedCount 件選択"
+        } else {
+            $resultForm.Text = "解析結果一覧 - $($listView.Items.Count) 件"
         }
     })
 
@@ -2855,7 +2886,7 @@ function Show-AllResultsList {
                 [System.Windows.Forms.MessageBox]::Show("すべてのファイルが移動されました。", "情報")
                 $resultForm.Close()
             } else {
-                $resultForm.Text = "解析結果一覧 - $($listView.Items.Count)件"
+                $resultForm.Text = "解析結果一覧 - $($listView.Items.Count) 件"
             }
         }
     })
@@ -2872,7 +2903,7 @@ function Show-AllResultsList {
         }
         
         $result = [System.Windows.Forms.MessageBox]::Show(
-            "$($listView.SelectedItems.Count)件のファイルをごみ箱に移動しますか？",
+            "$($listView.SelectedItems.Count) 件のファイルをごみ箱に移動しますか？",
             "確認",
             [System.Windows.Forms.MessageBoxButtons]::YesNo,
             [System.Windows.Forms.MessageBoxIcon]::Question
@@ -2913,7 +2944,7 @@ function Show-AllResultsList {
                 [System.Windows.Forms.MessageBox]::Show("すべてのファイルが削除されました。", "情報")
                 $resultForm.Close()
             } else {
-                $resultForm.Text = "解析結果一覧 - $($listView.Items.Count)件"
+                $resultForm.Text = "解析結果一覧 - $($listView.Items.Count) 件"
             }
         }
     })
@@ -2922,7 +2953,7 @@ function Show-AllResultsList {
     $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
 
     $copyUrlMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
-    $copyUrlMenuItem.Text = "コメントタグのURLをコピー(&U)"
+    $copyUrlMenuItem.Text = "コメントタグの URL をコピー(&U)"
     $copyUrlMenuItem.Add_Click({
         if ($listView.SelectedItems.Count -eq 0) {
             [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
@@ -2945,7 +2976,7 @@ function Show-AllResultsList {
         }
         
         if ($urls.Count -eq 0) {
-            [System.Windows.Forms.MessageBox]::Show("コメントタグにURLが見つかりませんでした。", "情報")
+            [System.Windows.Forms.MessageBox]::Show("コメントタグに URL が見つかりませんでした。", "情報")
             return
         }
         
@@ -2965,7 +2996,7 @@ function Show-AllResultsList {
             $notifyForm.ForeColor = $script:fgColor
             
             $notifyLabel = New-Object System.Windows.Forms.Label
-            $notifyLabel.Text = "$($urls.Count)件のURLを`r`nクリップボードにコピーしました。"
+            $notifyLabel.Text = "$($urls.Count) 件の URL を`r`nクリップボードにコピーしました。"
             $notifyLabel.Location = New-Object System.Drawing.Point(20, 15)
             $notifyLabel.Size = New-Object System.Drawing.Size(260, 50)
             $notifyLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
@@ -3043,7 +3074,7 @@ function Show-AllResultsList {
             $notifyForm.ForeColor = $script:fgColor
             
             $notifyLabel = New-Object System.Windows.Forms.Label
-            $notifyLabel.Text = "$($paths.Count)件のパスを`r`nクリップボードにコピーしました。"
+            $notifyLabel.Text = "$($paths.Count) 件のパスを`r`nクリップボードにコピーしました。"
             $notifyLabel.Location = New-Object System.Drawing.Point(20, 15)
             $notifyLabel.Size = New-Object System.Drawing.Size(260, 50)
             $notifyLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
@@ -3136,7 +3167,7 @@ function Show-AllResultsList {
                         [System.Windows.Forms.MessageBox]::Show("すべてのファイルが移動されました。", "情報")
                         $resultForm.Close()
                     } else {
-                        $resultForm.Text = "解析結果一覧 - $($listView.Items.Count)件"
+                        $resultForm.Text = "解析結果一覧 - $($listView.Items.Count) 件"
                     }
                 }
             }
@@ -3609,7 +3640,7 @@ function Show-FilterDialog {
                 $r.Title 
             }
             
-            # URLまたは存在するファイルのみ表示
+            # URL または存在するファイルのみ表示
             $isUrl = $filePath -match '^https?://'
             if ($isUrl -or (Test-Path -LiteralPath $filePath -PathType Leaf)) {
                 $resolution = Get-ResolutionFromContent $r.Content
@@ -3632,7 +3663,9 @@ function Show-FilterDialog {
             }
         }
         
-        $script:analysisListForm.Text = "解析結果一覧 - $($lv.Items.Count)件"
+        $script:analysisListForm.Text = "解析結果一覧 - $($lv.Items.Count) 件"
+        # 選択状態をクリアして選択件数表示をリセット
+        $lv.SelectedItems.Clear()
         
         [System.Windows.Forms.MessageBox]::Show("リセットしました。移動・削除されたファイルは除外されています。", "完了")
         $filterForm.Close()
@@ -3753,7 +3786,9 @@ function Show-FilterDialog {
                 [void]$lv.Items.Add($item)
                 $rowIndex++
             }
-            $script:analysisListForm.Text = "解析結果一覧 - $($lv.Items.Count)件 (絞込)"
+            $script:analysisListForm.Text = "解析結果一覧 - $($lv.Items.Count) 件 (絞込)"
+            # 選択状態をクリアして選択件数表示をリセット
+            $lv.SelectedItems.Clear()
         } else {
             $previousResults = $script:analysisResults
             $script:analysisResults = $filteredResults
@@ -3905,12 +3940,12 @@ function Show-FileOrganizer {
     
     # 整理ダイアログを表示
     $organizerForm = New-Object System.Windows.Forms.Form
-    $organizerForm.Text = "動画ファイル整理 - $($fileInfoList.Count)件"
+    $organizerForm.Text = "動画ファイル整理 - $($fileInfoList.Count) 件"
     $organizerForm.Size = New-Object System.Drawing.Size(900, 600)
     $organizerForm.StartPosition = "CenterScreen"
     $organizerForm.BackColor = $script:bgColor
     $organizerForm.ForeColor = $script:fgColor
-    
+
     # ListView
     $listView = New-Object System.Windows.Forms.ListView
     $listView.Location = New-Object System.Drawing.Point(10, 10)
@@ -3922,10 +3957,20 @@ function Show-FileOrganizer {
     $listView.BackColor = $script:inputBgColor
     $listView.ForeColor = $script:fgColor
     $listView.Anchor = "Top,Bottom,Left,Right"
-    
+
     # 列を追加
     [void]$listView.Columns.Add("ファイル名", 500)
     [void]$listView.Columns.Add("作成者", 340)
+
+    # 選択アイテム数を追跡するイベントハンドラー （ListView 作成後に設定）
+    $listView.Add_SelectedIndexChanged({
+        $selectedCount = $listView.SelectedItems.Count
+        if ($selectedCount -gt 0) {
+            $organizerForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件中 $selectedCount 件選択"
+        } else {
+            $organizerForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件"
+        }
+    })
     
     # ソート用の変数
     $script:sortColumn = 1  # 作成者列を初期ソート対象に
@@ -3968,7 +4013,9 @@ function Show-FileOrganizer {
         
         # ソート実行
         $items = @($listView.Items | ForEach-Object { $_ })
+        $selectedItems = @($listView.SelectedItems | ForEach-Object { $_.Tag })
         $listView.Items.Clear()
+        $listView.SelectedItems.Clear()
         
         $sortedItems = if ($columnIndex -eq 0) {
             # ファイル名でソート
@@ -3987,6 +4034,7 @@ function Show-FileOrganizer {
         }
         
         $rowIndex = 0
+        $newItems = @()
         foreach ($item in $sortedItems) {
             # 偶数行に背景色を再設定
             if ($rowIndex % 2 -eq 0) {
@@ -4000,7 +4048,22 @@ function Show-FileOrganizer {
             }
             
             [void]$listView.Items.Add($item)
+            $newItems += $item
+            
+            # 選択状態を復元
+            if ($selectedItems -contains $item.Tag) {
+                $item.Selected = $true
+            }
+            
             $rowIndex++
+        }
+        
+        # 選択件数を更新
+        $selectedCount = $listView.SelectedItems.Count
+        if ($selectedCount -gt 0) {
+            $organizerForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件中 $selectedCount 件選択"
+        } else {
+            $organizerForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件"
         }
     })
     
@@ -4052,7 +4115,7 @@ function Show-FileOrganizer {
         }
         
         $result = [System.Windows.Forms.MessageBox]::Show(
-            "$($selectedFiles.Count)件のファイルを作成者別フォルダに移動しますか？", 
+            "$($selectedFiles.Count) 件のファイルを作成者別フォルダに移動しますか？",
             "確認", 
             [System.Windows.Forms.MessageBoxButtons]::YesNo
         )
@@ -4077,7 +4140,7 @@ function Show-FileOrganizer {
         }
         
         $result = [System.Windows.Forms.MessageBox]::Show(
-            "$($allFiles.Count)件のファイルを作成者別フォルダに移動しますか？", 
+            "$($allFiles.Count) 件のファイルを作成者別フォルダに移動しますか？",
             "確認", 
             [System.Windows.Forms.MessageBoxButtons]::YesNo
         )
@@ -4172,7 +4235,9 @@ function Move-FilesToChannelFolders($files, $basePath, $listView, $parentForm) {
         $parentForm.Close()
     } else {
         # タイトルを更新
-        $parentForm.Text = "動画ファイル整理 - $($listView.Items.Count)件"
+        $parentForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件"
+        # 選択状態をクリアして選択件数表示をリセット
+        $listView.SelectedItems.Clear()
     }
 }
 
@@ -4803,7 +4868,7 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
 function Analyze-Video {
     $inputsRaw = $textBox.Text.Trim()
     if (-not $inputsRaw) {
-        [System.Windows.Forms.MessageBox]::Show("URLまたはファイルパスを入力してください。")
+        [System.Windows.Forms.MessageBox]::Show("URL またはファイルパスを入力してください。")
         return
     }
 
@@ -5177,7 +5242,7 @@ function Analyze-Video {
             if ($target) {
                 Set-Progress(50 + [math]::Round($count / $total * 50))
                 
-                # URLの場合はMediaInfoをスキップ
+                # URL の場合は MediaInfo をスキップ
                 if (-not $isUrl) {
                     $mediaInfoOutput = Invoke-MediaInfo "$target"
                 } else {
