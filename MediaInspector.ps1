@@ -2673,6 +2673,16 @@ function Show-AllResultsList {
         }
     })
 
+    $listView.Add_KeyDown({
+        param($sender, $e)
+        if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
+            $e.Handled = $true
+            foreach ($item in $listView.Items) {
+                $item.Selected = $true
+            }
+        }
+    })
+
     $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
     $contextMenu.BackColor = $script:menuBgColor
     $contextMenu.ForeColor = $script:fgColor
