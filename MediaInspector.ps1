@@ -1644,6 +1644,7 @@ $script:searchText = ""
 $script:lastSearchIndex = -1
 $script:searchHistoryFile = Join-Path $configDir "search_history.txt"
 $script:maxSearchHistoryCount = 10
+$script:currentMatchPosition = 0
 
 # --- 検索履歴を読み込む関数 ---
 function Load-SearchHistory {
@@ -1673,7 +1674,7 @@ function Show-SearchDialog {
     $searchForm.ForeColor = $script:fgColor
     
     $searchLabel = New-Object System.Windows.Forms.Label
-    $searchLabel.Text = "検索する文字列:(&F)"
+    $searchLabel.Text = "検索ワード:(&F)"
     $searchLabel.Location = New-Object System.Drawing.Point(10, 15)
     $searchLabel.Size = New-Object System.Drawing.Size(110, 20)
     $searchLabel.ForeColor = $script:fgColor
@@ -1709,12 +1710,14 @@ function Show-SearchDialog {
         
         if ([string]::IsNullOrEmpty($searchString)) {
             $hitCountLabel.Text = ""
+            $script:currentMatchPosition = 0
             return
         }
         
         $text = $outputBox.Text
         if ([string]::IsNullOrEmpty($text)) {
-            $hitCountLabel.Text = "0個、ヒットしました。"
+            $hitCountLabel.Text = "0 件"
+            $script:currentMatchPosition = 0
             return
         }
         
@@ -1726,11 +1729,15 @@ function Show-SearchDialog {
         
         $count = 0
         $startIndex = 0
+        $currentPos = 0
         
         while ($startIndex -lt $text.Length) {
             $foundIndex = $text.IndexOf($searchString, $startIndex, $comparisonType)
             if ($foundIndex -ge 0) {
                 $count++
+                if ($script:lastSearchIndex -ge 0 -and $foundIndex -eq $script:lastSearchIndex) {
+                    $currentPos = $count
+                }
                 $startIndex = $foundIndex + 1
             } else {
                 break
@@ -1738,9 +1745,15 @@ function Show-SearchDialog {
         }
         
         if ($count -gt 0) {
-            $hitCountLabel.Text = "$($count)個、ヒットしました。"
+            if ($currentPos -gt 0) {
+                $hitCountLabel.Text = "$($count) 件中 $($currentPos) 件目"
+            } else {
+                $hitCountLabel.Text = "$($count) 件"
+            }
+            $script:currentMatchPosition = $currentPos
         } else {
-            $hitCountLabel.Text = "0個、ヒットしました。"
+            $hitCountLabel.Text = "0 件"
+            $script:currentMatchPosition = 0
         }
     }
     
@@ -1792,6 +1805,7 @@ function Show-SearchDialog {
         }
         
         Find-Previous
+        Update-HitCount
     })
     $searchForm.Controls.Add($findPreviousButton)
     
@@ -1813,6 +1827,7 @@ function Show-SearchDialog {
         }
         
         Find-Next
+        Update-HitCount
     })
     $searchForm.Controls.Add($findNextButton)
     
@@ -1849,7 +1864,7 @@ function Show-SearchDialog {
 # --- 次を検索する関数 ---
 function Find-Next {
     if ([string]::IsNullOrEmpty($script:searchText)) {
-        [System.Windows.Forms.MessageBox]::Show("検索する文字列を入力してください。", "情報")
+        [System.Windows.Forms.MessageBox]::Show("検索ワードを入力してください。", "情報")
         return
     }
 
@@ -1878,7 +1893,7 @@ function Find-Next {
         Highlight-SearchResult $foundIndex
         $script:lastSearchIndex = $foundIndex
     } else {
-        [System.Windows.Forms.MessageBox]::Show("検索文字列が見つかりませんでした。", "情報")
+        [System.Windows.Forms.MessageBox]::Show("検索ワードが見つかりませんでした。", "情報")
         $script:lastSearchIndex = -1
     }
 }
@@ -1886,7 +1901,7 @@ function Find-Next {
 # --- 前を検索する関数 ---
 function Find-Previous {
     if ([string]::IsNullOrEmpty($script:searchText)) {
-        [System.Windows.Forms.MessageBox]::Show("検索する文字列を入力してください。", "情報")
+        [System.Windows.Forms.MessageBox]::Show("検索ワードを入力してください。", "情報")
         return
     }
     
@@ -1915,7 +1930,7 @@ function Find-Previous {
         Highlight-SearchResult $foundIndex
         $script:lastSearchIndex = $foundIndex
     } else {
-        [System.Windows.Forms.MessageBox]::Show("検索文字列が見つかりませんでした。", "情報")
+        [System.Windows.Forms.MessageBox]::Show("検索ワードが見つかりませんでした。", "情報")
         $script:lastSearchIndex = -1
     }
 }
