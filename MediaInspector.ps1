@@ -3972,8 +3972,9 @@ function Show-FileOrganizer {
     $listView.Anchor = "Top,Bottom,Left,Right"
 
     # 列を追加
-    [void]$listView.Columns.Add("ファイル名", 500)
-    [void]$listView.Columns.Add("作成者", 340)
+    [void]$listView.Columns.Add("ファイル名", 400)
+    [void]$listView.Columns.Add("作成者", 250)
+    [void]$listView.Columns.Add("サイズ", 150)
 
     # 選択アイテム数を追跡するイベントハンドラー （ListView 作成後に設定）
     $listView.Add_SelectedIndexChanged({
@@ -3993,8 +3994,16 @@ function Show-FileOrganizer {
     $sortedList = $fileInfoList | Sort-Object Artist
     $rowIndex = 0
     foreach ($info in $sortedList) {
+        $fileSize = if (Test-Path -LiteralPath $info.FullPath) {
+            $size = (Get-Item -LiteralPath $info.FullPath).Length
+            Format-FileSize $size
+        } else {
+            "不明"
+        }
+        
         $item = New-Object System.Windows.Forms.ListViewItem($info.FileName)
         $item.SubItems.Add($info.Artist) | Out-Null
+        $item.SubItems.Add($fileSize) | Out-Null
         $item.Tag = $info
         
         # 偶数行に背景色を設定
@@ -4037,12 +4046,61 @@ function Show-FileOrganizer {
             } else {
                 $items | Sort-Object { $_.Tag.FileName } -Descending
             }
-        } else {
+        } elseif ($columnIndex -eq 1) {
             # 作成者でソート
             if ($script:sortOrder) {
                 $items | Sort-Object { $_.Tag.Artist }
             } else {
                 $items | Sort-Object { $_.Tag.Artist } -Descending
+            }
+        } else {
+            # ファイルサイズでソート
+            if ($script:sortOrder) {
+                $items | Sort-Object {
+                    $sizeText = $_.SubItems[2].Text
+                    if ($sizeText -eq "不明") { return [double]::MaxValue }
+                    
+                    $value = 0.0
+                    $unit = ""
+                    if ($sizeText -match '([\d.]+)\s*([KMGT]?i?B)') {
+                        $value = [double]$matches[1]
+                        $unit = $matches[2]
+                    }
+                    
+                    $multiplier = switch ($unit) {
+                        "B" { 1 }
+                        "KiB" { 1024 }
+                        "MiB" { 1024 * 1024 }
+                        "GiB" { 1024 * 1024 * 1024 }
+                        "TiB" { 1024 * 1024 * 1024 * 1024 }
+                        default { 1 }
+                    }
+                    
+                    return $value * $multiplier
+                }
+            } else {
+                $items | Sort-Object {
+                    $sizeText = $_.SubItems[2].Text
+                    if ($sizeText -eq "不明") { return [double]::MinValue }
+                    
+                    $value = 0.0
+                    $unit = ""
+                    if ($sizeText -match '([\d.]+)\s*([KMGT]?i?B)') {
+                        $value = [double]$matches[1]
+                        $unit = $matches[2]
+                    }
+                    
+                    $multiplier = switch ($unit) {
+                        "B" { 1 }
+                        "KiB" { 1024 }
+                        "MiB" { 1024 * 1024 }
+                        "GiB" { 1024 * 1024 * 1024 }
+                        "TiB" { 1024 * 1024 * 1024 * 1024 }
+                        default { 1 }
+                    }
+                    
+                    return $value * $multiplier
+                } -Descending
             }
         }
         
