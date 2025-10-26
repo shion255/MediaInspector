@@ -1641,8 +1641,6 @@ function Close-AllResultWindows {
 
 # --- 検索関連のグローバル変数 ---
 $script:searchText = ""
-$script:searchMatchCase = $false
-$script:searchWrapAround = $false
 $script:lastSearchIndex = -1
 $script:searchHistoryFile = Join-Path $configDir "search_history.txt"
 $script:maxSearchHistoryCount = 10
