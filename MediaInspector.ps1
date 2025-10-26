@@ -188,11 +188,30 @@ OrganizerColumnWidth3=$($script:organizerColumnWidth3)
 
 # --- 履歴を読み込む関数 ---
 function Load-History {
-    if (Test-Path $historyFile) {
-        $history = Get-Content -Path $historyFile -Encoding UTF8 | Where-Object { $_.Trim() }
-        return $history
+    $allHistory = @{
+        Files = @()
+        Folders = @()
+        URLs = @()
     }
-    return @()
+    
+    if (Test-Path $historyFile) {
+        $lines = Get-Content -Path $historyFile -Encoding UTF8 | Where-Object { $_.Trim() }
+        
+        foreach ($line in $lines) {
+            $line = $line.Trim()
+            if ($line -match '^https?://') {
+                $allHistory.URLs += $line
+            } elseif (Test-Path -LiteralPath $line -PathType Container) {
+                $allHistory.Folders += $line
+            } elseif (Test-Path -LiteralPath $line -PathType Leaf) {
+                $allHistory.Files += $line
+            } else {
+                $allHistory.Files += $line
+            }
+        }
+    }
+    
+    return $allHistory
 }
 
 # --- 履歴を保存する関数 ---
@@ -2138,16 +2157,18 @@ function Copy-OutputToClipboard {
 
 # --- 履歴ダイアログを表示する関数 ---
 function Show-HistoryDialog {
-    $history = Load-History
+    $allHistory = Load-History
     
-    if ($history.Count -eq 0) {
+    $totalCount = $allHistory.Files.Count + $allHistory.Folders.Count + $allHistory.URLs.Count
+    
+    if ($totalCount -eq 0) {
         [System.Windows.Forms.MessageBox]::Show("履歴がありません。")
         return
     }
     
     $historyForm = New-Object System.Windows.Forms.Form
     $historyForm.Text = "入力履歴"
-    $historyForm.Size = New-Object System.Drawing.Size(700, 500)
+    $historyForm.Size = New-Object System.Drawing.Size(700, 540)
     $historyForm.StartPosition = "CenterParent"
     $historyForm.BackColor = $script:bgColor
     $historyForm.ForeColor = $script:fgColor
@@ -2159,24 +2180,83 @@ function Show-HistoryDialog {
     $historyLabel.ForeColor = $script:fgColor
     $historyForm.Controls.Add($historyLabel)
     
-    $historyListBox = New-Object System.Windows.Forms.ListBox
-    $historyListBox.Location = New-Object System.Drawing.Point(10, 35)
-    $historyListBox.Size = New-Object System.Drawing.Size(660, 350)
-    $historyListBox.BackColor = $script:inputBgColor
-    $historyListBox.ForeColor = $script:fgColor
-    $historyListBox.Font = New-Object System.Drawing.Font("Consolas", 9)
-    $historyListBox.SelectionMode = "MultiExtended"
+    $tabControl = New-Object System.Windows.Forms.TabControl
+    $tabControl.Location = New-Object System.Drawing.Point(10, 35)
+    $tabControl.Size = New-Object System.Drawing.Size(660, 390)
+    $historyForm.Controls.Add($tabControl)
     
-    foreach ($item in $history) {
-        [void]$historyListBox.Items.Add($item)
+    $filesTab = New-Object System.Windows.Forms.TabPage
+    $filesTab.Text = "ファイル ($($allHistory.Files.Count))"
+    $filesTab.BackColor = $script:bgColor
+    $tabControl.TabPages.Add($filesTab)
+    
+    $filesListBox = New-Object System.Windows.Forms.ListBox
+    $filesListBox.Location = New-Object System.Drawing.Point(5, 5)
+    $filesListBox.Size = New-Object System.Drawing.Size(645, 350)
+    $filesListBox.BackColor = $script:inputBgColor
+    $filesListBox.ForeColor = $script:fgColor
+    $filesListBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+    $filesListBox.SelectionMode = "MultiExtended"
+    $filesListBox.Dock = "Fill"
+    
+    foreach ($item in $allHistory.Files) {
+        [void]$filesListBox.Items.Add($item)
     }
     
-    $historyForm.Controls.Add($historyListBox)
+    $filesTab.Controls.Add($filesListBox)
     
-    # ダブルクリックで追加
-    $historyListBox.Add_DoubleClick({
-        if ($historyListBox.SelectedItems.Count -gt 0) {
-            $selectedItems = $historyListBox.SelectedItems
+    $foldersTab = New-Object System.Windows.Forms.TabPage
+    $foldersTab.Text = "フォルダ ($($allHistory.Folders.Count))"
+    $foldersTab.BackColor = $script:bgColor
+    $tabControl.TabPages.Add($foldersTab)
+    
+    $foldersListBox = New-Object System.Windows.Forms.ListBox
+    $foldersListBox.Location = New-Object System.Drawing.Point(5, 5)
+    $foldersListBox.Size = New-Object System.Drawing.Size(645, 350)
+    $foldersListBox.BackColor = $script:inputBgColor
+    $foldersListBox.ForeColor = $script:fgColor
+    $foldersListBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+    $foldersListBox.SelectionMode = "MultiExtended"
+    $foldersListBox.Dock = "Fill"
+    
+    foreach ($item in $allHistory.Folders) {
+        [void]$foldersListBox.Items.Add($item)
+    }
+    
+    $foldersTab.Controls.Add($foldersListBox)
+    
+    $urlsTab = New-Object System.Windows.Forms.TabPage
+    $urlsTab.Text = "URL ($($allHistory.URLs.Count))"
+    $urlsTab.BackColor = $script:bgColor
+    $tabControl.TabPages.Add($urlsTab)
+    
+    $urlsListBox = New-Object System.Windows.Forms.ListBox
+    $urlsListBox.Location = New-Object System.Drawing.Point(5, 5)
+    $urlsListBox.Size = New-Object System.Drawing.Size(645, 350)
+    $urlsListBox.BackColor = $script:inputBgColor
+    $urlsListBox.ForeColor = $script:fgColor
+    $urlsListBox.Font = New-Object System.Drawing.Font("Consolas", 9)
+    $urlsListBox.SelectionMode = "MultiExtended"
+    $urlsListBox.Dock = "Fill"
+    
+    foreach ($item in $allHistory.URLs) {
+        [void]$urlsListBox.Items.Add($item)
+    }
+    
+    $urlsTab.Controls.Add($urlsListBox)
+    
+    function Get-CurrentListBox {
+        switch ($tabControl.SelectedIndex) {
+            0 { return $filesListBox }
+            1 { return $foldersListBox }
+            2 { return $urlsListBox }
+            default { return $filesListBox }
+        }
+    }
+    
+    function Add-SelectedToTextBox($listBox) {
+        if ($listBox.SelectedItems.Count -gt 0) {
+            $selectedItems = $listBox.SelectedItems
             $existingText = $textBox.Text.Trim()
             # ダブルクォートで囲む処理を追加
             $quotedItems = $selectedItems | ForEach-Object { "`"$_`"" }
@@ -2187,69 +2267,78 @@ function Show-HistoryDialog {
             } else {
                 $textBox.Text = $newItems
             }
-            
-            $historyForm.Close()
         }
+    }
+    
+    $filesListBox.Add_DoubleClick({
+        Add-SelectedToTextBox $filesListBox
+        $historyForm.Close()
+    })
+    
+    $foldersListBox.Add_DoubleClick({
+        Add-SelectedToTextBox $foldersListBox
+        $historyForm.Close()
+    })
+    
+    $urlsListBox.Add_DoubleClick({
+        Add-SelectedToTextBox $urlsListBox
+        $historyForm.Close()
     })
     
     # 追加ボタン
     $addButton = New-Object System.Windows.Forms.Button
     $addButton.Text = "追加"
-    $addButton.Location = New-Object System.Drawing.Point(210, 395)
+    $addButton.Location = New-Object System.Drawing.Point(210, 435)
     $addButton.Size = New-Object System.Drawing.Size(80, 30)
     $addButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
     $addButton.ForeColor = $script:fgColor
     $addButton.Add_Click({
-        if ($historyListBox.SelectedItems.Count -gt 0) {
-            $selectedItems = $historyListBox.SelectedItems
-            $existingText = $textBox.Text.Trim()
-            # ダブルクォートで囲む処理を追加
-            $quotedItems = $selectedItems | ForEach-Object { "`"$_`"" }
-            $newItems = $quotedItems -join "`r`n"
-            
-            if ($existingText) {
-                $textBox.Text = $existingText + "`r`n" + $newItems
-            } else {
-                $textBox.Text = $newItems
-            }
-        }
+        $currentListBox = Get-CurrentListBox
+        Add-SelectedToTextBox $currentListBox
     })
     $historyForm.Controls.Add($addButton)
     
     # 選択項目を削除ボタン
     $deleteSelectedButton = New-Object System.Windows.Forms.Button
     $deleteSelectedButton.Text = "選択項目を削除"
-    $deleteSelectedButton.Location = New-Object System.Drawing.Point(300, 395)
+    $deleteSelectedButton.Location = New-Object System.Drawing.Point(300, 435)
     $deleteSelectedButton.Size = New-Object System.Drawing.Size(120, 30)
     $deleteSelectedButton.BackColor = [System.Drawing.Color]::FromArgb(200, 100, 60)
     $deleteSelectedButton.ForeColor = $script:fgColor
     $deleteSelectedButton.Add_Click({
-        if ($historyListBox.SelectedItems.Count -gt 0) {
+        $currentListBox = Get-CurrentListBox
+        
+        if ($currentListBox.SelectedItems.Count -gt 0) {
             $result = [System.Windows.Forms.MessageBox]::Show(
-                "選択した $($historyListBox.SelectedItems.Count) 件の履歴を削除しますか？", 
+                "選択した $($currentListBox.SelectedItems.Count) 件の履歴を削除しますか？", 
                 "確認", 
                 [System.Windows.Forms.MessageBoxButtons]::YesNo
             )
             if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
-                # 選択項目を取得（削除中にインデックスが変わるため配列化）
-                $itemsToDelete = @($historyListBox.SelectedItems)
+                # 選択項目を取得
+                $itemsToDelete = @($currentListBox.SelectedItems)
                 
                 # リストボックスから削除
                 foreach ($item in $itemsToDelete) {
-                    $historyListBox.Items.Remove($item)
+                    $currentListBox.Items.Remove($item)
                 }
                 
                 # ファイルに保存
-                $remainingItems = @()
-                foreach ($item in $historyListBox.Items) {
-                    $remainingItems += $item
-                }
-                Save-History $remainingItems
+                $allItems = @()
+                foreach ($item in $filesListBox.Items) { $allItems += $item }
+                foreach ($item in $foldersListBox.Items) { $allItems += $item }
+                foreach ($item in $urlsListBox.Items) { $allItems += $item }
+                
+                Save-History $allItems
+                
+                $filesTab.Text = "ファイル ($($filesListBox.Items.Count))"
+                $foldersTab.Text = "フォルダ ($($foldersListBox.Items.Count))"
+                $urlsTab.Text = "URL ($($urlsListBox.Items.Count))"
                 
                 [System.Windows.Forms.MessageBox]::Show("選択した履歴を削除しました。")
                 
                 # 履歴が空になったらダイアログを閉じる
-                if ($historyListBox.Items.Count -eq 0) {
+                if ($allItems.Count -eq 0) {
                     [System.Windows.Forms.MessageBox]::Show("履歴が空になりました。")
                     $historyForm.Close()
                 }
@@ -2263,7 +2352,7 @@ function Show-HistoryDialog {
     # 全ての履歴を削除ボタン
     $clearHistoryButton = New-Object System.Windows.Forms.Button
     $clearHistoryButton.Text = "全ての履歴を削除"
-    $clearHistoryButton.Location = New-Object System.Drawing.Point(430, 395)
+    $clearHistoryButton.Location = New-Object System.Drawing.Point(430, 435)
     $clearHistoryButton.Size = New-Object System.Drawing.Size(140, 30)
     $clearHistoryButton.BackColor = [System.Drawing.Color]::FromArgb(200, 60, 60)
     $clearHistoryButton.ForeColor = $script:fgColor
@@ -2273,7 +2362,9 @@ function Show-HistoryDialog {
             if (Test-Path $historyFile) {
                 Remove-Item -Path $historyFile -Force
             }
-            $historyListBox.Items.Clear()
+            $filesListBox.Items.Clear()
+            $foldersListBox.Items.Clear()
+            $urlsListBox.Items.Clear()
             [System.Windows.Forms.MessageBox]::Show("全ての履歴を削除しました。")
             $historyForm.Close()
         }
@@ -2283,7 +2374,7 @@ function Show-HistoryDialog {
     # 閉じるボタン
     $closeButton = New-Object System.Windows.Forms.Button
     $closeButton.Text = "閉じる"
-    $closeButton.Location = New-Object System.Drawing.Point(580, 395)
+    $closeButton.Location = New-Object System.Drawing.Point(580, 435)
     $closeButton.Size = New-Object System.Drawing.Size(80, 30)
     $closeButton.Add_Click({
         $historyForm.Close()
@@ -5521,7 +5612,12 @@ function Analyze-Video {
     
     if ($successfulInputs.Count -gt 0) {
         $currentHistory = Load-History
-        $newHistory = @($inputs) + $currentHistory
+        $currentHistoryItems = @()
+        $currentHistoryItems += $currentHistory.Files
+        $currentHistoryItems += $currentHistory.Folders
+        $currentHistoryItems += $currentHistory.URLs
+        
+        $newHistory = @($successfulInputs) + $currentHistoryItems
         Save-History $newHistory
     }
     
