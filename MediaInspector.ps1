@@ -216,9 +216,31 @@ function Load-History {
 
 # --- 履歴を保存する関数 ---
 function Save-History($items) {
-    # 最新 N 件まで保存
-    $uniqueItems = $items | Select-Object -Unique | Select-Object -First $script:maxHistoryCount
-    Set-Content -Path $historyFile -Value $uniqueItems -Encoding UTF8
+    # タブごとに最新 N 件まで保存
+    $files = @()
+    $folders = @()
+    $urls = @()
+    
+    foreach ($item in $items) {
+        if ($item -match '^https?://') {
+            $urls += $item
+        } elseif (Test-Path -LiteralPath $item -PathType Container) {
+            $folders += $item
+        } else {
+            $files += $item
+        }
+    }
+    
+    $files = $files | Select-Object -Unique | Select-Object -First $script:maxHistoryCount
+    $folders = $folders | Select-Object -Unique | Select-Object -First $script:maxHistoryCount
+    $urls = $urls | Select-Object -Unique | Select-Object -First $script:maxHistoryCount
+    
+    $allItems = @()
+    $allItems += $files
+    $allItems += $folders
+    $allItems += $urls
+    
+    Set-Content -Path $historyFile -Value $allItems -Encoding UTF8
 }
 
 # --- 設定を読み込み ---
@@ -955,14 +977,14 @@ $optionsItem.Add_Click({
     $analysisTab.Controls.Add($includeAudioFilesCheckBox)
     
     $maxHistoryLabel = New-Object System.Windows.Forms.Label
-    $maxHistoryLabel.Text = "履歴の最大保存数:"
+    $maxHistoryLabel.Text = "履歴 (各タブ) の最大保存数:"
     $maxHistoryLabel.Location = New-Object System.Drawing.Point(20, 85)
-    $maxHistoryLabel.Size = New-Object System.Drawing.Size(150, 20)
+    $maxHistoryLabel.Size = New-Object System.Drawing.Size(200, 20)
     $maxHistoryLabel.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($maxHistoryLabel)
     
     $maxHistoryNumeric = New-Object System.Windows.Forms.NumericUpDown
-    $maxHistoryNumeric.Location = New-Object System.Drawing.Point(180, 83)
+    $maxHistoryNumeric.Location = New-Object System.Drawing.Point(230, 83)
     $maxHistoryNumeric.Size = New-Object System.Drawing.Size(80, 25)
     $maxHistoryNumeric.Minimum = 1
     $maxHistoryNumeric.Maximum = 100
