@@ -1853,7 +1853,7 @@ function Show-SearchDialog {
     })
     $searchForm.Controls.Add($closeButton)
     
-    $searchForm.AcceptButton = $findPreviousButton
+    $searchForm.AcceptButton = $findNextButton
     $searchForm.CancelButton = $closeButton
     
     Update-HitCount
