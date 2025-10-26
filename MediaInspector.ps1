@@ -2440,12 +2440,41 @@ function Show-MediaInfoInfo {
     [void]$infoForm.ShowDialog($form)
 }
 
+function Check-LatestVersion {
+    try {
+        $apiUrl = "https://api.github.com/repos/shion255/MediaInspector/releases/latest"
+        $response = Invoke-RestMethod -Uri $apiUrl -TimeoutSec 5
+        
+        $latestVersion = $response.tag_name -replace '^v', ''
+        $currentVersion = $script:version
+        
+        if ([version]$latestVersion -gt [version]$currentVersion) {
+            return @{
+                IsLatest = $false
+                LatestVersion = $latestVersion
+                DownloadUrl = $response.html_url
+                ReleaseNotes = $response.body
+            }
+        } else {
+            return @{
+                IsLatest = $true
+                LatestVersion = $latestVersion
+            }
+        }
+    } catch {
+        return @{
+            Error = $true
+            Message = "バージョン情報の取得に失敗しました"
+        }
+    }
+}
+
 function Show-AboutMediaInspector {
     $url = "https://github.com/shion255/MediaInspector"
     
     $aboutForm = New-Object System.Windows.Forms.Form
     $aboutForm.Text = "MediaInspector について"
-    $aboutForm.Size = New-Object System.Drawing.Size(450, 220)
+    $aboutForm.Size = New-Object System.Drawing.Size(450, 260)
     $aboutForm.StartPosition = "CenterParent"
     $aboutForm.FormBorderStyle = "FixedDialog"
     $aboutForm.MaximizeBox = $false
@@ -2485,9 +2514,54 @@ function Show-AboutMediaInspector {
     })
     $aboutForm.Controls.Add($urlLink)
     
+    $checkVersionButton = New-Object System.Windows.Forms.Button
+    $checkVersionButton.Text = "最新バージョンを確認"
+    $checkVersionButton.Location = New-Object System.Drawing.Point(20, 135)
+    $checkVersionButton.Size = New-Object System.Drawing.Size(150, 30)
+    $checkVersionButton.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $checkVersionButton.ForeColor = $script:fgColor
+    $checkVersionButton.Add_Click({
+        $checkVersionButton.Enabled = $false
+        $checkVersionButton.Text = "確認中..."
+        $aboutForm.Refresh()
+        
+        $versionInfo = Check-LatestVersion
+        
+        if ($versionInfo.Error) {
+            [System.Windows.Forms.MessageBox]::Show(
+                $versionInfo.Message,
+                "エラー",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Error
+            )
+        } elseif ($versionInfo.IsLatest) {
+            [System.Windows.Forms.MessageBox]::Show(
+                "最新バージョンです (v$($script:version))",
+                "バージョン確認",
+                [System.Windows.Forms.MessageBoxButtons]::OK,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            )
+        } else {
+            $result = [System.Windows.Forms.MessageBox]::Show(
+                "新しいバージョンが利用可能です`n`n現在: v$($script:version)`n最新: v$($versionInfo.LatestVersion)`n`nダウンロードページを開きますか?",
+                "アップデート",
+                [System.Windows.Forms.MessageBoxButtons]::YesNo,
+                [System.Windows.Forms.MessageBoxIcon]::Information
+            )
+            
+            if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+                Start-Process $versionInfo.DownloadUrl
+            }
+        }
+        
+        $checkVersionButton.Enabled = $true
+        $checkVersionButton.Text = "最新バージョンを確認"
+    })
+    $aboutForm.Controls.Add($checkVersionButton)
+    
     $okButton = New-Object System.Windows.Forms.Button
     $okButton.Text = "OK"
-    $okButton.Location = New-Object System.Drawing.Point(175, 140)
+    $okButton.Location = New-Object System.Drawing.Point(175, 180)
     $okButton.Size = New-Object System.Drawing.Size(80, 30)
     $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
     $aboutForm.Controls.Add($okButton)
