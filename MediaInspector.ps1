@@ -2615,6 +2615,16 @@ function Show-AllResultsList {
     $script:analysisListSortOrder = $true
 
     # 列クリックでソート
+    $listView.Add_KeyDown({
+        param($sender, $e)
+        if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
+            $e.Handled = $true
+            foreach ($item in $listView.Items) {
+                $item.Selected = $true
+            }
+        }
+    })
+    
     $listView.Add_ColumnClick({
         param($sender, $e)
         
@@ -3979,6 +3989,7 @@ function Show-FileOrganizer {
     $listView.BackColor = $script:inputBgColor
     $listView.ForeColor = $script:fgColor
     $listView.Anchor = "Top,Bottom,Left,Right"
+    $listView.MultiSelect = $true
 
     # 列を追加
     [void]$listView.Columns.Add("ファイル名", $script:organizerColumnWidth1)
@@ -4144,6 +4155,16 @@ function Show-FileOrganizer {
             $organizerForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件中 $selectedCount 件選択"
         } else {
             $organizerForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件"
+        }
+    })
+    
+    $listView.Add_KeyDown({
+        param($sender, $e)
+        if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
+            $e.Handled = $true
+            foreach ($item in $listView.Items) {
+                $item.Selected = $true
+            }
         }
     })
     
