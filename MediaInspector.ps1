@@ -94,6 +94,9 @@ function Load-Config {
         ColumnWidth1 = 400
         ColumnWidth2 = 150
         ColumnWidth3 = 150
+        OrganizerColumnWidth1 = 400
+        OrganizerColumnWidth2 = 250
+        OrganizerColumnWidth3 = 150
     }
     
     if (Test-Path $configFile) {
@@ -176,6 +179,9 @@ SearchWrapAround=$($script:searchWrapAround)
 ColumnWidth1=$($script:columnWidth1)
 ColumnWidth2=$($script:columnWidth2)
 ColumnWidth3=$($script:columnWidth3)
+OrganizerColumnWidth1=$($script:organizerColumnWidth1)
+OrganizerColumnWidth2=$($script:organizerColumnWidth2)
+OrganizerColumnWidth3=$($script:organizerColumnWidth3)
 "@
     Set-Content -Path $configFile -Value $content -Encoding UTF8
 }
@@ -263,6 +269,9 @@ $script:searchWrapAround = [bool]::Parse($config.SearchWrapAround)
 $script:columnWidth1 = if ($config.ColumnWidth1) { [int]$config.ColumnWidth1 } else { 400 }
 $script:columnWidth2 = if ($config.ColumnWidth2) { [int]$config.ColumnWidth2 } else { 150 }
 $script:columnWidth3 = if ($config.ColumnWidth3) { [int]$config.ColumnWidth3 } else { 150 }
+$script:organizerColumnWidth1 = if ($config.OrganizerColumnWidth1) { [int]$config.OrganizerColumnWidth1 } else { 400 }
+$script:organizerColumnWidth2 = if ($config.OrganizerColumnWidth2) { [int]$config.OrganizerColumnWidth2 } else { 250 }
+$script:organizerColumnWidth3 = if ($config.OrganizerColumnWidth3) { [int]$config.OrganizerColumnWidth3 } else { 150 }
 
 # --- ツールパスチェック ---
 foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
@@ -3972,9 +3981,9 @@ function Show-FileOrganizer {
     $listView.Anchor = "Top,Bottom,Left,Right"
 
     # 列を追加
-    [void]$listView.Columns.Add("ファイル名", 400)
-    [void]$listView.Columns.Add("作成者", 250)
-    [void]$listView.Columns.Add("サイズ", 150)
+    [void]$listView.Columns.Add("ファイル名", $script:organizerColumnWidth1)
+    [void]$listView.Columns.Add("作成者", $script:organizerColumnWidth2)
+    [void]$listView.Columns.Add("サイズ", $script:organizerColumnWidth3)
 
     # 選択アイテム数を追跡するイベントハンドラー （ListView 作成後に設定）
     $listView.Add_SelectedIndexChanged({
@@ -4234,6 +4243,26 @@ function Show-FileOrganizer {
         $organizerForm.Close()
     })
     $buttonPanel.Controls.Add($closeButton)
+    
+    # 列幅変更イベント
+    $listView.Add_ColumnWidthChanged({
+        param($sender, $e)
+        if ($listView.Columns.Count -ge 3) {
+            $script:organizerColumnWidth1 = $listView.Columns[0].Width
+            $script:organizerColumnWidth2 = $listView.Columns[1].Width
+            $script:organizerColumnWidth3 = $listView.Columns[2].Width
+        }
+    })
+    
+    # フォームクローズ時に設定を保存
+    $organizerForm.Add_FormClosed({
+        if ($listView.Columns.Count -ge 3) {
+            $script:organizerColumnWidth1 = $listView.Columns[0].Width
+            $script:organizerColumnWidth2 = $listView.Columns[1].Width
+            $script:organizerColumnWidth3 = $listView.Columns[2].Width
+            Save-Config
+        }
+    })
     
     [void]$organizerForm.ShowDialog($form)
 }
