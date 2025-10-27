@@ -4614,7 +4614,7 @@ function Parse-MediaInfoJSON($jsonContent) {
                     $duration = if ($track.Duration) { Convert-DurationToJapanese([double]$track.Duration) } else { "不明" }
                     $overallBitrate = if ($track.OverallBitRate) { 
                         $bitrateValue = [double]$track.OverallBitRate
-                        if ($bitrateValue -ge 10000000) {  # 10,000 kb/s = 10 Mb/s 以上
+                        if ($bitrateValue -ge 10000000) {
                             $bitrateValueMb = [math]::Round($bitrateValue / 1000000, 2)
                             $bitrateMode = if ($track.OverallBitRate_Mode) { "[$($track.OverallBitRate_Mode)]" } else { "" }
                             "$bitrateMode $bitrateValueMb Mb/s"
@@ -4626,7 +4626,7 @@ function Parse-MediaInfoJSON($jsonContent) {
                         }
                     } else { "ビットレート不明" }
                     $fileSize = if ($track.FileSize) { Format-FileSize $track.FileSize } else { "不明" }
-                    # ARTISTをextraセクションからも検索
+                    # ARTIST を extra セクションからも検索
                     $artist = if ($track.ARTIST) { $track.ARTIST } else { 
                         if ($track.extra -and $track.extra.ARTIST) { $track.extra.ARTIST } else {
                             if ($track.Performer) { $track.Performer } else { 
@@ -4850,9 +4850,20 @@ function Parse-MediaInfoJSON($jsonContent) {
                     $imageStreams += $imageInfo
                 }
                 "Menu" {
-                    $hasChapters = $true
                     if ($track.extra) {
-                        $chapterCount = ($track.extra.PSObject.Properties | Where-Object { $_.Name -match '^_\d+' }).Count
+                        $chapterProperties = $track.extra.PSObject.Properties | Where-Object {
+                            $_.Name -match '^_\d{2}_\d{2}_\d{2}_\d{3}$' -or
+                            ($_.Name -match '^\d+$' -and $_.Value -match '^\d{2}:\d{2}:\d{2}')
+                        }
+                        
+                        $epgProperties = $track.extra.PSObject.Properties | Where-Object {
+                            $_.Name -match '^_\d{8}_\d{2}_\d{2}_\d{2}_UTC$'
+                        }
+                        
+                        if ($chapterProperties.Count -gt 0 -and $epgProperties.Count -eq 0) {
+                            $hasChapters = $true
+                            $chapterCount = $chapterProperties.Count
+                        }
                     }
                 }
             }
