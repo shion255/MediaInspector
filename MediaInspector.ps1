@@ -59,6 +59,7 @@ function Load-Config {
         ShowYtDlpChapters = $true
         ShowYtDlpSubtitles = $true
         ShowYtDlpFormats = $true
+        ShowTitle = $true
         ShowDuration = $true
         ShowBitrate = $true
         ShowArtist = $true
@@ -145,6 +146,7 @@ ShowYtDlpDuration=$($script:showYtDlpDuration)
 ShowYtDlpChapters=$($script:showYtDlpChapters)
 ShowYtDlpSubtitles=$($script:showYtDlpSubtitles)
 ShowYtDlpFormats=$($script:showYtDlpFormats)
+ShowTitle=$($script:showTitle)
 ShowDuration=$($script:showDuration)
 ShowBitrate=$($script:showBitrate)
 ShowArtist=$($script:showArtist)
@@ -276,6 +278,7 @@ $script:showYtDlpDuration = [bool]::Parse($config.ShowYtDlpDuration)
 $script:showYtDlpChapters = [bool]::Parse($config.ShowYtDlpChapters)
 $script:showYtDlpSubtitles = [bool]::Parse($config.ShowYtDlpSubtitles)
 $script:showYtDlpFormats = [bool]::Parse($config.ShowYtDlpFormats)
+$script:showTitle = [bool]::Parse($config.ShowTitle)
 $script:showDuration = [bool]::Parse($config.ShowDuration)
 $script:showBitrate = [bool]::Parse($config.ShowBitrate)
 $script:showArtist = [bool]::Parse($config.ShowArtist)
@@ -1037,13 +1040,13 @@ $optionsItem.Add_Click({
     $analysisItemsGroupBox = New-Object System.Windows.Forms.GroupBox
     $analysisItemsGroupBox.Text = "MediaInfo 解析表示"
     $analysisItemsGroupBox.Location = New-Object System.Drawing.Point(20, 280)
-    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 490)
+    $analysisItemsGroupBox.Size = New-Object System.Drawing.Size(410, 510)
     $analysisItemsGroupBox.ForeColor = $script:fgColor
     $analysisTab.Controls.Add($analysisItemsGroupBox)
     
     $analysisItemsPanel = New-Object System.Windows.Forms.Panel
     $analysisItemsPanel.Location = New-Object System.Drawing.Point(10, 25)
-    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 455)
+    $analysisItemsPanel.Size = New-Object System.Drawing.Size(390, 475)
     $analysisItemsPanel.AutoScroll = $false
     $analysisItemsPanel.BorderStyle = [System.Windows.Forms.BorderStyle]::None
     $analysisItemsGroupBox.Controls.Add($analysisItemsPanel)
@@ -1051,40 +1054,41 @@ $optionsItem.Add_Click({
     $analysisCheckBoxes = @{}
     
     $analysisItems = @(
-        @{Key="ShowDuration"; Label="再生時間"; X=5; Y=5},
-        @{Key="ShowBitrate"; Label="ビットレート (全体)"; X=230; Y=5},
-        @{Key="ShowArtist"; Label="作成者"; X=5; Y=30},
-        @{Key="ShowRecordedDate"; Label="記録日"; X=230; Y=30},
-        @{Key="ShowComment"; Label="コメント"; X=5; Y=55},
-        @{Key="ShowChapters"; Label="チャプター"; X=230; Y=55},
-        @{Key="Separator1"; Label=""; Y=80},
-        @{Key="ShowVideoCodec"; Label="映像: コーデック"; X=5; Y=95},
-        @{Key="ShowVideoBitrate"; Label="映像: ビットレート"; X=230; Y=95},
-        @{Key="ShowResolution"; Label="映像: 解像度"; X=5; Y=120},
-        @{Key="ShowFPS"; Label="映像: フレームレート"; X=230; Y=120},
-        @{Key="ShowColorSpace"; Label="映像: 色空間"; X=5; Y=145},
-        @{Key="ShowChromaSubsampling"; Label="映像: クロマサブサンプリング"; X=230; Y=145},
-        @{Key="ShowBitDepth"; Label="映像: ビット深度"; X=5; Y=170},
-        @{Key="ShowScanType"; Label="映像: スキャンタイプ"; X=230; Y=170},
-        @{Key="ShowColorRange"; Label="映像: 色範囲"; X=5; Y=195},
-        @{Key="ShowHDR"; Label="映像: HDR/SDR"; X=230; Y=195},
-        @{Key="ShowVideoLanguage"; Label="映像: 言語"; X=5; Y=220},
-        @{Key="ShowVideoWritingLibrary"; Label="映像: ライブラリ"; X=230; Y=220},
-        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"; X=5; Y=245},
-        @{Key="ShowVideoEncodingSettings"; Label="映像: エンコードの設定"; X=230; Y=245},
-        @{Key="Separator2"; Label=""; Y=270},
-        @{Key="ShowAudioCodec"; Label="音声: コーデック"; X=5; Y=285},
-        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"; X=230; Y=285},
-        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"; X=5; Y=310},
-        @{Key="ShowAudioChannels"; Label="音声: チャンネル数"; X=230; Y=310},
-        @{Key="ShowAudioBitDepth"; Label="音声: ビット深度"; X=5; Y=335},
-        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=335},
-        @{Key="ShowAudioLanguage"; Label="音声: 言語"; X=5; Y=360},
-        @{Key="ShowAudioWritingLibrary"; Label="音声: ライブラリ"; X=230; Y=360},
-        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=5; Y=385},
-        @{Key="Separator3"; Label=""; Y=410},
-        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=425},
-        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=425}
+        @{Key="ShowTitle"; Label="タイトル"; X=5; Y=5},
+        @{Key="ShowDuration"; Label="再生時間"; X=230; Y=5},
+        @{Key="ShowBitrate"; Label="ビットレート (全体)"; X=5; Y=30},
+        @{Key="ShowArtist"; Label="作成者"; X=230; Y=30},
+        @{Key="ShowRecordedDate"; Label="記録日"; X=5; Y=55},
+        @{Key="ShowComment"; Label="コメント"; X=230; Y=55},
+        @{Key="ShowChapters"; Label="チャプター"; X=5; Y=80},
+        @{Key="Separator1"; Label=""; Y=105},
+        @{Key="ShowVideoCodec"; Label="映像: コーデック"; X=5; Y=120},
+        @{Key="ShowVideoBitrate"; Label="映像: ビットレート"; X=230; Y=120},
+        @{Key="ShowResolution"; Label="映像: 解像度"; X=5; Y=145},
+        @{Key="ShowFPS"; Label="映像: フレームレート"; X=230; Y=145},
+        @{Key="ShowColorSpace"; Label="映像: 色空間"; X=5; Y=170},
+        @{Key="ShowChromaSubsampling"; Label="映像: クロマサブサンプリング"; X=230; Y=170},
+        @{Key="ShowBitDepth"; Label="映像: ビット深度"; X=5; Y=195},
+        @{Key="ShowScanType"; Label="映像: スキャンタイプ"; X=230; Y=195},
+        @{Key="ShowColorRange"; Label="映像: 色範囲"; X=5; Y=220},
+        @{Key="ShowHDR"; Label="映像: HDR/SDR"; X=230; Y=220},
+        @{Key="ShowVideoLanguage"; Label="映像: 言語"; X=5; Y=245},
+        @{Key="ShowVideoWritingLibrary"; Label="映像: ライブラリ"; X=230; Y=245},
+        @{Key="ShowVideoStreamSize"; Label="映像: ストリームサイズ"; X=5; Y=270},
+        @{Key="ShowVideoEncodingSettings"; Label="映像: エンコードの設定"; X=230; Y=270},
+        @{Key="Separator2"; Label=""; Y=295},
+        @{Key="ShowAudioCodec"; Label="音声: コーデック"; X=5; Y=310},
+        @{Key="ShowAudioBitrate"; Label="音声: ビットレート"; X=230; Y=310},
+        @{Key="ShowSampleRate"; Label="音声: サンプリングレート"; X=5; Y=335},
+        @{Key="ShowAudioChannels"; Label="音声: チャンネル数"; X=230; Y=335},
+        @{Key="ShowAudioBitDepth"; Label="音声: ビット深度"; X=5; Y=360},
+        @{Key="ShowReplayGain"; Label="音声: リプレイゲイン"; X=230; Y=360},
+        @{Key="ShowAudioLanguage"; Label="音声: 言語"; X=5; Y=385},
+        @{Key="ShowAudioWritingLibrary"; Label="音声: ライブラリ"; X=230; Y=385},
+        @{Key="ShowAudioStreamSize"; Label="音声: ストリームサイズ"; X=5; Y=410},
+        @{Key="Separator3"; Label=""; Y=435},
+        @{Key="ShowTextStream"; Label="テキストストリーム (字幕)"; X=5; Y=450},
+        @{Key="ShowCoverImage"; Label="カバー画像"; X=230; Y=450}
     )
     
     foreach ($item in $analysisItems) {
@@ -4600,6 +4604,7 @@ function Parse-MediaInfoJSON($jsonContent) {
         $jsonData = $jsonContent | ConvertFrom-Json
         $tracks = $jsonData.media.track
         
+        $title = ""
         $duration = ""
         $overallBitrate = ""
         $fileSize = ""
@@ -4616,6 +4621,7 @@ function Parse-MediaInfoJSON($jsonContent) {
         foreach ($track in $tracks) {
             switch ($track.'@type') {
                 "General" {
+                    $title = if ($track.Title) { $track.Title } else { "" }
                     $duration = if ($track.Duration) { Convert-DurationToJapanese([double]$track.Duration) } else { "不明" }
                     $overallBitrate = if ($track.OverallBitRate) { 
                         $bitrateValue = [double]$track.OverallBitRate
@@ -4880,6 +4886,7 @@ function Parse-MediaInfoJSON($jsonContent) {
         }
         
         return @{
+            Title = $title
             Duration = $duration
             OverallBitrate = $overallBitrate
             FileSize = $fileSize
@@ -4908,6 +4915,12 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
     
     # ビットレートのフォーマット
     $overallBitrate = Format-Bitrate $parsedInfo.OverallBitrate
+    
+    # タイトル情報を表示
+    if ($script:showTitle -and $parsedInfo.Title) {
+        Write-OutputBox("タイトル: $($parsedInfo.Title)")
+        $resultContentRef.Value += "タイトル: $($parsedInfo.Title)`r`n"
+    }
     
     # 基本情報を表示
     if ($script:showDuration) {
