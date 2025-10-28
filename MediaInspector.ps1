@@ -62,6 +62,7 @@ function Load-Config {
         ShowDuration = $true
         ShowBitrate = $true
         ShowArtist = $true
+        ShowRecordedDate = $true
         ShowChapters = $true
         ShowVideoCodec = $true
         ShowResolution = $true
@@ -147,6 +148,7 @@ ShowYtDlpFormats=$($script:showYtDlpFormats)
 ShowDuration=$($script:showDuration)
 ShowBitrate=$($script:showBitrate)
 ShowArtist=$($script:showArtist)
+ShowRecordedDate=$($script:showRecordedDate)
 ShowChapters=$($script:showChapters)
 ShowVideoCodec=$($script:showVideoCodec)
 ShowResolution=$($script:showResolution)
@@ -277,6 +279,7 @@ $script:showYtDlpFormats = [bool]::Parse($config.ShowYtDlpFormats)
 $script:showDuration = [bool]::Parse($config.ShowDuration)
 $script:showBitrate = [bool]::Parse($config.ShowBitrate)
 $script:showArtist = [bool]::Parse($config.ShowArtist)
+$script:showRecordedDate = [bool]::Parse($config.ShowRecordedDate)
 $script:showChapters = [bool]::Parse($config.ShowChapters)
 $script:showVideoCodec = [bool]::Parse($config.ShowVideoCodec)
 $script:showResolution = [bool]::Parse($config.ShowResolution)
@@ -1051,8 +1054,9 @@ $optionsItem.Add_Click({
         @{Key="ShowDuration"; Label="再生時間"; X=5; Y=5},
         @{Key="ShowBitrate"; Label="ビットレート (全体)"; X=230; Y=5},
         @{Key="ShowArtist"; Label="作成者"; X=5; Y=30},
-        @{Key="ShowComment"; Label="コメント"; X=230; Y=30},
-        @{Key="ShowChapters"; Label="チャプター"; X=5; Y=55},
+        @{Key="ShowRecordedDate"; Label="記録日"; X=230; Y=30},
+        @{Key="ShowComment"; Label="コメント"; X=5; Y=55},
+        @{Key="ShowChapters"; Label="チャプター"; X=230; Y=55},
         @{Key="Separator1"; Label=""; Y=80},
         @{Key="ShowVideoCodec"; Label="映像: コーデック"; X=5; Y=95},
         @{Key="ShowVideoBitrate"; Label="映像: ビットレート"; X=230; Y=95},
@@ -4600,6 +4604,7 @@ function Parse-MediaInfoJSON($jsonContent) {
         $overallBitrate = ""
         $fileSize = ""
         $artist = ""
+        $recordedDate = ""
         $comment = ""
         $videoStreams = @()
         $audioStreams = @()
@@ -4632,6 +4637,11 @@ function Parse-MediaInfoJSON($jsonContent) {
                             if ($track.Performer) { $track.Performer } else { 
                                 if ($track.Artist) { $track.Artist } else { "" } 
                             }
+                        }
+                    }
+                    $recordedDate = if ($track.Recorded_Date) { $track.Recorded_Date } else {
+                        if ($track.DATE) { $track.DATE } else {
+                            if ($track.extra -and $track.extra.DATE) { $track.extra.DATE } else { "" }
                         }
                     }
                     $comment = if ($track.Comment) { $track.Comment } else { "" }
@@ -4874,6 +4884,7 @@ function Parse-MediaInfoJSON($jsonContent) {
             OverallBitrate = $overallBitrate
             FileSize = $fileSize
             Artist = $artist
+            RecordedDate = $recordedDate
             Comment = $comment
             ReplayGain = ""
             ReplayGainPeak = ""
@@ -4913,6 +4924,12 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
     if ($script:showArtist -and $parsedInfo.Artist) {
         Write-OutputBox("作成者: $($parsedInfo.Artist)")
         $resultContentRef.Value += "作成者: $($parsedInfo.Artist)`r`n"
+    }
+    
+    # 記録日情報を表示
+    if ($script:showRecordedDate -and $parsedInfo.RecordedDate) {
+        Write-OutputBox("記録日: $($parsedInfo.RecordedDate)")
+        $resultContentRef.Value += "記録日: $($parsedInfo.RecordedDate)`r`n"
     }
     
     # コメント情報を表示
