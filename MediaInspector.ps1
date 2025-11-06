@@ -4165,10 +4165,10 @@ function Show-FileOrganizer {
         return
     }
     
-    # 整理ダイアログを表示
+    # 動画ファイル整理機能
     $organizerForm = New-Object System.Windows.Forms.Form
     $organizerForm.Text = "動画ファイル整理 - $($fileInfoList.Count) 件"
-    $organizerForm.Size = New-Object System.Drawing.Size(900, 600)
+    $organizerForm.Size = New-Object System.Drawing.Size(950, 600)
     $organizerForm.StartPosition = "CenterScreen"
     $organizerForm.BackColor = $script:bgColor
     $organizerForm.ForeColor = $script:fgColor
@@ -4176,7 +4176,7 @@ function Show-FileOrganizer {
     # ListView
     $listView = New-Object System.Windows.Forms.ListView
     $listView.Location = New-Object System.Drawing.Point(10, 10)
-    $listView.Size = New-Object System.Drawing.Size(860, 480)
+    $listView.Size = New-Object System.Drawing.Size(910, 480)
     $listView.View = [System.Windows.Forms.View]::Details
     $listView.FullRowSelect = $true
     $listView.GridLines = $true
@@ -4359,6 +4359,31 @@ function Show-FileOrganizer {
             $e.Handled = $true
             foreach ($item in $listView.Items) {
                 $item.Selected = $true
+            }
+        }
+    })
+    
+    $listView.Add_DoubleClick({
+        if ($listView.SelectedItems.Count -gt 0) {
+            $fileInfo = $listView.SelectedItems[0].Tag
+            $filePath = $fileInfo.FullPath
+            
+            if (Test-Path -LiteralPath $filePath -PathType Leaf) {
+                $mediaInfoOutput = Invoke-MediaInfo $filePath
+                if ($mediaInfoOutput) {
+                    $parsedInfo = Parse-MediaInfo $mediaInfoOutput
+                    $resultContent = ""
+                    $resultContent += "ファイル名: $($fileInfo.FileName)`r`n"
+                    $resultContent += "--------------------------------------------------`r`n"
+                    Display-MediaInfo $parsedInfo ([ref]$resultContent)
+                    
+                    $selectedResult = @{
+                        Title = $fileInfo.FileName
+                        Content = $resultContent
+                        FullPath = $filePath
+                    }
+                    Show-ResultDetail $selectedResult
+                }
             }
         }
     })
@@ -4776,7 +4801,7 @@ function Show-FileOrganizer {
     # ボタンパネル
     $buttonPanel = New-Object System.Windows.Forms.Panel
     $buttonPanel.Location = New-Object System.Drawing.Point(10, 500)
-    $buttonPanel.Size = New-Object System.Drawing.Size(860, 50)
+    $buttonPanel.Size = New-Object System.Drawing.Size(910, 50)
     $buttonPanel.Anchor = "Bottom,Left,Right"
     $organizerForm.Controls.Add($buttonPanel)
     
@@ -4795,7 +4820,7 @@ function Show-FileOrganizer {
         
         if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $targetPath = $folderBrowser.SelectedPath
-            [System.Windows.Forms.MessageBox]::Show("移動先パスを変更しました：`n$targetPath", "確認")
+            [System.Windows.Forms.MessageBox]::Show("移動先パスを変更しました:`n$targetPath", "確認")
         }
     })
     $buttonPanel.Controls.Add($changePathButton)
@@ -4855,18 +4880,59 @@ function Show-FileOrganizer {
     })
     $buttonPanel.Controls.Add($moveAllButton)
     
-    # 閉じるボタン
-    $closeButton = New-Object System.Windows.Forms.Button
-    $closeButton.Text = "閉じる"
-    $closeButton.Location = New-Object System.Drawing.Point(580, 10)
-    $closeButton.Size = New-Object System.Drawing.Size(100, 35)
-    $closeButton.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
-    $closeButton.ForeColor = $script:fgColor
-    $closeButton.Anchor = "Bottom,Right"
-    $closeButton.Add_Click({
-        $organizerForm.Close()
+    # 結果を別ウィンドウ表示ボタン
+    $showWindowButton = New-Object System.Windows.Forms.Button
+    $showWindowButton.Text = "結果を別ウィンドウ表示"
+    $showWindowButton.Location = New-Object System.Drawing.Point(580, 10)
+    $showWindowButton.Size = New-Object System.Drawing.Size(180, 35)
+    $showWindowButton.BackColor = [System.Drawing.Color]::FromArgb(90, 150, 90)
+    $showWindowButton.ForeColor = $script:fgColor
+    $showWindowButton.Anchor = "Bottom,Right"
+    $showWindowButton.Add_Click({
+        $allResults = @()
+        foreach ($item in $listView.Items) {
+            $fileInfo = $item.Tag
+            $filePath = $fileInfo.FullPath
+            
+            if (Test-Path -LiteralPath $filePath -PathType Leaf) {
+                $mediaInfoOutput = Invoke-MediaInfo $filePath
+                if ($mediaInfoOutput) {
+                    $parsedInfo = Parse-MediaInfo $mediaInfoOutput
+                    $resultContent = ""
+                    $resultContent += "ファイル名: $($fileInfo.FileName)`r`n"
+                    $resultContent += "--------------------------------------------------`r`n"
+                    Display-MediaInfo $parsedInfo ([ref]$resultContent)
+                    
+                    $allResults += @{
+                        Title = $fileInfo.FileName
+                        Content = $resultContent
+                        FullPath = $filePath
+                    }
+                }
+            }
+        }
+        
+        if ($allResults.Count -gt 0) {
+            $previousResults = $script:analysisResults
+            $script:analysisResults = $allResults
+            Show-ResultWindows
+            $script:analysisResults = $previousResults
+        }
     })
-    $buttonPanel.Controls.Add($closeButton)
+    $buttonPanel.Controls.Add($showWindowButton)
+    
+    # 全ウィンドウを閉じるボタン
+    $closeAllWindowsButton = New-Object System.Windows.Forms.Button
+    $closeAllWindowsButton.Text = "全ウィンドウを閉じる"
+    $closeAllWindowsButton.Location = New-Object System.Drawing.Point(770, 10)
+    $closeAllWindowsButton.Size = New-Object System.Drawing.Size(150, 35)
+    $closeAllWindowsButton.BackColor = [System.Drawing.Color]::FromArgb(180, 60, 60)
+    $closeAllWindowsButton.ForeColor = $script:fgColor
+    $closeAllWindowsButton.Anchor = "Bottom,Right"
+    $closeAllWindowsButton.Add_Click({
+        Close-AllResultWindows
+    })
+    $buttonPanel.Controls.Add($closeAllWindowsButton)
     
     # 列幅変更イベント
     $listView.Add_ColumnWidthChanged({
