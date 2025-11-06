@@ -4363,6 +4363,414 @@ function Show-FileOrganizer {
         }
     })
     
+    $contextMenu = New-Object System.Windows.Forms.ContextMenuStrip
+    $contextMenu.BackColor = $script:menuBgColor
+    $contextMenu.ForeColor = $script:fgColor
+
+    $showSelectedWindowsMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $showSelectedWindowsMenuItem.Text = "選択したファイルを別ウィンドウ表示(&S)"
+    $showSelectedWindowsMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -lt 2) {
+            return
+        }
+        
+        $selectedResults = @()
+        foreach ($item in $listView.SelectedItems) {
+            $fileInfo = $item.Tag
+            $filePath = $fileInfo.FullPath
+            
+            if (Test-Path -LiteralPath $filePath -PathType Leaf) {
+                $mediaInfoOutput = Invoke-MediaInfo $filePath
+                if ($mediaInfoOutput) {
+                    $parsedInfo = Parse-MediaInfo $mediaInfoOutput
+                    $resultContent = ""
+                    $resultContent += "ファイル名: $($fileInfo.FileName)`r`n"
+                    $resultContent += "--------------------------------------------------`r`n"
+                    Display-MediaInfo $parsedInfo ([ref]$resultContent)
+                    
+                    $selectedResults += @{
+                        Title = $fileInfo.FileName
+                        Content = $resultContent
+                        FullPath = $filePath
+                    }
+                }
+            }
+        }
+        
+        if ($selectedResults.Count -gt 0) {
+            $previousResults = $script:analysisResults
+            $script:analysisResults = $selectedResults
+            Show-ResultWindows
+            $script:analysisResults = $previousResults
+        }
+    })
+    $contextMenu.Items.Add($showSelectedWindowsMenuItem)
+
+    $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+    $openFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $openFileMenuItem.Text = "ファイルを開く(&O)"
+    $openFileMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -gt 0) {
+            $fileInfo = $listView.SelectedItems[0].Tag
+            $filePath = $fileInfo.FullPath
+            
+            if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                try {
+                    Start-Process $filePath
+                } catch {
+                    [System.Windows.Forms.MessageBox]::Show("ファイルを開けませんでした。`n$($_.Exception.Message)", "エラー")
+                }
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("ファイルが見つかりません:`n$filePath", "エラー")
+            }
+        }
+    })
+    $contextMenu.Items.Add($openFileMenuItem)
+
+    $openFolderMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $openFolderMenuItem.Text = "フォルダを開く(&F)"
+    $openFolderMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -gt 0) {
+            $fileInfo = $listView.SelectedItems[0].Tag
+            $filePath = $fileInfo.FullPath
+            
+            if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                try {
+                    Start-Process "explorer.exe" -ArgumentList "/select,`"$filePath`""
+                } catch {
+                    [System.Windows.Forms.MessageBox]::Show("フォルダを開けませんでした。`n$($_.Exception.Message)", "エラー")
+                }
+            } else {
+                [System.Windows.Forms.MessageBox]::Show("ファイルが見つかりません:`n$filePath", "エラー")
+            }
+        }
+    })
+    $contextMenu.Items.Add($openFolderMenuItem)
+
+    $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+    $copyFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $copyFileMenuItem.Text = "ファイルをコピー(&C)..."
+    $copyFileMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+        $folderBrowser.Description = "コピー先のフォルダを選択してください"
+        $folderBrowser.ShowNewFolderButton = $true
+        
+        if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $destFolder = $folderBrowser.SelectedPath
+            $successCount = 0
+            $errorCount = 0
+            
+            foreach ($item in $listView.SelectedItems) {
+                $fileInfo = $item.Tag
+                $filePath = $fileInfo.FullPath
+                
+                if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                    $fileName = [System.IO.Path]::GetFileName($filePath)
+                    $destPath = Join-Path $destFolder $fileName
+                    
+                    try {
+                        Copy-Item -LiteralPath $filePath -Destination $destPath -ErrorAction Stop
+                        $successCount++
+                    } catch {
+                        $errorCount++
+                    }
+                }
+            }
+            
+            $message = "処理完了`n`nコピー: $successCount 件"
+            if ($errorCount -gt 0) {
+                $message += "`nエラー: $errorCount 件"
+            }
+            [System.Windows.Forms.MessageBox]::Show($message, "処理結果")
+        }
+    })
+    $contextMenu.Items.Add($copyFileMenuItem)
+
+    $moveFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $moveFileMenuItem.Text = "ファイルを移動(&M)..."
+    $moveFileMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+        $folderBrowser.Description = "移動先のフォルダを選択してください"
+        $folderBrowser.ShowNewFolderButton = $true
+        
+        if ($folderBrowser.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $destFolder = $folderBrowser.SelectedPath
+            $successCount = 0
+            $errorCount = 0
+            
+            $itemsToRemove = @($listView.SelectedItems)
+            foreach ($item in $itemsToRemove) {
+                $fileInfo = $item.Tag
+                $filePath = $fileInfo.FullPath
+                
+                if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                    $fileName = [System.IO.Path]::GetFileName($filePath)
+                    $destPath = Join-Path $destFolder $fileName
+                    
+                    try {
+                        Move-Item -LiteralPath $filePath -Destination $destPath -ErrorAction Stop
+                        $listView.Items.Remove($item)
+                        $successCount++
+                    } catch {
+                        $errorCount++
+                    }
+                }
+            }
+            
+            $message = "処理完了`n`n移動: $successCount 件"
+            if ($errorCount -gt 0) {
+                $message += "`nエラー: $errorCount 件"
+            }
+            [System.Windows.Forms.MessageBox]::Show($message, "処理結果")
+            
+            if ($listView.Items.Count -eq 0) {
+                [System.Windows.Forms.MessageBox]::Show("すべてのファイルが移動されました。", "情報")
+                $organizerForm.Close()
+            } else {
+                $organizerForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件"
+            }
+        }
+    })
+    $contextMenu.Items.Add($moveFileMenuItem)
+
+    $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+    $deleteFileMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $deleteFileMenuItem.Text = "ファイルを削除(ごみ箱)(&D)"
+    $deleteFileMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "$($listView.SelectedItems.Count) 件のファイルをごみ箱に移動しますか?",
+            "確認",
+            [System.Windows.Forms.MessageBoxButtons]::YesNo,
+            [System.Windows.Forms.MessageBoxIcon]::Question
+        )
+        
+        if ($result -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            $successCount = 0
+            $errorCount = 0
+            
+            $itemsToRemove = @($listView.SelectedItems)
+            foreach ($item in $itemsToRemove) {
+                $fileInfo = $item.Tag
+                $filePath = $fileInfo.FullPath
+                
+                if ($filePath -and (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+                    try {
+                        [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($filePath, 'OnlyErrorDialogs', 'SendToRecycleBin')
+                        $listView.Items.Remove($item)
+                        $successCount++
+                    } catch {
+                        $errorCount++
+                    }
+                }
+            }
+            
+            $message = "処理完了`n`nごみ箱に移動: $successCount 件"
+            if ($errorCount -gt 0) {
+                $message += "`nエラー: $errorCount 件"
+            }
+            [System.Windows.Forms.MessageBox]::Show($message, "処理結果")
+            
+            if ($listView.Items.Count -eq 0) {
+                [System.Windows.Forms.MessageBox]::Show("すべてのファイルが削除されました。", "情報")
+                $organizerForm.Close()
+            } else {
+                $organizerForm.Text = "動画ファイル整理 - $($listView.Items.Count) 件"
+            }
+        }
+    })
+    $contextMenu.Items.Add($deleteFileMenuItem)
+
+    $contextMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+    $copyUrlMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $copyUrlMenuItem.Text = "コメントタグの URL をコピー(&U)"
+    $copyUrlMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $urls = @()
+        
+        foreach ($item in $listView.SelectedItems) {
+            $fileInfo = $item.Tag
+            $filePath = $fileInfo.FullPath
+            
+            if (Test-Path -LiteralPath $filePath -PathType Leaf) {
+                $mediaInfoOutput = Invoke-MediaInfo $filePath
+                if ($mediaInfoOutput) {
+                    $parsedInfo = Parse-MediaInfo $mediaInfoOutput
+                    if ($parsedInfo.Comment -and $parsedInfo.Comment -match 'https?://[^\s]+') {
+                        $urls += $matches[0]
+                    }
+                }
+            }
+        }
+        
+        if ($urls.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("コメントタグに URL が見つかりませんでした。", "情報")
+            return
+        }
+        
+        $urlText = $urls -join "`r`n"
+        
+        try {
+            [System.Windows.Forms.Clipboard]::SetText($urlText)
+            
+            $notifyForm = New-Object System.Windows.Forms.Form
+            $notifyForm.Text = "コピー完了"
+            $notifyForm.Size = New-Object System.Drawing.Size(300, 140)
+            $notifyForm.StartPosition = "CenterParent"
+            $notifyForm.FormBorderStyle = "FixedDialog"
+            $notifyForm.MaximizeBox = $false
+            $notifyForm.MinimizeBox = $false
+            $notifyForm.BackColor = $script:bgColor
+            $notifyForm.ForeColor = $script:fgColor
+            
+            $notifyLabel = New-Object System.Windows.Forms.Label
+            $notifyLabel.Text = "$($urls.Count) 件の URL を`r`nクリップボードにコピーしました。"
+            $notifyLabel.Location = New-Object System.Drawing.Point(20, 15)
+            $notifyLabel.Size = New-Object System.Drawing.Size(260, 50)
+            $notifyLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+            $notifyLabel.ForeColor = $script:fgColor
+            $notifyForm.Controls.Add($notifyLabel)
+            
+            $okButton = New-Object System.Windows.Forms.Button
+            $okButton.Text = "OK"
+            $okButton.Location = New-Object System.Drawing.Point(110, 70)
+            $okButton.Size = New-Object System.Drawing.Size(80, 25)
+            $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+            $notifyForm.Controls.Add($okButton)
+            $notifyForm.AcceptButton = $okButton
+            
+            $autoCloseTimer = New-Object System.Windows.Forms.Timer
+            $autoCloseTimer.Interval = 3000
+            $autoCloseTimer.Add_Tick({
+                param($sender, $e)
+                if ($notifyForm -and -not $notifyForm.IsDisposed) {
+                    $notifyForm.Close()
+                }
+                $sender.Stop()
+                $sender.Dispose()
+            })
+            
+            $notifyForm.Add_FormClosed({
+                if ($autoCloseTimer) {
+                    $autoCloseTimer.Stop()
+                    $autoCloseTimer.Dispose()
+                }
+            })
+            
+            $autoCloseTimer.Start()
+            
+            [void]$notifyForm.ShowDialog($organizerForm)
+            
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("クリップボードへのコピーに失敗しました。`n$($_.Exception.Message)", "エラー")
+        }
+    })
+    $contextMenu.Items.Add($copyUrlMenuItem)
+
+    $copyPathMenuItem = New-Object System.Windows.Forms.ToolStripMenuItem
+    $copyPathMenuItem.Text = "フルパスをコピー(&P)"
+    $copyPathMenuItem.Add_Click({
+        if ($listView.SelectedItems.Count -eq 0) {
+            [System.Windows.Forms.MessageBox]::Show("ファイルを選択してください。", "情報")
+            return
+        }
+        
+        $paths = @()
+        
+        foreach ($item in $listView.SelectedItems) {
+            $fileInfo = $item.Tag
+            $paths += "`"$($fileInfo.FullPath)`""
+        }
+        
+        $pathText = $paths -join "`r`n"
+        
+        try {
+            [System.Windows.Forms.Clipboard]::SetText($pathText)
+            
+            $notifyForm = New-Object System.Windows.Forms.Form
+            $notifyForm.Text = "コピー完了"
+            $notifyForm.Size = New-Object System.Drawing.Size(300, 140)
+            $notifyForm.StartPosition = "CenterParent"
+            $notifyForm.FormBorderStyle = "FixedDialog"
+            $notifyForm.MaximizeBox = $false
+            $notifyForm.MinimizeBox = $false
+            $notifyForm.BackColor = $script:bgColor
+            $notifyForm.ForeColor = $script:fgColor
+            
+            $notifyLabel = New-Object System.Windows.Forms.Label
+            $notifyLabel.Text = "$($paths.Count) 件のパスを`r`nクリップボードにコピーしました。"
+            $notifyLabel.Location = New-Object System.Drawing.Point(20, 15)
+            $notifyLabel.Size = New-Object System.Drawing.Size(260, 50)
+            $notifyLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+            $notifyLabel.ForeColor = $script:fgColor
+            $notifyForm.Controls.Add($notifyLabel)
+            
+            $okButton = New-Object System.Windows.Forms.Button
+            $okButton.Text = "OK"
+            $okButton.Location = New-Object System.Drawing.Point(110, 70)
+            $okButton.Size = New-Object System.Drawing.Size(80, 25)
+            $okButton.DialogResult = [System.Windows.Forms.DialogResult]::OK
+            $notifyForm.Controls.Add($okButton)
+            $notifyForm.AcceptButton = $okButton
+            
+            $autoCloseTimer = New-Object System.Windows.Forms.Timer
+            $autoCloseTimer.Interval = 3000
+            $autoCloseTimer.Add_Tick({
+                param($sender, $e)
+                if ($notifyForm -and -not $notifyForm.IsDisposed) {
+                    $notifyForm.Close()
+                }
+                $sender.Stop()
+                $sender.Dispose()
+            })
+            
+            $notifyForm.Add_FormClosed({
+                if ($autoCloseTimer) {
+                    $autoCloseTimer.Stop()
+                    $autoCloseTimer.Dispose()
+                }
+            })
+            
+            $autoCloseTimer.Start()
+            
+            [void]$notifyForm.ShowDialog($organizerForm)
+            
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("クリップボードへのコピーに失敗しました。`n$($_.Exception.Message)", "エラー")
+        }
+    })
+    $contextMenu.Items.Add($copyPathMenuItem)
+
+    $contextMenu.Add_Opening({
+        param($sender, $e)
+        $showSelectedWindowsMenuItem.Visible = ($listView.SelectedItems.Count -ge 2)
+    })
+
+    $listView.ContextMenuStrip = $contextMenu
+    
     $organizerForm.Controls.Add($listView)
     
     # ボタンパネル
