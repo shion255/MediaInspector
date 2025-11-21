@@ -320,6 +320,16 @@ $script:organizerColumnWidth1 = if ($config.OrganizerColumnWidth1) { [int]$confi
 $script:organizerColumnWidth2 = if ($config.OrganizerColumnWidth2) { [int]$config.OrganizerColumnWidth2 } else { 250 }
 $script:organizerColumnWidth3 = if ($config.OrganizerColumnWidth3) { [int]$config.OrganizerColumnWidth3 } else { 150 }
 
+# 重複検出の設定状態を保持する変数（初期値はすべてFalse）
+$script:duplicateCheckState = @{
+    Title = $false
+    Duration = $false
+    CommentUrl = $false
+    Resolution = $false
+    RecordedDate = $false
+    FileSize = $false
+}
+
 # --- ツールパスチェック ---
 foreach ($tool in @($script:ytDlpPath, $script:mediaInfoPath)) {
     if ($tool -and -not (Test-Path $tool)) {
@@ -733,6 +743,14 @@ $organizeItem.Add_Click({
     Show-FileOrganizer
 })
 $toolMenu.DropDownItems.Add($organizeItem)
+
+# 重複ファイル検出
+$duplicateItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$duplicateItem.Text = "重複ファイル検出(&D)..."
+$duplicateItem.Add_Click({
+    Show-DuplicateDetectionDialog
+})
+$toolMenu.DropDownItems.Add($duplicateItem)
 
 # セパレーター
 $toolMenu.DropDownItems.Add((New-Object System.Windows.Forms.ToolStripSeparator))
@@ -6163,6 +6181,643 @@ function Analyze-Video {
 }
 
 $button.Add_Click({ Analyze-Video })
+
+# --- 重複ファイル検出機能 ---
+
+# コンテンツから情報を抽出するヘルパー関数群
+function Get-InfoForDuplicateCheck($content, $fullPath) {
+    $info = @{
+        Title = ""
+        Duration = ""
+        CommentUrl = ""
+        Resolution = ""
+        RecordedDate = ""
+        SizeBytes = 0
+        SizeStr = "不明"
+    }
+
+    # タイトルの抽出（解析結果のタイトルを使用するため、ここでは処理しないが構造として用意）
+
+    # 再生時間
+    if ($content -match '再生時間:\s*(.+)') {
+        $info.Duration = $matches[1].Trim()
+    }
+
+    # コメント（URLのみ抽出）
+    if ($content -match 'コメント:\s*(.+)') {
+        $comment = $matches[1].Trim()
+        if ($comment -match 'https?://[^\s]+') {
+            $info.CommentUrl = $matches[0]
+        }
+    }
+
+    # 解像度
+    if ($content -match '解像度:\s*(\d+\s*x\s*\d+)') {
+        $info.Resolution = $matches[1] -replace '\s+', ''
+    } elseif ($content -match '(\d{3,5}\s*x\s*\d{3,5})') {
+         $info.Resolution = $matches[1] -replace '\s+', ''
+    }
+
+    # 記録日
+    if ($content -match '記録日:\s*(.+)') {
+        $info.RecordedDate = $matches[1].Trim()
+    }
+
+    # ファイルサイズ（バイト単位での比較用）
+    if ($fullPath -and (Test-Path -LiteralPath $fullPath)) {
+        try {
+            $info.SizeBytes = (Get-Item -LiteralPath $fullPath).Length
+            $info.SizeStr = Format-FileSize $info.SizeBytes
+        } catch {
+            $info.SizeBytes = 0
+        }
+    } else {
+        # コンテンツからサイズ文字列を探して推測（URL解析などの場合）
+        if ($content -match 'Stream size\s*:\s*([\d\.]+)\s*([KMGTP]?i?B)') {
+             # 厳密なバイト換算は難しいため、ここでは0とするか、必要なら実装する
+             # 要件の「ファイルサイズ」は主にローカルファイルを想定していると思われるため
+             $info.SizeBytes = 0
+             $info.SizeStr = "$($matches[1]) $($matches[2])"
+        } elseif ($content -match 'File size\s*:\s*([\d\.]+)\s*([KMGTP]?i?B)') {
+             $info.SizeBytes = 0
+             $info.SizeStr = "$($matches[1]) $($matches[2])"
+        }
+    }
+
+    return $info
+}
+
+function Show-DuplicateDetectionDialog {
+    if ($script:analysisResults.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("解析結果がありません。先に解析を実行してください。", "情報")
+        return
+    }
+
+    $dlg = New-Object System.Windows.Forms.Form
+    $dlg.Text = "重複ファイル検出条件"
+    $dlg.Size = New-Object System.Drawing.Size(400, 260)
+    $dlg.StartPosition = "CenterParent"
+    $dlg.FormBorderStyle = "FixedDialog"
+    $dlg.MaximizeBox = $false
+    $dlg.MinimizeBox = $false
+    $dlg.BackColor = $script:bgColor
+    $dlg.ForeColor = $script:fgColor
+
+    $lbl = New-Object System.Windows.Forms.Label
+    $lbl.Text = "検出する条件を選択してください（AND検索）:"
+    $lbl.Location = New-Object System.Drawing.Point(15, 15)
+    $lbl.Size = New-Object System.Drawing.Size(350, 20)
+    $lbl.ForeColor = $script:fgColor
+    $dlg.Controls.Add($lbl)
+
+    $chkPanel = New-Object System.Windows.Forms.TableLayoutPanel
+    $chkPanel.Location = New-Object System.Drawing.Point(15, 45)
+    $chkPanel.Size = New-Object System.Drawing.Size(360, 80)
+    $chkPanel.ColumnCount = 3
+    $chkPanel.RowCount = 2
+    $chkPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 33.3))) | Out-Null
+    $chkPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 33.3))) | Out-Null
+    $chkPanel.ColumnStyles.Add((New-Object System.Windows.Forms.ColumnStyle([System.Windows.Forms.SizeType]::Percent, 33.3))) | Out-Null
+    $dlg.Controls.Add($chkPanel)
+
+    # チェックボックスの作成と状態復元
+    $checks = @{}
+    $items = @(
+        @{Key="Title"; Text="タイトル"},
+        @{Key="Duration"; Text="再生時間"},
+        @{Key="CommentUrl"; Text="コメント (URL)"},
+        @{Key="Resolution"; Text="解像度"},
+        @{Key="RecordedDate"; Text="記録日"},
+        @{Key="FileSize"; Text="ファイルサイズ"}
+    )
+
+    $row = 0
+    $col = 0
+    foreach ($item in $items) {
+        $chk = New-Object System.Windows.Forms.CheckBox
+        $chk.Text = $item.Text
+        $chk.Checked = $script:duplicateCheckState[$item.Key]
+        $chk.ForeColor = $script:fgColor
+        $chk.AutoSize = $true
+        $chkPanel.Controls.Add($chk, $col, $row)
+        $checks[$item.Key] = $chk
+        
+        $col++
+        if ($col -gt 2) {
+            $col = 0
+            $row++
+        }
+    }
+
+    # ボタン類
+    $btnPanel = New-Object System.Windows.Forms.Panel
+    $btnPanel.Location = New-Object System.Drawing.Point(15, 140)
+    $btnPanel.Size = New-Object System.Drawing.Size(360, 30)
+    $dlg.Controls.Add($btnPanel)
+
+    $btnSelectAll = New-Object System.Windows.Forms.Button
+    $btnSelectAll.Text = "全て選択"
+    $btnSelectAll.Size = New-Object System.Drawing.Size(80, 25)
+    $btnSelectAll.Location = New-Object System.Drawing.Point(0, 0)
+    $btnSelectAll.BackColor = [System.Drawing.Color]::FromArgb(100, 120, 140)
+    $btnSelectAll.ForeColor = $script:fgColor
+    $btnSelectAll.Add_Click({
+        foreach ($k in $checks.Keys) { $checks[$k].Checked = $true }
+    })
+    $btnPanel.Controls.Add($btnSelectAll)
+
+    $btnDeselectAll = New-Object System.Windows.Forms.Button
+    $btnDeselectAll.Text = "全て解除"
+    $btnDeselectAll.Size = New-Object System.Drawing.Size(80, 25)
+    $btnDeselectAll.Location = New-Object System.Drawing.Point(90, 0)
+    $btnDeselectAll.BackColor = [System.Drawing.Color]::FromArgb(100, 120, 140)
+    $btnDeselectAll.ForeColor = $script:fgColor
+    $btnDeselectAll.Add_Click({
+        foreach ($k in $checks.Keys) { $checks[$k].Checked = $false }
+    })
+    $btnPanel.Controls.Add($btnDeselectAll)
+
+    $btnRun = New-Object System.Windows.Forms.Button
+    $btnRun.Text = "実行"
+    $btnRun.DialogResult = [System.Windows.Forms.DialogResult]::OK
+    $btnRun.Size = New-Object System.Drawing.Size(80, 30)
+    $btnRun.Location = New-Object System.Drawing.Point(180, 180)
+    $btnRun.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $btnRun.ForeColor = $script:fgColor
+    $dlg.Controls.Add($btnRun)
+    $dlg.AcceptButton = $btnRun
+
+    $btnCancel = New-Object System.Windows.Forms.Button
+    $btnCancel.Text = "キャンセル"
+    $btnCancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+    $btnCancel.Size = New-Object System.Drawing.Size(80, 30)
+    $btnCancel.Location = New-Object System.Drawing.Point(270, 180)
+    $btnCancel.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
+    $btnCancel.ForeColor = $script:fgColor
+    $dlg.Controls.Add($btnCancel)
+    $dlg.CancelButton = $btnCancel
+
+    if ($dlg.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        # 設定を保存
+        foreach ($k in $checks.Keys) {
+            $script:duplicateCheckState[$k] = $checks[$k].Checked
+        }
+        
+        # 検出実行
+        Find-Duplicates
+    }
+}
+
+function Find-Duplicates {
+    # チェックされた条件があるか確認
+    $hasCondition = $false
+    foreach ($k in $script:duplicateCheckState.Keys) {
+        if ($script:duplicateCheckState[$k]) { $hasCondition = $true; break }
+    }
+    
+    if (-not $hasCondition) {
+        [System.Windows.Forms.MessageBox]::Show("検出条件が1つも選択されていません。", "情報")
+        return
+    }
+
+    # データ準備
+    $items = @()
+    foreach ($res in $script:analysisResults) {
+        $extracted = Get-InfoForDuplicateCheck $res.Content $res.FullPath
+        $items += [PSCustomObject]@{
+            Result = $res
+            Title = $res.Title
+            Duration = $extracted.Duration
+            CommentUrl = $extracted.CommentUrl
+            Resolution = $extracted.Resolution
+            RecordedDate = $extracted.RecordedDate
+            SizeBytes = $extracted.SizeBytes
+            SizeStr = $extracted.SizeStr
+        }
+    }
+
+    # グループ化処理
+    # ファイルサイズ以外の条件でまず厳密なグルーピングを行う
+    $groups = $items | Group-Object {
+        $keys = @()
+        if ($script:duplicateCheckState["Title"]) { $keys += $_.Title }
+        if ($script:duplicateCheckState["Duration"]) { $keys += $_.Duration }
+        if ($script:duplicateCheckState["CommentUrl"]) { $keys += $_.CommentUrl }
+        if ($script:duplicateCheckState["Resolution"]) { $keys += $_.Resolution }
+        if ($script:duplicateCheckState["RecordedDate"]) { $keys += $_.RecordedDate }
+        return ($keys -join "|||")
+    }
+
+    $duplicateGroups = @()
+
+    foreach ($g in $groups) {
+        $candidates = $g.Group
+        if ($candidates.Count -lt 2) { continue }
+
+        # ファイルサイズチェック（有効な場合、3MiB以内の差を許容）
+        if ($script:duplicateCheckState["FileSize"]) {
+            # サイズ順にソート
+            $candidates = $candidates | Sort-Object SizeBytes
+            
+            $currentCluster = @()
+            for ($i = 0; $i -lt $candidates.Count; $i++) {
+                if ($currentCluster.Count -eq 0) {
+                    $currentCluster += $candidates[$i]
+                } else {
+                    $prev = $currentCluster[-1]
+                    $curr = $candidates[$i]
+                    $diff = [math]::Abs($curr.SizeBytes - $prev.SizeBytes)
+                    
+                    # 3 MiB = 3 * 1024 * 1024 = 3145728 Bytes
+                    if ($diff -le 3145728) {
+                        $currentCluster += $curr
+                    } else {
+                        # 差が大きい場合、今のクラスターが2個以上なら重複グループとして保存
+                        if ($currentCluster.Count -ge 2) {
+                            $duplicateGroups += ,$currentCluster
+                        }
+                        # 新しいクラスター開始
+                        $currentCluster = @($curr)
+                    }
+                }
+            }
+            # 最後のクラスター確認
+            if ($currentCluster.Count -ge 2) {
+                $duplicateGroups += ,$currentCluster
+            }
+        } else {
+            # サイズチェックしない場合はそのままグループとして採用
+            $duplicateGroups += ,$candidates
+        }
+    }
+
+    if ($duplicateGroups.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("条件に一致する重複ファイルは見つかりませんでした。", "結果")
+        return
+    }
+
+    Show-DuplicateResultsList $duplicateGroups
+}
+
+function Show-DuplicateResultsList($duplicateGroups) {
+    $script:currentDuplicateGroups = $duplicateGroups
+
+    # リストビュー更新用処理 (ScriptBlockとして定義して再利用)
+    $populateAction = {
+        param($lv, $groups)
+        $lv.BeginUpdate()
+        $lv.Items.Clear()
+        $groupIndex = 1
+        
+        foreach ($group in $groups) {
+            # グループヘッダー行（1行空ける処理は、2グループ目以降の最初に行う）
+            if ($groupIndex -gt 1) {
+                # 空白行
+                $blankItem = New-Object System.Windows.Forms.ListViewItem("")
+                $blankItem.BackColor = $script:bgColor # 背景色と同じにして目立たなくする
+                [void]$lv.Items.Add($blankItem)
+            }
+
+            # グループ名表示行
+            $groupHeaderItem = New-Object System.Windows.Forms.ListViewItem("グループ $groupIndex")
+            $groupHeaderItem.ForeColor = if ($script:currentTheme -eq "Dark") { [System.Drawing.Color]::Yellow } else { [System.Drawing.Color]::Blue }
+            $groupHeaderItem.Font = New-Object System.Drawing.Font($lv.Font, [System.Drawing.FontStyle]::Bold)
+            $groupHeaderItem.BackColor = $script:bgColor
+            [void]$lv.Items.Add($groupHeaderItem)
+
+            # アイテム追加
+            foreach ($itemInfo in $group) {
+                $fileName = if ($itemInfo.Result.ContainsKey('FullPath') -and $itemInfo.Result.FullPath) {
+                    [System.IO.Path]::GetFileName($itemInfo.Result.FullPath)
+                } else {
+                    $itemInfo.Title
+                }
+
+                $li = New-Object System.Windows.Forms.ListViewItem($fileName)
+                $li.SubItems.Add($itemInfo.Duration) | Out-Null
+                $li.SubItems.Add($itemInfo.Resolution) | Out-Null
+                $li.SubItems.Add($itemInfo.RecordedDate) | Out-Null
+                $li.SubItems.Add($itemInfo.SizeStr) | Out-Null
+                $li.Tag = $itemInfo.Result # 解析結果を保持
+
+                if ($script:currentTheme -eq "Dark") {
+                    $li.BackColor = [System.Drawing.Color]::FromArgb(55, 60, 65)
+                } else {
+                    $li.BackColor = [System.Drawing.Color]::FromArgb(245, 245, 245)
+                }
+                [void]$lv.Items.Add($li)
+            }
+            $groupIndex++
+        }
+        $lv.EndUpdate()
+    }
+
+    # 既存のウィンドウがあればリストを更新して前面に表示
+    if ($script:duplicateListForm -and -not $script:duplicateListForm.IsDisposed) {
+        $lv = $script:duplicateListListView
+        & $populateAction $lv $duplicateGroups
+        $script:duplicateListForm.Text = "重複ファイル検出結果 - $($duplicateGroups.Count) グループ"
+        $script:duplicateListForm.BringToFront()
+        return
+    }
+
+    $formWidth = if ($script:columnWidth1) { $script:columnWidth1 + 400 } else { 800 }
+    $dupForm = New-Object System.Windows.Forms.Form
+    $dupForm.Text = "重複ファイル検出結果 - $($duplicateGroups.Count) グループ"
+    $dupForm.Size = New-Object System.Drawing.Size(850, 600)
+    $dupForm.StartPosition = "CenterScreen"
+    $dupForm.BackColor = $script:bgColor
+    $dupForm.ForeColor = $script:fgColor
+
+    $lv = New-Object System.Windows.Forms.ListView
+    $lv.Location = New-Object System.Drawing.Point(10, 10)
+    $lv.Size = New-Object System.Drawing.Size(815, 500)
+    $lv.View = [System.Windows.Forms.View]::Details
+    $lv.FullRowSelect = $true
+    $lv.GridLines = $true
+    $lv.BackColor = $script:inputBgColor
+    $lv.ForeColor = $script:fgColor
+    $lv.Anchor = "Top,Bottom,Left,Right"
+    $lv.MultiSelect = $true
+
+    # 列設定（幅は記憶していればそれを使用、なければデフォルト）
+    $w1 = if ($script:dupColWidth1) { $script:dupColWidth1 } else { 300 } # ファイル名
+    $w2 = if ($script:dupColWidth2) { $script:dupColWidth2 } else { 100 } # 再生時間
+    $w3 = if ($script:dupColWidth3) { $script:dupColWidth3 } else { 100 } # 解像度
+    $w4 = if ($script:dupColWidth4) { $script:dupColWidth4 } else { 120 } # 記録日
+    $w5 = if ($script:dupColWidth5) { $script:dupColWidth5 } else { 100 } # サイズ
+
+    [void]$lv.Columns.Add("ファイル名", $w1)
+    [void]$lv.Columns.Add("再生時間", $w2)
+    [void]$lv.Columns.Add("解像度", $w3)
+    [void]$lv.Columns.Add("記録日", $w4)
+    [void]$lv.Columns.Add("サイズ", $w5)
+
+    # グローバル変数にリストビューを保存（再利用のため）
+    $script:duplicateListListView = $lv
+
+    # 初回リスト生成
+    & $populateAction $lv $duplicateGroups
+
+    # ダブルクリックで詳細表示
+    $lv.Add_DoubleClick({
+        if ($lv.SelectedItems.Count -gt 0) {
+            $tag = $lv.SelectedItems[0].Tag
+            if ($tag) {
+                Show-ResultDetail $tag
+            }
+        }
+    })
+
+    # コンテキストメニュー
+    $ctxMenu = New-Object System.Windows.Forms.ContextMenuStrip
+    $ctxMenu.BackColor = $script:menuBgColor
+    $ctxMenu.ForeColor = $script:fgColor
+
+    # 選択したファイルを別ウィンドウ表示
+    $miShowWindow = New-Object System.Windows.Forms.ToolStripMenuItem("選択したファイルを別ウィンドウ表示(&S)")
+    $miShowWindow.Add_Click({
+        if ($lv.SelectedItems.Count -lt 2) { return }
+        $selected = @()
+        foreach ($i in $lv.SelectedItems) { if ($i.Tag) { $selected += $i.Tag } }
+        $prev = $script:analysisResults
+        $script:analysisResults = $selected
+        Show-ResultWindows
+        $script:analysisResults = $prev
+    })
+    $ctxMenu.Items.Add($miShowWindow)
+    $ctxMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+    # ファイルを開く
+    $miOpen = New-Object System.Windows.Forms.ToolStripMenuItem("ファイルを開く(&O)")
+    $miOpen.Add_Click({
+        foreach ($i in $lv.SelectedItems) {
+            if ($i.Tag -and $i.Tag.FullPath -and (Test-Path -LiteralPath $i.Tag.FullPath)) {
+                Invoke-Item $i.Tag.FullPath
+            }
+        }
+    })
+    $ctxMenu.Items.Add($miOpen)
+
+    # フォルダを開く
+    $miOpenFolder = New-Object System.Windows.Forms.ToolStripMenuItem("フォルダを開く(&F)")
+    $miOpenFolder.Add_Click({
+        if ($lv.SelectedItems.Count -gt 0 -and $lv.SelectedItems[0].Tag) {
+            $path = $lv.SelectedItems[0].Tag.FullPath
+            if ($path) { explorer.exe /select,"$path" }
+        }
+    })
+    $ctxMenu.Items.Add($miOpenFolder)
+    $ctxMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+    # コピー・移動・削除・パスコピー
+    $miCopy = New-Object System.Windows.Forms.ToolStripMenuItem("ファイルをコピー(&C)...")
+    $miCopy.Add_Click({
+        if ($lv.SelectedItems.Count -eq 0) { return }
+        $fbd = New-Object System.Windows.Forms.FolderBrowserDialog
+        if ($fbd.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            foreach ($i in $lv.SelectedItems) {
+                if ($i.Tag -and $i.Tag.FullPath) {
+                    Copy-Item -LiteralPath $i.Tag.FullPath -Destination $fbd.SelectedPath -Force
+                }
+            }
+            [System.Windows.Forms.MessageBox]::Show("コピー完了")
+        }
+    })
+    $ctxMenu.Items.Add($miCopy)
+
+    $miMove = New-Object System.Windows.Forms.ToolStripMenuItem("ファイルを移動(&M)...")
+    $miMove.Add_Click({
+        if ($lv.SelectedItems.Count -eq 0) { return }
+        $fbd = New-Object System.Windows.Forms.FolderBrowserDialog
+        if ($fbd.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            foreach ($i in $lv.SelectedItems) {
+                if ($i.Tag -and $i.Tag.FullPath) {
+                    try {
+                        Move-Item -LiteralPath $i.Tag.FullPath -Destination $fbd.SelectedPath -Force -ErrorAction Stop
+                        
+                        # 解析結果リストから削除
+                        $targetRes = $i.Tag
+                        $script:analysisResults = $script:analysisResults | Where-Object { $_ -ne $targetRes }
+                        
+                        $i.Remove()
+                    } catch {
+                        # エラー時は削除しない
+                    }
+                }
+            }
+            [System.Windows.Forms.MessageBox]::Show("移動完了")
+        }
+    })
+    $ctxMenu.Items.Add($miMove)
+
+    $miDel = New-Object System.Windows.Forms.ToolStripMenuItem("ファイルを削除(ごみ箱)(&D)")
+    $miDel.Add_Click({
+        if ($lv.SelectedItems.Count -eq 0) { return }
+        if ([System.Windows.Forms.MessageBox]::Show("選択したファイルをごみ箱に移動しますか？", "確認", [System.Windows.Forms.MessageBoxButtons]::YesNo) -eq [System.Windows.Forms.DialogResult]::Yes) {
+            Add-Type -AssemblyName Microsoft.VisualBasic
+            foreach ($i in $lv.SelectedItems) {
+                if ($i.Tag -and $i.Tag.FullPath) {
+                    try {
+                        [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($i.Tag.FullPath, 'OnlyErrorDialogs', 'SendToRecycleBin')
+                        
+                        # 解析結果リストから削除
+                        $targetRes = $i.Tag
+                        $script:analysisResults = $script:analysisResults | Where-Object { $_ -ne $targetRes }
+                        
+                        $i.Remove()
+                    } catch {
+                        # エラー時は削除しない
+                    }
+                }
+            }
+            [System.Windows.Forms.MessageBox]::Show("削除完了")
+        }
+    })
+    $ctxMenu.Items.Add($miDel)
+    $ctxMenu.Items.Add((New-Object System.Windows.Forms.ToolStripSeparator))
+
+    $miPath = New-Object System.Windows.Forms.ToolStripMenuItem("フルパスをコピー(&P)")
+    $miPath.Add_Click({
+        $paths = @()
+        foreach ($i in $lv.SelectedItems) {
+            if ($i.Tag -and $i.Tag.FullPath) { $paths += "`"$($i.Tag.FullPath)`"" }
+        }
+        if ($paths) { [System.Windows.Forms.Clipboard]::SetText(($paths -join "`r`n")) }
+    })
+    $ctxMenu.Items.Add($miPath)
+
+    # コンテキストメニュー表示制御
+    $ctxMenu.Add_Opening({
+        $miShowWindow.Visible = ($lv.SelectedItems.Count -ge 2)
+        $hasFile = $false
+        foreach ($i in $lv.SelectedItems) { if ($i.Tag) { $hasFile = $true; break } }
+        $miOpen.Enabled = $hasFile
+        $miOpenFolder.Enabled = $hasFile
+        $miCopy.Enabled = $hasFile
+        $miMove.Enabled = $hasFile
+        $miDel.Enabled = $hasFile
+        $miPath.Enabled = $hasFile
+    })
+    $lv.ContextMenuStrip = $ctxMenu
+
+    # Ctrl+A で全選択
+    $lv.Add_KeyDown({
+        param($sender, $e)
+        if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
+            $e.Handled = $true
+            foreach ($item in $lv.Items) {
+                # ヘッダーや空行は選択しない（Tagがあるものだけ）
+                if ($item.Tag) { $item.Selected = $true }
+            }
+        }
+    })
+
+    # カラムソート（グループごとソート）
+    $script:dupSortCol = -1
+    $script:dupSortAsc = $true
+    
+    $lv.Add_ColumnClick({
+        param($sender, $e)
+        $col = $e.Column
+        if ($script:dupSortCol -eq $col) {
+            $script:dupSortAsc = -not $script:dupSortAsc
+        } else {
+            $script:dupSortCol = $col
+            $script:dupSortAsc = $true
+        }
+
+        # グループ単位でソートを行う
+        # グループ内の先頭アイテムの該当カラムの値でグループを比較
+        $sortedGroups = $script:currentDuplicateGroups | Sort-Object {
+            $firstItem = $_[0]
+            $val = switch ($col) {
+                0 { if ($firstItem.Result.FullPath) { [System.IO.Path]::GetFileName($firstItem.Result.FullPath) } else { $firstItem.Title } }
+                1 { $firstItem.Duration }
+                2 { $firstItem.Resolution }
+                3 { $firstItem.RecordedDate }
+                4 { $firstItem.SizeBytes } # サイズは数値でソート
+                default { "" }
+            }
+            return $val
+        } -Descending:(-not $script:dupSortAsc)
+
+        $script:currentDuplicateGroups = $sortedGroups
+        # スクリプトブロック呼び出し
+        & $populateAction $lv $sortedGroups
+    })
+
+    # 下部ボタンエリア
+    $btnPanel = New-Object System.Windows.Forms.Panel
+    $btnPanel.Location = New-Object System.Drawing.Point(10, 520)
+    $btnPanel.Size = New-Object System.Drawing.Size(815, 40)
+    $btnPanel.Anchor = "Bottom,Left,Right"
+    $dupForm.Controls.Add($btnPanel)
+
+    $btnWindow = New-Object System.Windows.Forms.Button
+    $btnWindow.Text = "結果を別ウィンドウ表示"
+    $btnWindow.Size = New-Object System.Drawing.Size(160, 30)
+    $btnWindow.Location = New-Object System.Drawing.Point(0, 5)
+    $btnWindow.BackColor = [System.Drawing.Color]::FromArgb(90, 150, 90)
+    $btnWindow.ForeColor = $script:fgColor
+    $btnWindow.Add_Click({
+        $all = @()
+        foreach ($i in $lv.Items) { if ($i.Tag) { $all += $i.Tag } }
+        if ($all) {
+            $prev = $script:analysisResults
+            $script:analysisResults = $all
+            Show-ResultWindows
+            $script:analysisResults = $prev
+        }
+    })
+    $btnPanel.Controls.Add($btnWindow)
+
+    $btnCloseAll = New-Object System.Windows.Forms.Button
+    $btnCloseAll.Text = "全ウィンドウを閉じる"
+    $btnCloseAll.Size = New-Object System.Drawing.Size(150, 30)
+    $btnCloseAll.Location = New-Object System.Drawing.Point(170, 5)
+    $btnCloseAll.BackColor = [System.Drawing.Color]::FromArgb(180, 60, 60)
+    $btnCloseAll.ForeColor = $script:fgColor
+    $btnCloseAll.Add_Click({ Close-AllResultWindows })
+    $btnPanel.Controls.Add($btnCloseAll)
+
+    $btnCondition = New-Object System.Windows.Forms.Button
+    $btnCondition.Text = "検出条件"
+    $btnCondition.Size = New-Object System.Drawing.Size(100, 30)
+    $btnCondition.Location = New-Object System.Drawing.Point(330, 5)
+    $btnCondition.BackColor = [System.Drawing.Color]::FromArgb(70, 130, 180)
+    $btnCondition.ForeColor = $script:fgColor
+    $btnCondition.Add_Click({ Show-DuplicateDetectionDialog })
+    $btnPanel.Controls.Add($btnCondition)
+
+    $btnClose = New-Object System.Windows.Forms.Button
+    $btnClose.Text = "閉じる"
+    $btnClose.Size = New-Object System.Drawing.Size(100, 30)
+    $btnClose.Location = New-Object System.Drawing.Point(715, 5)
+    $btnClose.Anchor = "Top,Right"
+    $btnClose.BackColor = [System.Drawing.Color]::FromArgb(100, 100, 100)
+    $btnClose.ForeColor = $script:fgColor
+    $btnClose.Add_Click({ $dupForm.Close() })
+    $btnPanel.Controls.Add($btnClose)
+
+    $dupForm.Controls.Add($lv)
+    
+    # カラム幅保存とグローバル変数のクリア
+    $dupForm.Add_FormClosed({
+        if ($lv.Columns.Count -ge 5) {
+            $script:dupColWidth1 = $lv.Columns[0].Width
+            $script:dupColWidth2 = $lv.Columns[1].Width
+            $script:dupColWidth3 = $lv.Columns[2].Width
+            $script:dupColWidth4 = $lv.Columns[3].Width
+            $script:dupColWidth5 = $lv.Columns[4].Width
+        }
+        $script:duplicateListForm = $null
+        $script:duplicateListListView = $null
+    })
+
+    $script:duplicateListForm = $dupForm
+    [void]$dupForm.ShowDialog()
+}
 
 # キーボードショートカット
 function Parse-Shortcut($shortcutString) {
