@@ -6402,7 +6402,18 @@ function Find-Duplicates {
         $keys = @()
         if ($script:duplicateCheckState["Title"]) { $keys += $_.Title }
         if ($script:duplicateCheckState["Duration"]) { $keys += $_.Duration }
-        if ($script:duplicateCheckState["CommentUrl"]) { $keys += $_.CommentUrl }
+        
+        # コメント (URL) の処理
+        if ($script:duplicateCheckState["CommentUrl"]) {
+            if ([string]::IsNullOrEmpty($_.CommentUrl)) {
+                # URLが含まれていない場合は、空文字同士で重複判定されないように
+                # ランダムな値をキーに含めて、強制的に別グループ扱いにする
+                $keys += [Guid]::NewGuid().ToString()
+            } else {
+                $keys += $_.CommentUrl
+            }
+        }
+        
         if ($script:duplicateCheckState["Resolution"]) { $keys += $_.Resolution }
         if ($script:duplicateCheckState["RecordedDate"]) { $keys += $_.RecordedDate }
         return ($keys -join "|||")
