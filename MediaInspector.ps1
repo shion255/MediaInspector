@@ -6412,7 +6412,13 @@ function Find-Duplicates {
                 $keys += $_.Title
             }
         }
-        if ($script:duplicateCheckState["Duration"]) { $keys += $_.Duration }
+        if ($script:duplicateCheckState["Duration"]) {
+            if ([string]::IsNullOrEmpty($_.Duration)) {
+                $keys += [Guid]::NewGuid().ToString()
+            } else {
+                $keys += $_.Duration
+            }
+        }
         
         # コメント (URL) の処理
         if ($script:duplicateCheckState["CommentUrl"]) {
@@ -6425,8 +6431,21 @@ function Find-Duplicates {
             }
         }
         
-        if ($script:duplicateCheckState["Resolution"]) { $keys += $_.Resolution }
-        if ($script:duplicateCheckState["RecordedDate"]) { $keys += $_.RecordedDate }
+        if ($script:duplicateCheckState["Resolution"]) {
+            if ([string]::IsNullOrEmpty($_.Resolution)) {
+                $keys += [Guid]::NewGuid().ToString()
+            } else {
+                $keys += $_.Resolution
+            }
+        }
+
+        if ($script:duplicateCheckState["RecordedDate"]) {
+            if ([string]::IsNullOrEmpty($_.RecordedDate)) {
+                $keys += [Guid]::NewGuid().ToString()
+            } else {
+                $keys += $_.RecordedDate
+            }
+        }
         return ($keys -join "|||")
     }
 
