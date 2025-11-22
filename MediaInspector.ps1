@@ -6751,7 +6751,7 @@ function Show-DuplicateResultsList($duplicateGroups) {
 
         # グループ単位でソートを行う
         # グループ内の先頭アイテムの該当カラムの値でグループを比較
-        $sortedGroups = $script:currentDuplicateGroups | Sort-Object {
+        $sortedGroups = @($script:currentDuplicateGroups | Sort-Object {
             $firstItem = $_[0]
             $val = switch ($col) {
                 0 { if ($firstItem.Result.FullPath) { [System.IO.Path]::GetFileName($firstItem.Result.FullPath) } else { $firstItem.Title } }
@@ -6762,7 +6762,7 @@ function Show-DuplicateResultsList($duplicateGroups) {
                 default { "" }
             }
             return $val
-        } -Descending:(-not $script:dupSortAsc)
+        } -Descending:(-not $script:dupSortAsc))
 
         $script:currentDuplicateGroups = $sortedGroups
         # スクリプトブロック呼び出し
