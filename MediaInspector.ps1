@@ -320,7 +320,7 @@ $script:organizerColumnWidth1 = if ($config.OrganizerColumnWidth1) { [int]$confi
 $script:organizerColumnWidth2 = if ($config.OrganizerColumnWidth2) { [int]$config.OrganizerColumnWidth2 } else { 250 }
 $script:organizerColumnWidth3 = if ($config.OrganizerColumnWidth3) { [int]$config.OrganizerColumnWidth3 } else { 150 }
 
-# 重複検出の設定状態を保持する変数（初期値はすべてFalse）
+# 重複検出の設定状態を保持する変数 (初期値はすべてFalse)
 $script:duplicateCheckState = @{
     Title = $false
     Duration = $false
@@ -831,7 +831,7 @@ $optionsItem.Add_Click({
     $fontNameCombo.AutoCompleteSource = "ListItems"
     $fontNameCombo.AutoCompleteMode = "SuggestAppend"
 
-    # フォントを追加（既存のフォントも含める）
+    # フォントを追加 (既存のフォントも含める)
     $fontList = New-Object System.Collections.ArrayList
     foreach ($fontFamily in $fontFamilies) {
         [void]$fontList.Add($fontFamily.Name)
@@ -1600,12 +1600,12 @@ function Show-ResultWindows {
     $windowHeight = 400
     $spacing = 10
     
-    # 作業領域（タスクバーを除いた領域）のサイズを取得
+    # 作業領域 (タスクバーを除いた領域) のサイズを取得
     $workingArea = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea
     $screenWidth = $workingArea.Width
     $screenHeight = $workingArea.Height
     
-    # 横方向に配置できるウィンドウ数を計算（最小マージンを20pxとする）
+    # 横方向に配置できるウィンドウ数を計算 (最小マージンを 20px とする)
     $minMargin = 20
     $columnsPerRow = [math]::Floor(($screenWidth - $minMargin * 2 + $spacing) / ($windowWidth + $spacing))
     if ($columnsPerRow -lt 1) { $columnsPerRow = 1 }
@@ -2222,7 +2222,7 @@ function Show-HistoryDialog {
     $historyForm.ForeColor = $script:fgColor
     
     $historyLabel = New-Object System.Windows.Forms.Label
-    $historyLabel.Text = "履歴から選択してください（ダブルクリックで追加）："
+    $historyLabel.Text = "履歴から選択してください (ダブルクリックで追加)："
     $historyLabel.Location = New-Object System.Drawing.Point(10, 10)
     $historyLabel.Size = New-Object System.Drawing.Size(680, 20)
     $historyLabel.ForeColor = $script:fgColor
@@ -2766,7 +2766,7 @@ function Show-AllResultsList {
     [void]$listView.Columns.Add("解像度", $script:columnWidth2)
     [void]$listView.Columns.Add("フレームレート", $script:columnWidth3)
 
-    # 選択アイテム数を追跡するイベントハンドラー （ListView 作成後に設定）
+    # 選択アイテム数を追跡するイベントハンドラー (ListView 作成後に設定)
     $listView.Add_SelectedIndexChanged({
         $selectedCount = $listView.SelectedItems.Count
         if ($selectedCount -gt 0) {
@@ -3870,7 +3870,7 @@ function Show-FilterDialog {
             return
         }
         
-        # 絞り込み前の状態に戻す（移動・削除されたファイルを除く）
+        # 絞り込み前の状態に戻す (移動・削除されたファイルを除く)
         $lv = $script:analysisListListView
         $lv.Items.Clear()
         
@@ -4209,7 +4209,7 @@ function Show-FileOrganizer {
     [void]$listView.Columns.Add("作成者", $script:organizerColumnWidth2)
     [void]$listView.Columns.Add("サイズ", $script:organizerColumnWidth3)
 
-    # 選択アイテム数を追跡するイベントハンドラー （ListView 作成後に設定）
+    # 選択アイテム数を追跡するイベントハンドラー (ListView 作成後に設定)
     $listView.Add_SelectedIndexChanged({
         $selectedCount = $listView.SelectedItems.Count
         if ($selectedCount -gt 0) {
@@ -5400,7 +5400,7 @@ function Parse-MediaInfoJSON($jsonContent) {
     }
 }
 
-# MediaInfo情報を表示する関数（設定に基づく）
+# MediaInfo情報を表示する関数 (設定に基づく)
 function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
     # 再生時間の日本語表記に変換
     $duration = Convert-DurationToJapanese $parsedInfo.Duration
@@ -5457,7 +5457,7 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         }
     }
     
-    # 映像ストリーム情報（番号付き）
+    # 映像ストリーム情報 (番号付き)
     $videoIndex = 1
     foreach ($v in $parsedInfo.VideoStreams) {
         $videoLine = ""
@@ -5568,7 +5568,7 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         $videoIndex++
     }
     
-    # 音声ストリーム情報（番号付き）
+    # 音声ストリーム情報 (番号付き)
     $audioIndex = 1
     foreach ($a in $parsedInfo.AudioStreams) {
         $audioLine = ""
@@ -5639,7 +5639,7 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         $audioIndex++
     }
     
-    # テキストストリーム情報（番号付き）
+    # テキストストリーム情報 (番号付き)
     if ($script:showTextStream) {
         $textIndex = 1
         foreach ($txt in $parsedInfo.TextStreams) {
@@ -5679,7 +5679,7 @@ function Display-MediaInfo($parsedInfo, [ref]$resultContentRef) {
         }
     }
     
-    # 画像ストリーム情報（番号付き）
+    # 画像ストリーム情報 (番号付き)
     if ($script:showCoverImage) {
         $imageIndex = 1
         foreach ($img in $parsedInfo.ImageStreams) {
@@ -5854,7 +5854,7 @@ function Analyze-Video {
                     }
                     
                     if ($script:showYtDlpFormats) {
-                    # フォーマット一覧を取得（エラー出力も含める）
+                    # フォーマット一覧を取得 (エラー出力も含める)
                     $formatOutput = & $script:ytDlpPath -F "$input" 2>&1
                     
                     if ($formatOutput) {
@@ -5865,7 +5865,7 @@ function Analyze-Video {
                         foreach ($line in $formatOutput) {
                             $lineStr = $line.ToString()
                             
-                            # ヘッダー行を検出（複数パターンに対応）
+                            # ヘッダー行を検出 (複数パターンに対応)
                             if ($lineStr -match 'ID\s+(EXT|EXTENSION).*RESOLUTION' -or 
                                 $lineStr -match '^-+\s+-+\s+-+') {
                                 $parseStarted = $true
@@ -6196,14 +6196,17 @@ function Get-InfoForDuplicateCheck($content, $fullPath) {
         SizeStr = "不明"
     }
 
-    # タイトルの抽出（解析結果のタイトルを使用するため、ここでは処理しないが構造として用意）
+    # タイトルの抽出
+    if ($content -match 'タイトル:\s*(.+)') {
+        $info.Title = $matches[1].Trim()
+    }
 
     # 再生時間
     if ($content -match '再生時間:\s*(.+)') {
         $info.Duration = $matches[1].Trim()
     }
 
-    # コメント（URLのみ抽出）
+    # コメント (URLのみ抽出)
     if ($content -match 'コメント:\s*(.+)') {
         $comment = $matches[1].Trim()
         if ($comment -match 'https?://[^\s]+') {
@@ -6223,7 +6226,7 @@ function Get-InfoForDuplicateCheck($content, $fullPath) {
         $info.RecordedDate = $matches[1].Trim()
     }
 
-    # ファイルサイズ（バイト単位での比較用）
+    # ファイルサイズ (バイト単位での比較用)
     if ($fullPath -and (Test-Path -LiteralPath $fullPath)) {
         try {
             $info.SizeBytes = (Get-Item -LiteralPath $fullPath).Length
@@ -6232,7 +6235,7 @@ function Get-InfoForDuplicateCheck($content, $fullPath) {
             $info.SizeBytes = 0
         }
     } else {
-        # コンテンツからサイズ文字列を探して推測（URL解析などの場合）
+        # コンテンツからサイズ文字列を探して推測 (URL解析などの場合)
         if ($content -match 'Stream size\s*:\s*([\d\.]+)\s*([KMGTP]?i?B)') {
              # 厳密なバイト換算は難しいため、ここでは0とするか、必要なら実装する
              # 要件の「ファイルサイズ」は主にローカルファイルを想定していると思われるため
@@ -6264,7 +6267,7 @@ function Show-DuplicateDetectionDialog {
     $dlg.ForeColor = $script:fgColor
 
     $lbl = New-Object System.Windows.Forms.Label
-    $lbl.Text = "検出する条件を選択してください（AND検索）:"
+    $lbl.Text = "検出する条件を選択してください (AND 検索):"
     $lbl.Location = New-Object System.Drawing.Point(15, 15)
     $lbl.Size = New-Object System.Drawing.Size(350, 20)
     $lbl.ForeColor = $script:fgColor
@@ -6386,7 +6389,7 @@ function Find-Duplicates {
         $extracted = Get-InfoForDuplicateCheck $res.Content $res.FullPath
         $items += [PSCustomObject]@{
             Result = $res
-            Title = $res.Title
+            Title = $extracted.Title
             Duration = $extracted.Duration
             CommentUrl = $extracted.CommentUrl
             Resolution = $extracted.Resolution
@@ -6400,7 +6403,15 @@ function Find-Duplicates {
     # ファイルサイズ以外の条件でまず厳密なグルーピングを行う
     $groups = $items | Group-Object {
         $keys = @()
-        if ($script:duplicateCheckState["Title"]) { $keys += $_.Title }
+        if ($script:duplicateCheckState["Title"]) {
+            if ([string]::IsNullOrEmpty($_.Title)) {
+                # タイトルが空の場合は、空文字同士で重複判定されないように
+                # ランダムな値をキーに含めて、強制的に別グループ扱いにする
+                $keys += [Guid]::NewGuid().ToString()
+            } else {
+                $keys += $_.Title
+            }
+        }
         if ($script:duplicateCheckState["Duration"]) { $keys += $_.Duration }
         
         # コメント (URL) の処理
@@ -6425,7 +6436,7 @@ function Find-Duplicates {
         $candidates = $g.Group
         if ($candidates.Count -lt 2) { continue }
 
-        # ファイルサイズチェック（有効な場合、3MiB以内の差を許容）
+        # ファイルサイズチェック (有効な場合、3MiB以内の差を許容)
         if ($script:duplicateCheckState["FileSize"]) {
             # サイズ順にソート
             $candidates = $candidates | Sort-Object SizeBytes
@@ -6481,7 +6492,7 @@ function Show-DuplicateResultsList($duplicateGroups) {
         $groupIndex = 1
         
         foreach ($group in $groups) {
-            # グループヘッダー行（1行空ける処理は、2グループ目以降の最初に行う）
+            # グループヘッダー行 (1行空ける処理は、2グループ目以降の最初に行う)
             if ($groupIndex -gt 1) {
                 # 空白行
                 $blankItem = New-Object System.Windows.Forms.ListViewItem("")
@@ -6551,7 +6562,7 @@ function Show-DuplicateResultsList($duplicateGroups) {
     $lv.Anchor = "Top,Bottom,Left,Right"
     $lv.MultiSelect = $true
 
-    # 列設定（幅は記憶していればそれを使用、なければデフォルト）
+    # 列設定 (幅は記憶していればそれを使用、なければデフォルト)
     $w1 = if ($script:dupColWidth1) { $script:dupColWidth1 } else { 300 } # ファイル名
     $w2 = if ($script:dupColWidth2) { $script:dupColWidth2 } else { 100 } # 再生時間
     $w3 = if ($script:dupColWidth3) { $script:dupColWidth3 } else { 100 } # 解像度
@@ -6564,7 +6575,7 @@ function Show-DuplicateResultsList($duplicateGroups) {
     [void]$lv.Columns.Add("記録日", $w4)
     [void]$lv.Columns.Add("サイズ", $w5)
 
-    # グローバル変数にリストビューを保存（再利用のため）
+    # グローバル変数にリストビューを保存 (再利用のため)
     $script:duplicateListListView = $lv
 
     # 初回リスト生成
@@ -6718,13 +6729,13 @@ function Show-DuplicateResultsList($duplicateGroups) {
         if ($e.Control -and $e.KeyCode -eq [System.Windows.Forms.Keys]::A) {
             $e.Handled = $true
             foreach ($item in $lv.Items) {
-                # ヘッダーや空行は選択しない（Tagがあるものだけ）
+                # ヘッダーや空行は選択しない (Tagがあるものだけ)
                 if ($item.Tag) { $item.Selected = $true }
             }
         }
     })
 
-    # カラムソート（グループごとソート）
+    # カラムソート (グループごとソート)
     $script:dupSortCol = -1
     $script:dupSortAsc = $true
     
