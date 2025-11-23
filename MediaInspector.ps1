@@ -6754,7 +6754,7 @@ function Show-DuplicateResultsList($duplicateGroups) {
         }
     })
 
-    # カラムソート (グループごとソート)
+    # カラムソート
     $script:dupSortCol = -1
     $script:dupSortAsc = $true
     
@@ -6768,20 +6768,24 @@ function Show-DuplicateResultsList($duplicateGroups) {
             $script:dupSortAsc = $true
         }
 
-        # グループ単位でソートを行う
-        # グループ内の先頭アイテムの該当カラムの値でグループを比較
-        $sortedGroups = @($script:currentDuplicateGroups | Sort-Object {
-            $firstItem = $_[0]
-            $val = switch ($col) {
-                0 { if ($firstItem.Result.FullPath) { [System.IO.Path]::GetFileName($firstItem.Result.FullPath) } else { $firstItem.Title } }
-                1 { $firstItem.Duration }
-                2 { $firstItem.Resolution }
-                3 { $firstItem.RecordedDate }
-                4 { $firstItem.SizeBytes } # サイズは数値でソート
-                default { "" }
-            }
-            return $val
-        } -Descending:(-not $script:dupSortAsc))
+        # グループ内のアイテムをソートする
+        $sortedGroups = @()
+        foreach ($group in $script:currentDuplicateGroups) {
+            $sortedItems = @($group | Sort-Object {
+                $item = $_
+                $val = switch ($col) {
+                    0 { if ($item.Result.FullPath) { [System.IO.Path]::GetFileName($item.Result.FullPath) } else { $item.Title } }
+                    1 { $item.Duration }
+                    2 { $item.Resolution }
+                    3 { $item.RecordedDate }
+                    4 { $item.SizeBytes } # サイズは数値でソート
+                    default { "" }
+                }
+                return $val
+            } -Descending:(-not $script:dupSortAsc))
+            
+            $sortedGroups += ,$sortedItems
+        }
 
         $script:currentDuplicateGroups = $sortedGroups
         # スクリプトブロック呼び出し
